@@ -48,12 +48,7 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
     <section className="panel project-overview-panel">
       <div className="project-overview-layout">
         <section className="project-overview-visual" aria-label="הדמיית הפרויקט">
-          <div className="project-overview-image" style={{ backgroundImage: `url(${project.heroImage})` }}>
-            <div>
-              <span>{project.location}</span>
-              <strong>{project.name}</strong>
-            </div>
-          </div>
+          <div className="project-overview-image" style={{ backgroundImage: `url(${project.heroImage})` }} />
         </section>
 
         <section className="project-overview-copy">

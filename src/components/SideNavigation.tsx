@@ -6,6 +6,8 @@ interface SideNavigationProps {
   onProjects: () => void;
   onReadiness: () => void;
   onAdmin: () => void;
+  canViewReadiness?: boolean;
+  canManageProjects?: boolean;
 }
 
 export function SideNavigation({
@@ -13,6 +15,8 @@ export function SideNavigation({
   onProjects,
   onReadiness,
   onAdmin,
+  canViewReadiness = true,
+  canManageProjects = true,
 }: SideNavigationProps) {
   return (
     <aside className="side-navigation" aria-label="תפריט פנימי">
@@ -22,14 +26,18 @@ export function SideNavigation({
           <Building2 size={24} strokeWidth={1.5} />
           כל הפרויקטים
         </button>
-        <button className={active === "readiness" ? "active" : ""} onClick={onReadiness}>
-          <ClipboardList size={24} strokeWidth={1.5} />
-          מוכנות פרויקטים
-        </button>
-        <button className={active === "admin" ? "active" : ""} onClick={onAdmin}>
-          <LayoutDashboard size={24} strokeWidth={1.5} />
-          ניהול פרויקטים
-        </button>
+        {canViewReadiness && (
+          <button className={active === "readiness" ? "active" : ""} onClick={onReadiness}>
+            <ClipboardList size={24} strokeWidth={1.5} />
+            חוסרים / מוכנות פרויקטים
+          </button>
+        )}
+        {canManageProjects && (
+          <button className={active === "admin" ? "active" : ""} onClick={onAdmin}>
+            <LayoutDashboard size={24} strokeWidth={1.5} />
+            ניהול פרויקטים
+          </button>
+        )}
       </nav>
       <div className="side-navigation__support">
         <strong>צוות מכירות</strong>

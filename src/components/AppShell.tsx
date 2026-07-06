@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Building2, ClipboardList, LayoutDashboard } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, ClipboardList, LayoutDashboard, Send } from "lucide-react";
 import { BrandLogo } from "./BrandLogo";
 import { ProjectLogoSlot } from "./ProjectLogoSlot";
 import type { Project } from "../types";
@@ -11,6 +11,9 @@ interface AppShellProps {
   onProjects: () => void;
   onReadiness: () => void;
   onAdmin: () => void;
+  canViewReadiness?: boolean;
+  canManageProjects?: boolean;
+  onClientShare?: () => void;
   onBack?: () => void;
   onNext?: () => void;
   nextLabel?: string;
@@ -26,6 +29,9 @@ export function AppShell({
   onProjects,
   onReadiness,
   onAdmin,
+  canViewReadiness = true,
+  canManageProjects = true,
+  onClientShare,
   onBack,
   onNext,
   nextLabel = "המשך",
@@ -46,15 +52,25 @@ export function AppShell({
             <ArrowRight size={18} />
             חזרה
           </button>
+          {onClientShare && (
+            <button className="gold-button gold-button--compact client-share-button" onClick={onClientShare}>
+              <Send size={16} />
+              שליחה ללקוח
+            </button>
+          )}
           <button className="icon-button" onClick={onProjects} aria-label="כל הפרויקטים">
             <Building2 size={20} />
           </button>
-          <button className="icon-button" onClick={onReadiness} aria-label="מוכנות פרויקטים">
-            <ClipboardList size={20} />
-          </button>
-          <button className="icon-button" onClick={onAdmin} aria-label="ניהול">
-            <LayoutDashboard size={20} />
-          </button>
+          {canViewReadiness && (
+            <button className="icon-button" onClick={onReadiness} aria-label="חוסרים / מוכנות פרויקטים">
+              <ClipboardList size={20} />
+            </button>
+          )}
+          {canManageProjects && (
+            <button className="icon-button" onClick={onAdmin} aria-label="ניהול פרויקטים">
+              <LayoutDashboard size={20} />
+            </button>
+          )}
         </nav>
       </header>
 

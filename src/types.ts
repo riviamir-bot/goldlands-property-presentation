@@ -10,9 +10,42 @@ export type Screen =
   | "location"
   | "faq"
   | "summary"
+  | "clientPreview"
   | "readiness"
   | "admin"
   | "projectManagement";
+
+export type UserRole = "admin" | "sales";
+
+export interface CurrentUser {
+  id: string;
+  name: string;
+  role: UserRole;
+}
+
+export type ClientShareSectionId =
+  | "overview"
+  | "gallery"
+  | "plans"
+  | "technical"
+  | "location"
+  | "apartments"
+  | "prices";
+
+export type ClientShareExpiry = "24h" | "7d" | "30d";
+
+export interface ClientShareApartmentSelection {
+  apartmentId: string;
+  includePlan: boolean;
+}
+
+export interface ClientShareConfig {
+  sections: Record<ClientShareSectionId, boolean>;
+  selectedApartments: ClientShareApartmentSelection[];
+  showPrice: boolean;
+  expiresIn: ClientShareExpiry;
+  url: string;
+}
 
 export type ApartmentStatus = "available" | "option" | "reserved" | "sold" | "notMarketing";
 
@@ -33,6 +66,7 @@ export interface Project {
   tagline: string;
   description: string;
   logoMark: string;
+  projectLogo: string;
   heroImage: string;
   mainImage?: string;
   keyFacts: string[];

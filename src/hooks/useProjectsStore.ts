@@ -71,6 +71,7 @@ function normalizeProject(project: Project): Project {
 
   return {
     ...project,
+    projectLogo: project.projectLogo ?? "",
     mainImage: project.mainImage ?? legacyThumbnail ?? project.heroImage,
     googleMapsUrl: project.googleMapsUrl || makeMapsUrl(project.address, project.city),
     googleMapsEmbedUrl: makeMapsEmbedUrl(project.address, project.city),
@@ -137,6 +138,7 @@ export function useProjectsStore() {
             tagline: input.tagline,
             description: input.tagline,
             logoMark: makeLogoMark(input.name),
+            projectLogo: "",
             mainImage: "",
             location: `${input.neighborhood}, ${input.city}`,
             keyFacts: ["טיוטת פרויקט", "ממתין לחומרים", "תוכן דמו"],

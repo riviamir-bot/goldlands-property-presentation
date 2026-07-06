@@ -9,6 +9,8 @@ interface ProjectReadinessScreenProps {
   onProjects: () => void;
   onAdmin: () => void;
   onOpenProject: (projectId: string) => void;
+  canViewReadiness?: boolean;
+  canManageProjects?: boolean;
 }
 
 function getProject(projects: Project[], projectId: string) {
@@ -26,6 +28,8 @@ export function ProjectReadinessScreen({
   onProjects,
   onAdmin,
   onOpenProject,
+  canViewReadiness = true,
+  canManageProjects = true,
 }: ProjectReadinessScreenProps) {
   const averageReadiness = Math.round(
     readinessItems.reduce((total, item) => total + item.readinessPercentage, 0) /
@@ -43,6 +47,8 @@ export function ProjectReadinessScreen({
         onProjects={onProjects}
         onReadiness={() => undefined}
         onAdmin={onAdmin}
+        canViewReadiness={canViewReadiness}
+        canManageProjects={canManageProjects}
       />
 
       <main className="management-main readiness-screen">

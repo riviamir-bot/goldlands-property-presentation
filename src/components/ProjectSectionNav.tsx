@@ -22,7 +22,7 @@ export const projectSectionScreens: Screen[] = [
 ];
 
 const sections = [
-  { title: "סקירת פרויקט", screen: "opening", icon: Landmark },
+  { title: "תצוגת פרויקט", screen: "opening", icon: Landmark },
   { title: "דירות פנויות", screen: "apartments", icon: Home },
   { title: "מחירון", screen: "prices", icon: FileText },
   { title: "הדמיות", screen: "gallery", icon: Images },

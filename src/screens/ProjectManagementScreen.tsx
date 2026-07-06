@@ -14,6 +14,8 @@ interface ProjectManagementScreenProps {
   onAddProject: (project: AddProjectInput) => void;
   onDeleteProject: (projectId: string) => void;
   onResetDemoData: () => void;
+  canViewReadiness?: boolean;
+  canManageProjects?: boolean;
 }
 
 function getReadiness(readinessItems: ProjectReadiness[], projectId: string) {
@@ -35,6 +37,8 @@ export function ProjectManagementScreen({
   onAddProject,
   onDeleteProject,
   onResetDemoData,
+  canViewReadiness = true,
+  canManageProjects = true,
 }: ProjectManagementScreenProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
@@ -64,6 +68,8 @@ export function ProjectManagementScreen({
         onProjects={onProjects}
         onReadiness={onReadiness}
         onAdmin={() => undefined}
+        canViewReadiness={canViewReadiness}
+        canManageProjects={canManageProjects}
       />
 
       <main className="management-main project-management-screen">
@@ -72,17 +78,19 @@ export function ProjectManagementScreen({
             <span className="eyebrow">חומרי פרויקט</span>
             <h1>ניהול פרויקטים</h1>
           </div>
-          <div className="management-title-actions">
-            {successMessage && <span className="save-success">{successMessage}</span>}
-            <button className="ghost-button ghost-button--compact" onClick={onResetDemoData} type="button">
-              <RotateCcw size={16} />
-              איפוס נתוני דמו
-            </button>
-            <button className="gold-button gold-button--compact" onClick={() => setIsAddOpen(true)} type="button">
-              <Plus size={16} />
-              הוספת פרויקט
-            </button>
-          </div>
+          {canManageProjects && (
+            <div className="management-title-actions">
+              {successMessage && <span className="save-success">{successMessage}</span>}
+              <button className="ghost-button ghost-button--compact" onClick={onResetDemoData} type="button">
+                <RotateCcw size={16} />
+                איפוס נתוני דמו
+              </button>
+              <button className="gold-button gold-button--compact" onClick={() => setIsAddOpen(true)} type="button">
+                <Plus size={16} />
+                הוספת פרויקט
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="management-list" aria-label="רשימת ניהול פרויקטים">
@@ -92,28 +100,35 @@ export function ProjectManagementScreen({
 
             return (
               <article className="management-row" key={project.id}>
-                <button className="management-row__project" onClick={() => onEditProject(project.id)}>
+                <button
+                  className="management-row__project"
+                  onClick={() => (canManageProjects ? onEditProject(project.id) : onOpenProject(project.id))}
+                >
                   <strong>{project.name}</strong>
                   <span>{readiness?.city ?? project.location}</span>
                 </button>
                 <div className="management-row__actions">
-                  <button className="gold-button" onClick={() => onEditProject(project.id)}>
-                    עריכה
-                    <FilePenLine size={16} />
-                  </button>
+                  {canManageProjects && (
+                    <button className="gold-button" onClick={() => onEditProject(project.id)}>
+                      עריכה
+                      <FilePenLine size={16} />
+                    </button>
+                  )}
                   <button className="mini-button" onClick={() => onOpenProject(project.id)}>
                     <Play size={15} />
                     פתיחה
                   </button>
-                  <button
-                    className="mini-button mini-button--danger"
-                    disabled={projects.length <= 1}
-                    onClick={() => setDeleteProjectId(project.id)}
-                    type="button"
-                  >
-                    <Trash2 size={15} />
-                    מחיקה
-                  </button>
+                  {canManageProjects && (
+                    <button
+                      className="mini-button mini-button--danger"
+                      disabled={projects.length <= 1}
+                      onClick={() => setDeleteProjectId(project.id)}
+                      type="button"
+                    >
+                      <Trash2 size={15} />
+                      מחיקה
+                    </button>
+                  )}
                 </div>
                 <span className="management-row__status">{readiness?.marketingStatus ?? "טיוטה"}</span>
                 <div className="management-row__readiness">

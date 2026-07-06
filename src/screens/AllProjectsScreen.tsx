@@ -8,6 +8,8 @@ interface AllProjectsScreenProps {
   onSelect: (projectId: string) => void;
   onReadiness: () => void;
   onAdmin: () => void;
+  canViewReadiness?: boolean;
+  canManageProjects?: boolean;
 }
 
 export function AllProjectsScreen({
@@ -15,6 +17,8 @@ export function AllProjectsScreen({
   onSelect,
   onReadiness,
   onAdmin,
+  canViewReadiness = true,
+  canManageProjects = true,
 }: AllProjectsScreenProps) {
   return (
     <div className="management-layout">
@@ -23,6 +27,8 @@ export function AllProjectsScreen({
         onProjects={() => undefined}
         onReadiness={onReadiness}
         onAdmin={onAdmin}
+        canViewReadiness={canViewReadiness}
+        canManageProjects={canManageProjects}
       />
 
       <main className="management-main">
@@ -51,7 +57,7 @@ export function AllProjectsScreen({
                       <strong>{project.logoMark}</strong>
                     </div>
                   )}
-                  <ProjectLogoSlot project={project} />
+                  <ProjectLogoSlot project={project} compact markOnly />
                 </div>
                 <div className="project-card__body">
                   <div className="project-card__meta-row">
@@ -74,13 +80,15 @@ export function AllProjectsScreen({
           })}
         </section>
 
-        <button className="admin-card" onClick={onAdmin}>
-          <Building2 size={28} />
-          <span>
-            <strong>מסך ניהול</strong>
-            <small>תשתית עתידית לניהול פרויקטים ותוכן</small>
-          </span>
-        </button>
+        {canManageProjects && (
+          <button className="admin-card" onClick={onAdmin}>
+            <Building2 size={28} />
+            <span>
+              <strong>מסך ניהול</strong>
+              <small>תשתית עתידית לניהול פרויקטים ותוכן</small>
+            </span>
+          </button>
+        )}
       </main>
     </div>
   );

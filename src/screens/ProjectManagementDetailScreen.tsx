@@ -33,11 +33,13 @@ interface ProjectManagementDetailScreenProps {
     readinessPatch?: Partial<ProjectReadiness>,
   ) => void;
   onUpdateApartment: (apartmentId: string, patch: Partial<Apartment>) => void;
+  canViewReadiness?: boolean;
+  canManageProjects?: boolean;
 }
 
 type SectionStatus = "missing" | "partial" | "complete";
 type SectionKind = "data" | "file" | "mixed";
-type PanelMode = "manual" | "upload";
+type PanelMode = "manual" | "upload" | "preview";
 
 interface ManualField {
   label: string;
@@ -65,6 +67,7 @@ interface ProjectDetailsFormState {
   neighborhood: string;
   marketingStatus: string;
   projectType: string;
+  projectLogo: string;
   tagline: string;
   description: string;
   existingApartments: string;
@@ -92,6 +95,7 @@ interface ProjectDetailField {
   options?: Array<{ label: string; value: string }>;
   wide?: boolean;
   dir?: "rtl" | "ltr";
+  placeholder?: string;
 }
 
 const statusLabels: Record<SectionStatus, string> = {
@@ -158,6 +162,7 @@ function makeProjectDetailsFormState(
     neighborhood: project.neighborhood,
     marketingStatus: readiness?.marketingStatus ?? "טיוטה",
     projectType: project.projectType,
+    projectLogo: project.projectLogo ?? "",
     tagline: project.tagline,
     description: project.description,
     existingApartments: project.stats.existingApartments,
@@ -312,6 +317,8 @@ export function ProjectManagementDetailScreen({
   onOpenProject,
   onUpdateProject,
   onUpdateApartment,
+  canViewReadiness = true,
+  canManageProjects = true,
 }: ProjectManagementDetailScreenProps) {
   const [activePanel, setActivePanel] = useState<{ id: string; mode: PanelMode } | null>(null);
   const [selectedInventoryApartmentId, setSelectedInventoryApartmentId] = useState<string | null>(
@@ -333,6 +340,7 @@ export function ProjectManagementDetailScreen({
         { label: "כתובת", value: project.address },
         { label: "שכונה", value: project.neighborhood },
         { label: "סוג פרויקט", value: project.projectType },
+        { label: "לוגו פרויקט", value: project.projectLogo || "טרם הוגדר" },
         { label: "סטטוס שיווקי", value: readiness?.marketingStatus ?? "פעיל" },
         { label: "משפט שיווקי קצר", value: project.tagline },
         {
@@ -345,6 +353,14 @@ export function ProjectManagementDetailScreen({
         { label: "דירות קיימות", value: project.stats.existingApartments },
         { label: "דירות חדשות", value: project.stats.newApartments },
         { label: "צפי אכלוס", value: project.stats.occupancy },
+      ],
+      logo: [
+        { label: "projectLogo URL / path", value: project.projectLogo },
+        {
+          label: "הערת דמו",
+          value: "בהמשך כאן יועלה לוגו הפרויקט שיופיע בכרטיס הפרויקט ובכל מסכי התצוגה.",
+          multiline: true,
+        },
       ],
       inventory: [
         { label: "מספר דירה", value: apartment?.number ?? "401" },
@@ -396,11 +412,25 @@ export function ProjectManagementDetailScreen({
       ],
     };
 
-    return materialBlueprints.map((section) => ({
-      ...section,
-      lastUpdated: section.lastUpdated ?? readiness?.lastUpdated ?? "לא עודכן",
-      fields: manualFields[section.id] ?? fileMetadataFields,
-    }));
+    return materialBlueprints.map((section) => {
+      if (section.id === "logo") {
+        return {
+          ...section,
+          status: project.projectLogo ? "complete" : "missing",
+          summary: project.projectLogo
+            ? "לוגו פרויקט הוגדר ונשמר מקומית."
+            : "מקום שמור ללוגו הפרויקט, ללא קובץ אמיתי כרגע.",
+          lastUpdated: project.projectLogo ? readiness?.lastUpdated ?? "עודכן מקומית" : "לא עודכן",
+          fields: manualFields[section.id] ?? fileMetadataFields,
+        };
+      }
+
+      return {
+        ...section,
+        lastUpdated: section.lastUpdated ?? readiness?.lastUpdated ?? "לא עודכן",
+        fields: manualFields[section.id] ?? fileMetadataFields,
+      };
+    });
   }, [apartments, project, readiness]);
 
   const panelSection = activePanel
@@ -411,7 +441,9 @@ export function ProjectManagementDetailScreen({
       ? "project-details-form"
       : activePanel?.mode === "manual" && panelSection?.id === "inventory"
         ? "inventory-detail-form"
-        : undefined;
+        : activePanel?.mode === "manual" && panelSection?.id === "logo"
+          ? "project-logo-form"
+          : undefined;
   const projectDetailFields: ProjectDetailField[] = [
     { label: "שם פרויקט", name: "name", value: projectDetailsForm.name },
     { label: "עיר", name: "city", value: projectDetailsForm.city },
@@ -427,6 +459,14 @@ export function ProjectManagementDetailScreen({
       name: "projectType",
       value: projectDetailsForm.projectType,
       options: projectTypeOptions.map((value) => ({ label: value, value })),
+    },
+    {
+      label: "projectLogo URL / path",
+      name: "projectLogo",
+      value: projectDetailsForm.projectLogo,
+      wide: true,
+      dir: "ltr",
+      placeholder: "לדוגמה: /assets/project-logo.png או URL דמו",
     },
     { label: "משפט שיווקי קצר", name: "tagline", value: projectDetailsForm.tagline, multiline: true },
     { label: "תיאור פרויקט", name: "description", value: projectDetailsForm.description, multiline: true },
@@ -503,7 +543,7 @@ export function ProjectManagementDetailScreen({
   };
 
   const openPanel = (id: string, mode: PanelMode) => {
-    if (id === "details" && mode === "manual") {
+    if ((id === "details" || id === "logo") && mode === "manual") {
       setProjectDetailsForm(makeProjectDetailsFormState(project, readiness));
     }
     if (id === "inventory" && !selectedInventoryApartmentId) {
@@ -522,6 +562,7 @@ export function ProjectManagementDetailScreen({
       neighborhood: projectDetailsForm.neighborhood.trim(),
       marketingStatus: projectDetailsForm.marketingStatus.trim(),
       projectType: projectDetailsForm.projectType.trim(),
+      projectLogo: projectDetailsForm.projectLogo.trim(),
       tagline: projectDetailsForm.tagline.trim(),
       description: projectDetailsForm.description.trim(),
       existingApartments: projectDetailsForm.existingApartments.trim(),
@@ -559,6 +600,7 @@ export function ProjectManagementDetailScreen({
         googleMapsUrl,
         googleMapsEmbedUrl,
         projectType,
+        projectLogo: values.projectLogo,
         tagline: values.tagline,
         description: values.description,
         logoMark: makeLogoMark(values.name),
@@ -593,6 +635,16 @@ export function ProjectManagementDetailScreen({
     setSuccessMessage("נשמר בהצלחה");
   };
 
+  const handleProjectLogoSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const projectLogo = getFormValue(formData, "projectLogo");
+
+    onUpdateProject(project.id, { projectLogo });
+    setProjectDetailsForm((current) => ({ ...current, projectLogo }));
+    setSuccessMessage("לוגו הפרויקט נשמר מקומית");
+  };
+
   const handleApartmentSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedInventoryApartment) return;
@@ -617,6 +669,19 @@ export function ProjectManagementDetailScreen({
     setSuccessMessage("נשמר בהצלחה");
   };
 
+  const activePanelModeLabel =
+    activePanel?.mode === "manual"
+      ? "עריכה ידנית"
+      : activePanel?.mode === "preview"
+        ? "תצוגה מקדימה"
+        : "ייבוא / העלאה";
+  const activePanelTitle =
+    activePanel?.mode === "manual"
+      ? `עריכת ${panelSection?.title}`
+      : activePanel?.mode === "preview"
+        ? `תצוגה מקדימה: ${panelSection?.title}`
+        : `ייבוא ${panelSection?.title}`;
+
   return (
     <div className="management-layout">
       <SideNavigation
@@ -624,6 +689,8 @@ export function ProjectManagementDetailScreen({
         onProjects={onProjects}
         onReadiness={onReadiness}
         onAdmin={onAdmin}
+        canViewReadiness={canViewReadiness}
+        canManageProjects={canManageProjects}
       />
 
       <main className="management-main project-detail-screen">
@@ -650,15 +717,13 @@ export function ProjectManagementDetailScreen({
               className="material-modal"
               role="dialog"
               aria-modal="true"
-              aria-label={activePanel.mode === "manual" ? `עריכת ${panelSection.title}` : `ייבוא ${panelSection.title}`}
+              aria-label={activePanelTitle}
               onClick={(event) => event.stopPropagation()}
             >
               <header className="material-modal__header">
                 <div>
-                  <span className="eyebrow">
-                    {activePanel.mode === "manual" ? "עריכה ידנית" : "ייבוא / העלאה"}
-                  </span>
-                  <h2>{activePanel.mode === "manual" ? `עריכת ${panelSection.title}` : `ייבוא ${panelSection.title}`}</h2>
+                  <span className="eyebrow">{activePanelModeLabel}</span>
+                  <h2>{activePanelTitle}</h2>
                 </div>
                 <button className="ghost-button ghost-button--compact" onClick={() => setActivePanel(null)} type="button">
                   ביטול
@@ -706,12 +771,29 @@ export function ProjectManagementDetailScreen({
                               dir={field.dir}
                               name={field.name}
                               onChange={handleProjectDetailsFieldChange}
+                              placeholder={field.placeholder}
                               value={field.value}
                             />
                           )}
                         </label>
                       ))}
                     </form>
+                  ) : panelSection.id === "logo" ? (
+                    <div className="project-logo-editor">
+                      <ProjectLogoSlot project={{ ...project, projectLogo: projectDetailsForm.projectLogo }} />
+                      <form className="mock-field-grid" id="project-logo-form" onSubmit={handleProjectLogoSubmit}>
+                        <label className="mock-field mock-field--wide">
+                          <span>projectLogo URL / path</span>
+                          <input
+                            dir="ltr"
+                            name="projectLogo"
+                            onChange={handleProjectDetailsFieldChange}
+                            placeholder="לדוגמה: /assets/project-logo.png או URL דמו"
+                            value={projectDetailsForm.projectLogo}
+                          />
+                        </label>
+                      </form>
+                    </div>
                   ) : panelSection.id === "inventory" ? (
                     <div className="inventory-editor">
                       <div className="inventory-editor__note">
@@ -827,21 +909,46 @@ export function ProjectManagementDetailScreen({
                       ))}
                     </div>
                   )}
-                  <p className="material-modal__note">בשלב זה מדובר בהדמיה בלבד</p>
+                  <p className="material-modal__note">
+                    {panelSection.id === "logo"
+                      ? "בהמשך כאן יועלה לוגו הפרויקט שיופיע בכרטיס הפרויקט ובכל מסכי התצוגה."
+                      : "בשלב זה מדובר בהדמיה בלבד"}
+                  </p>
                 </>
+              ) : activePanel.mode === "preview" ? (
+                <div className="project-logo-editor project-logo-editor--preview">
+                  {panelSection.id === "logo" ? (
+                    <>
+                      <ProjectLogoSlot project={project} />
+                      <p className="material-modal__note">
+                        כך לוגו הפרויקט יוצג בכרטיס הפרויקט, במסכי התצוגה ובתצוגת הלקוח.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="material-modal__note">תצוגה מקדימה מקומית עבור {panelSection.title}.</p>
+                  )}
+                </div>
               ) : (
                 <>
                   <div className="mock-upload-panel">
                     <UploadCloud size={34} strokeWidth={1.5} />
                     <div>
                       <strong>גרירת קבצים לכאן</strong>
-                      <p>אזור דמו להעלאת קבצים או ייבוא חומרים עבור {panelSection.title}.</p>
+                      <p>
+                        {panelSection.id === "logo"
+                          ? "בהמשך כאן יועלה לוגו הפרויקט שיופיע בכרטיס הפרויקט ובכל מסכי התצוגה."
+                          : `אזור דמו להעלאת קבצים או ייבוא חומרים עבור ${panelSection.title}.`}
+                      </p>
                     </div>
                     <button className="gold-button gold-button--compact" type="button">
                       בחירת קבצים
                     </button>
                   </div>
-                  <p className="material-modal__note">בשלב זה מדובר בהדמיה בלבד</p>
+                  <p className="material-modal__note">
+                    {panelSection.id === "logo"
+                      ? "בהמשך כאן יועלה לוגו הפרויקט שיופיע בכרטיס הפרויקט ובכל מסכי התצוגה."
+                      : "בשלב זה מדובר בהדמיה בלבד"}
+                  </p>
                 </>
               )}
 
@@ -914,7 +1021,11 @@ export function ProjectManagementDetailScreen({
                             <UploadCloud size={14} />
                             ייבוא / העלאה
                           </button>
-                          <button className="mini-button mini-button--ghost" type="button">
+                          <button
+                            className="mini-button mini-button--ghost"
+                            onClick={() => openPanel(section.id, "preview")}
+                            type="button"
+                          >
                             <FileText size={14} />
                             תצוגה מקדימה
                           </button>
