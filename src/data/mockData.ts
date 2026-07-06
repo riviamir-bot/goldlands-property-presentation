@@ -26,6 +26,7 @@ export const projects: Project[] = [
     description: "פרויקט יוקרה במיקום עירוני מבוקש, עם תכנון מוקפד, לובי מרשים ותמהיל דירות מגוון.",
     logoMark: "GT",
     heroImage: exteriorNight,
+    mainImage: exteriorNight,
     keyFacts: ["32 קומות", "124 דירות", "לובי פרטי", "חניה תת קרקעית"],
     stats: {
       floors: "32",
@@ -60,6 +61,7 @@ export const projects: Project[] = [
     description: "מתחם מגורים שקט בסביבה ירוקה, עם מרפסות גדולות ונגישות גבוהה לשירותים קהילתיים.",
     logoMark: "VP",
     heroImage: surroundings,
+    mainImage: surroundings,
     keyFacts: ["21 קומות", "88 דירות", "צמוד לפארק", "מרפסות גדולות"],
     stats: {
       floors: "21",
@@ -94,6 +96,7 @@ export const projects: Project[] = [
     description: "פרויקט חוף מוקפד עם דגש על אור טבעי, נוף פתוח וחוויית מגורים רגועה ליד הים.",
     logoMark: "SS",
     heroImage: exteriorNight,
+    mainImage: surroundings,
     keyFacts: ["28 קומות", "96 דירות", "נוף לים", "מועדון דיירים"],
     stats: {
       floors: "28",
@@ -128,6 +131,7 @@ export const projects: Project[] = [
     description: "התחדשות עירונית בשכונה משפחתית, עם דירות חדשות, חניה, מחסנים ופיתוח סביבתי.",
     logoMark: "GC",
     heroImage: surroundings,
+    mainImage: lobby,
     keyFacts: ["18 קומות", "72 דירות", "גינות משותפות", "קרוב לרכבת הקלה"],
     stats: {
       floors: "18",
@@ -162,6 +166,7 @@ export const projects: Project[] = [
     description: "פרויקט אינטימי מול נוף פתוח, המשלב שדרוג מבנה קיים עם תוספת דירות חדשות.",
     logoMark: "HV",
     heroImage: interiorLiving,
+    mainImage: interiorLiving,
     keyFacts: ["16 קומות", "64 דירות", "נוף פתוח", "מפרט שקט"],
     stats: {
       floors: "16",
@@ -196,6 +201,7 @@ export const projects: Project[] = [
     description: "פרויקט עירוני במתחם מתחדש, קרוב לצירי תנועה, מסחר, משרדים וחיי העיר.",
     logoMark: "NT",
     heroImage: lobby,
+    mainImage: exteriorNight,
     keyFacts: ["24 קומות", "110 דירות", "עירוב שימושים", "לובי עסקים"],
     stats: {
       floors: "24",

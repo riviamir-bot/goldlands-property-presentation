@@ -34,6 +34,7 @@ export interface Project {
   description: string;
   logoMark: string;
   heroImage: string;
+  mainImage?: string;
   keyFacts: string[];
   stats: {
     floors: string;

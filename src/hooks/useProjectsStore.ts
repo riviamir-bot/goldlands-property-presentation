@@ -67,8 +67,11 @@ function makeMapsEmbedUrl(address: string, city: string) {
 }
 
 function normalizeProject(project: Project): Project {
+  const legacyThumbnail = (project as Project & { thumbnailImage?: string }).thumbnailImage;
+
   return {
     ...project,
+    mainImage: project.mainImage ?? legacyThumbnail ?? project.heroImage,
     googleMapsUrl: project.googleMapsUrl || makeMapsUrl(project.address, project.city),
     googleMapsEmbedUrl: makeMapsEmbedUrl(project.address, project.city),
   };
@@ -134,6 +137,7 @@ export function useProjectsStore() {
             tagline: input.tagline,
             description: input.tagline,
             logoMark: makeLogoMark(input.name),
+            mainImage: "",
             location: `${input.neighborhood}, ${input.city}`,
             keyFacts: ["טיוטת פרויקט", "ממתין לחומרים", "תוכן דמו"],
             stats: {

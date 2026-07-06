@@ -32,26 +32,46 @@ export function AllProjectsScreen({
         </section>
 
         <section className="projects-grid" aria-label="פרויקטים">
-          {projects.map((project) => (
-            <button className="project-card" key={project.id} onClick={() => onSelect(project.id)}>
-              <div className="project-card__image" style={{ backgroundImage: `url(${project.heroImage})` }}>
-                <ProjectLogoSlot project={project} />
-              </div>
-              <div className="project-card__body">
-                <span className="project-card__meta">
-                  <MapPin size={16} />
-                  {project.location}
-                </span>
-                <h2>{project.name}</h2>
-                <p>{project.tagline}</p>
-                <div className="project-card__facts">
-                  {project.keyFacts.slice(0, 3).map((fact) => (
-                    <span key={fact}>{fact}</span>
-                  ))}
+          {projects.map((project) => {
+            const mainImage = project.mainImage?.trim();
+
+            return (
+              <button
+                className={mainImage ? "project-card" : "project-card project-card--placeholder"}
+                key={project.id}
+                onClick={() => onSelect(project.id)}
+              >
+                <div
+                  className="project-card__image"
+                  style={mainImage ? { backgroundImage: `url(${mainImage})` } : undefined}
+                >
+                  {!mainImage && (
+                    <div className="project-card__placeholder" aria-hidden="true">
+                      <Building2 size={26} />
+                      <strong>{project.logoMark}</strong>
+                    </div>
+                  )}
+                  <ProjectLogoSlot project={project} />
                 </div>
-              </div>
-            </button>
-          ))}
+                <div className="project-card__body">
+                  <div className="project-card__meta-row">
+                    <span className="project-card__meta">
+                      <MapPin size={16} />
+                      {project.location}
+                    </span>
+                    <span className="project-card__type">{project.projectType}</span>
+                  </div>
+                  <h2>{project.name}</h2>
+                  <p>{project.tagline}</p>
+                  <div className="project-card__facts">
+                    {project.keyFacts.slice(0, 3).map((fact) => (
+                      <span key={fact}>{fact}</span>
+                    ))}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </section>
 
         <button className="admin-card" onClick={onAdmin}>
