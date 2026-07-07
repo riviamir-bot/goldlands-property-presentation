@@ -1,6 +1,6 @@
 # Supabase Setup
 
-This project is still running on local React state and localStorage. The Supabase files in this milestone prepare the next integration step, but the app does not require Supabase credentials yet.
+This project keeps localStorage as its reliable fallback while optionally using Supabase Auth, profiles, projects, and apartments when Supabase environment variables are configured.
 
 ## Create A Supabase Project
 
@@ -57,6 +57,46 @@ The seed is idempotent. It upserts the current demo rows in:
 
 It does not seed storage, uploads, documents, images, auth users, or profile roles.
 
+## Create The First Admin User
+
+This milestone uses Supabase Auth email/password login and reads the matching row from `profiles`.
+
+1. Open Supabase Dashboard.
+2. Go to Authentication -> Users.
+3. Click Add user.
+4. Create the first user with email and password.
+5. Copy that user's UUID from the Users table.
+
+The migration trigger creates new profiles with the default `sales` role. To make the first user an admin, open SQL Editor and run:
+
+```sql
+update public.profiles
+set
+  full_name = 'GOLDLANDS Admin',
+  role = 'admin',
+  is_active = true
+where id = 'paste-auth-user-uuid-here';
+```
+
+If the profile row was not created yet, insert it manually:
+
+```sql
+insert into public.profiles (id, full_name, role, is_active)
+values ('paste-auth-user-uuid-here', 'GOLDLANDS Admin', 'admin', true)
+on conflict (id) do update set
+  full_name = excluded.full_name,
+  role = excluded.role,
+  is_active = excluded.is_active;
+```
+
+Supported profile roles:
+
+- `admin`: can view project management, readiness/missing materials, and add/edit/delete project data.
+- `sales`: can view project presentation screens only.
+- `viewer`: read-only presentation access.
+
+Never place `service_role`, `secret`, or `sb_secret_...` keys in `.env`, Vercel frontend environment variables, or any Vite variable. The browser must only use the Supabase Project URL and anon/publishable key.
+
 ## Tables
 
 - `profiles`: application profile for each Supabase Auth user, including `admin`, `sales`, or `viewer` role.
@@ -103,14 +143,24 @@ Runtime behavior:
 
 1. The app starts immediately from localStorage.
 2. If localStorage is empty or invalid, it falls back to `mockData`.
-3. If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` exist, the app tries to read `projects` and `apartments` from Supabase in the background.
-4. If Supabase returns valid non-empty project data, that state is used and cached back to localStorage.
-5. If Supabase is unavailable, blocked by RLS, or empty, the app keeps using localStorage/mockData.
-6. Project and apartment edits save to localStorage immediately.
-7. When Supabase has been successfully loaded, the app also tries to write project and apartment edits to Supabase.
-8. If a Supabase write fails, the local edit remains and the app logs a warning.
+3. If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` exist, users can log in with Supabase Auth email/password.
+4. After login, the app reads the matching `profiles` row to detect the user's role.
+5. After a real profile is loaded, the app retries reading `projects` and `apartments` from Supabase.
+6. If Supabase returns valid non-empty project data, that state is used and cached back to localStorage.
+7. If Supabase is unavailable, blocked by RLS, or empty, the app keeps using localStorage/mockData.
+8. Project and apartment edits save to localStorage immediately.
+9. When Supabase has been successfully loaded, the app also tries to write project and apartment edits to Supabase.
+10. If a Supabase write fails, the local edit remains and the app logs a warning.
 
-Because full Supabase Auth is not wired yet, RLS may block browser reads or writes even when tables exist and env vars are configured. That is expected for this milestone. Do not expose `service_role`, `secret`, or `sb_secret_...` keys in the browser to bypass RLS.
+If Supabase env vars are missing or Auth/profile loading is unavailable, the login screen offers local demo mode. Demo mode uses the local admin fallback user and does not attempt Supabase project writes.
+
+Legacy fallback behavior still applies:
+
+1. If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are missing, `src/lib/supabaseClient.ts` exports `supabase = null`.
+2. The app remains usable with mock/localStorage project data.
+3. No service role or backend-only key is required in the frontend.
+
+RLS remains enabled. Browser reads/writes are allowed only when the authenticated user's profile role satisfies the existing RLS policies.
 
 The repository files are:
 

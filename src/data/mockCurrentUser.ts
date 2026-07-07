@@ -1,12 +1,13 @@
 import type { CurrentUser, Screen } from "../types";
 
-export const currentUser: CurrentUser = {
+export const demoCurrentUser: CurrentUser = {
   id: "mock-admin",
   name: "משתמש דמו",
   role: "admin",
+  email: "demo@goldlands.local",
 };
 
-const salesAllowedScreens = new Set<Screen>([
+const presentationAllowedScreens = new Set<Screen>([
   "login",
   "projects",
   "opening",
@@ -19,16 +20,18 @@ const salesAllowedScreens = new Set<Screen>([
   "clientPreview",
 ]);
 
-export function canManageProjects(user: CurrentUser) {
-  return user.role === "admin";
+export function canManageProjects(user?: CurrentUser | null) {
+  return user?.role === "admin";
 }
 
-export function canViewProjectReadiness(user: CurrentUser) {
-  return user.role === "admin";
+export function canViewProjectReadiness(user?: CurrentUser | null) {
+  return user?.role === "admin";
 }
 
-export function canAccessScreen(user: CurrentUser, screen: Screen) {
+export function canAccessScreen(user: CurrentUser | null | undefined, screen: Screen) {
+  if (screen === "login") return true;
+  if (!user) return false;
   if (user.role === "admin") return true;
 
-  return salesAllowedScreens.has(screen);
+  return presentationAllowedScreens.has(screen);
 }

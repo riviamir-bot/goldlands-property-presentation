@@ -15,12 +15,13 @@ export type Screen =
   | "admin"
   | "projectManagement";
 
-export type UserRole = "admin" | "sales";
+export type UserRole = "admin" | "sales" | "viewer";
 
 export interface CurrentUser {
   id: string;
   name: string;
   role: UserRole;
+  email?: string;
 }
 
 export type ClientShareSectionId =

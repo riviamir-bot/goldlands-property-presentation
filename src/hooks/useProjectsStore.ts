@@ -12,6 +12,11 @@ import type { Apartment, Project, ProjectReadiness } from "../types";
 
 export type { AddProjectInput } from "../services/projectsRepository";
 
+interface UseProjectsStoreOptions {
+  canUseSupabase?: boolean;
+  supabaseRetryKey?: string;
+}
+
 function hasUsableRemoteState(state: ProjectsRepositoryState) {
   return Array.isArray(state.projects) && state.projects.length > 0 && Array.isArray(state.apartments);
 }
@@ -61,7 +66,10 @@ function warnAndContinue(message: string, error: unknown) {
   console.warn(`[GOLDLANDS] ${message}. Continuing with localStorage fallback.`, error);
 }
 
-export function useProjectsStore() {
+export function useProjectsStore({
+  canUseSupabase = isSupabaseConfigured,
+  supabaseRetryKey = "initial",
+}: UseProjectsStoreOptions = {}) {
   const [state, setState] = useState<ProjectsRepositoryState>(() => readLocalProjectsState());
   const supabaseWritesEnabledRef = useRef(false);
 
@@ -103,7 +111,10 @@ export function useProjectsStore() {
   );
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return undefined;
+    if (!isSupabaseConfigured || !canUseSupabase) {
+      supabaseWritesEnabledRef.current = false;
+      return undefined;
+    }
 
     let isCancelled = false;
 
@@ -129,7 +140,7 @@ export function useProjectsStore() {
     return () => {
       isCancelled = true;
     };
-  }, [applyRemoteState]);
+  }, [applyRemoteState, canUseSupabase, supabaseRetryKey]);
 
   const actions = useMemo(
     () => ({

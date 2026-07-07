@@ -6,8 +6,8 @@ import {
   canAccessScreen,
   canManageProjects,
   canViewProjectReadiness,
-  currentUser,
 } from "./data/mockCurrentUser";
+import { useAuthProfile } from "./hooks/useAuthProfile";
 import { useProjectsStore } from "./hooks/useProjectsStore";
 import { AllProjectsScreen } from "./screens/AllProjectsScreen";
 import { ApartmentsScreen } from "./screens/ApartmentsScreen";
@@ -78,6 +78,13 @@ function makeDefaultShareConfig(availableApartments: Apartment[]): ClientShareCo
 
 export default function App() {
   const {
+    currentUser,
+    isLoading: isAuthLoading,
+    error: authError,
+    isDemoMode,
+    signIn,
+  } = useAuthProfile();
+  const {
     projects,
     apartments,
     readinessItems,
@@ -87,7 +94,10 @@ export default function App() {
     deleteProject,
     updateApartment,
     resetDemoData,
-  } = useProjectsStore();
+  } = useProjectsStore({
+    canUseSupabase: Boolean(currentUser && !isDemoMode),
+    supabaseRetryKey: currentUser?.id ?? "anonymous",
+  });
   const [screen, setScreen] = useState<Screen>("login");
   const [selectedProjectId, setSelectedProjectId] = useState(projects[0]?.id ?? "");
   const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null);
@@ -96,11 +106,29 @@ export default function App() {
   const userCanManageProjects = canManageProjects(currentUser);
   const userCanViewReadiness = canViewProjectReadiness(currentUser);
 
-  useEffect(() => {
-    if (!canAccessScreen(currentUser, screen)) {
+  const handleLogin = async (credentials: { email: string; password: string }) => {
+    const didLogin = await signIn(credentials);
+
+    if (didLogin) {
       setScreen("projects");
     }
-  }, [screen]);
+  };
+
+  useEffect(() => {
+    if (!currentUser && screen !== "login") {
+      setScreen("login");
+      return;
+    }
+
+    if (currentUser && screen === "login" && !isAuthLoading) {
+      setScreen("projects");
+      return;
+    }
+
+    if (currentUser && !canAccessScreen(currentUser, screen)) {
+      setScreen("projects");
+    }
+  }, [currentUser, isAuthLoading, screen]);
 
   useEffect(() => {
     if (!projects.some((project) => project.id === selectedProjectId)) {
@@ -204,11 +232,14 @@ export default function App() {
   const nextScreen = currentFlowIndex >= 0 ? flow[currentFlowIndex + 1] : undefined;
   const previousScreen = currentFlowIndex > 0 ? flow[currentFlowIndex - 1] : "projects";
 
-  if (screen === "login") {
+  if (!currentUser || screen === "login") {
     return (
       <LoginScreen
         backgroundImage={projects[0]?.mainImage || projects[0]?.heroImage}
-        onLogin={goToProjects}
+        error={authError}
+        isDemoMode={isDemoMode}
+        isLoading={isAuthLoading}
+        onLogin={handleLogin}
       />
     );
   }
