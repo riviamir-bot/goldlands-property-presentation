@@ -1,224 +1,147 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { readinessChecklist as mockReadinessChecklist } from "../data/mockData";
+import { isSupabaseConfigured } from "../lib/supabaseClient";
 import {
-  apartments as mockApartments,
-  readinessChecklist as mockReadinessChecklist,
-  projectReadiness as mockReadiness,
-  projects as mockProjects,
-} from "../data/mockData";
+  localProjectsRepository,
+  persistLocalProjectsState,
+  readLocalProjectsState,
+} from "../services/localProjectsRepository";
+import type { AddProjectInput, ProjectsRepositoryState } from "../services/projectsRepository";
+import { supabaseProjectsRepository } from "../services/supabaseProjectsRepository";
 import type { Apartment, Project, ProjectReadiness } from "../types";
 
-const STORAGE_KEY = "goldlands.presentation.demo.v1";
+export type { AddProjectInput } from "../services/projectsRepository";
 
-interface ProjectsStoreState {
-  projects: Project[];
-  apartments: Apartment[];
-  readinessItems: ProjectReadiness[];
+function hasUsableRemoteState(state: ProjectsRepositoryState) {
+  return Array.isArray(state.projects) && state.projects.length > 0 && Array.isArray(state.apartments);
 }
 
-export interface AddProjectInput {
-  name: string;
-  city: string;
-  address: string;
-  neighborhood: string;
-  marketingStatus: string;
-  projectType: Project["projectType"];
-  tagline: string;
-}
+function mergeProjectLocalOnlyFields(remoteProject: Project, localProject?: Project): Project {
+  if (!localProject) return remoteProject;
 
-function cloneInitialState(): ProjectsStoreState {
   return {
-    projects: structuredClone(mockProjects).map(normalizeProject),
-    apartments: structuredClone(mockApartments),
-    readinessItems: structuredClone(mockReadiness),
+    ...remoteProject,
+    projectLogo: localProject.projectLogo || remoteProject.projectLogo,
+    heroImage: localProject.heroImage || remoteProject.heroImage,
+    mainImage: localProject.mainImage || remoteProject.mainImage,
+    gallery: localProject.gallery ?? remoteProject.gallery,
   };
 }
 
-function makeSlug(value: string) {
-  const normalized = value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\u0590-\u05ff]+/gi, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return normalized || `project-${Date.now()}`;
-}
-
-function makeLogoMark(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
-
-function makeMapsUrl(address: string, city: string) {
-  const query = address.includes(city) ? address : `${address} ${city}`;
-
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    query,
-  ).replace(/%20/g, "+")}`;
-}
-
-function makeMapsEmbedUrl(address: string, city: string) {
-  const query = address.includes(city) ? address : `${address} ${city}`;
-
-  return `https://www.google.com/maps?q=${encodeURIComponent(query).replace(/%20/g, "+")}&output=embed`;
-}
-
-function normalizeProject(project: Project): Project {
-  const legacyThumbnail = (project as Project & { thumbnailImage?: string }).thumbnailImage;
-  const mainImage = project.mainImage ?? legacyThumbnail ?? project.heroImage ?? "";
+function mergeRemoteStateWithLocalCache(
+  remoteState: ProjectsRepositoryState,
+  localState: ProjectsRepositoryState,
+): ProjectsRepositoryState {
+  const localProjectsById = new Map(localState.projects.map((project) => [project.id, project]));
+  const localReadinessByProjectId = new Map(
+    localState.readinessItems.map((readiness) => [readiness.projectId, readiness]),
+  );
 
   return {
-    ...project,
-    projectLogo: project.projectLogo ?? "",
-    heroImage: project.heroImage || mainImage,
-    mainImage,
-    googleMapsUrl: project.googleMapsUrl || makeMapsUrl(project.address, project.city),
-    googleMapsEmbedUrl: makeMapsEmbedUrl(project.address, project.city),
+    projects: remoteState.projects.map((project) =>
+      mergeProjectLocalOnlyFields(project, localProjectsById.get(project.id)),
+    ),
+    apartments: remoteState.apartments,
+    readinessItems: remoteState.readinessItems.map((readiness) => {
+      const localReadiness = localReadinessByProjectId.get(readiness.projectId);
+
+      if (!localReadiness) return readiness;
+
+      return {
+        ...localReadiness,
+        ...readiness,
+        lastUpdated: readiness.lastUpdated || localReadiness.lastUpdated,
+        missing: localReadiness.missing,
+      };
+    }),
   };
 }
 
-function normalizeState(state: ProjectsStoreState): ProjectsStoreState {
-  const projectIds = new Set(state.projects.map((project) => project.id));
-
-  return {
-    projects: state.projects.map(normalizeProject),
-    apartments: state.apartments.filter((apartment) => projectIds.has(apartment.projectId)),
-    readinessItems: state.readinessItems.filter((readiness) => projectIds.has(readiness.projectId)),
-  };
-}
-
-function readInitialState(): ProjectsStoreState {
-  if (typeof window === "undefined") return cloneInitialState();
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return cloneInitialState();
-
-    const parsed = JSON.parse(raw) as Partial<ProjectsStoreState>;
-    if (
-      !Array.isArray(parsed.projects) ||
-      parsed.projects.length === 0 ||
-      !Array.isArray(parsed.apartments)
-    ) {
-      return cloneInitialState();
-    }
-
-    return normalizeState({
-      projects: parsed.projects as Project[],
-      apartments: parsed.apartments,
-      readinessItems: Array.isArray(parsed.readinessItems)
-        ? parsed.readinessItems
-        : structuredClone(mockReadiness),
-    });
-  } catch {
-    return cloneInitialState();
-  }
-}
-
-function persistState(state: ProjectsStoreState) {
-  if (typeof window === "undefined") return;
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function warnAndContinue(message: string, error: unknown) {
+  console.warn(`[GOLDLANDS] ${message}. Continuing with localStorage fallback.`, error);
 }
 
 export function useProjectsStore() {
-  const [state, setState] = useState<ProjectsStoreState>(() => readInitialState());
+  const [state, setState] = useState<ProjectsRepositoryState>(() => readLocalProjectsState());
+  const supabaseWritesEnabledRef = useRef(false);
+
+  const commitState = useCallback((nextState: ProjectsRepositoryState) => {
+    persistLocalProjectsState(nextState);
+    setState(nextState);
+  }, []);
+
+  const applyRemoteState = useCallback((remoteState: ProjectsRepositoryState) => {
+    setState((currentState) => {
+      const nextState = mergeRemoteStateWithLocalCache(remoteState, currentState);
+
+      persistLocalProjectsState(nextState);
+
+      return nextState;
+    });
+  }, []);
+
+  const runSupabaseWrite = useCallback(
+    (
+      label: string,
+      operation: () => Promise<ProjectsRepositoryState>,
+      options: { applyReturnedState?: boolean } = {},
+    ) => {
+      if (!isSupabaseConfigured || !supabaseWritesEnabledRef.current) return;
+
+      void operation()
+        .then((remoteState) => {
+          if (options.applyReturnedState && hasUsableRemoteState(remoteState)) {
+            applyRemoteState(remoteState);
+          }
+        })
+        .catch((error) => {
+          supabaseWritesEnabledRef.current = false;
+          warnAndContinue(`Supabase ${label} failed`, error);
+        });
+    },
+    [applyRemoteState],
+  );
 
   useEffect(() => {
-    persistState(state);
-  }, [state]);
+    if (!isSupabaseConfigured) return undefined;
+
+    let isCancelled = false;
+
+    void Promise.resolve(supabaseProjectsRepository.getState())
+      .then((remoteState: ProjectsRepositoryState) => {
+        if (isCancelled) return;
+
+        if (!hasUsableRemoteState(remoteState)) {
+          supabaseWritesEnabledRef.current = false;
+          return;
+        }
+
+        supabaseWritesEnabledRef.current = true;
+        applyRemoteState(remoteState);
+      })
+      .catch((error: unknown) => {
+        if (isCancelled) return;
+
+        supabaseWritesEnabledRef.current = false;
+        warnAndContinue("Supabase read failed", error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [applyRemoteState]);
 
   const actions = useMemo(
     () => ({
       addProject(input: AddProjectInput) {
-        const idBase = makeSlug(input.name);
+        const nextState = localProjectsRepository.addProject(input) as ProjectsRepositoryState;
 
-        setState((current) => {
-          const id = current.projects.some((project) => project.id === idBase)
-            ? `${idBase}-${Date.now()}`
-            : idBase;
-          const template = mockProjects[0];
-          const project: Project = {
-            ...structuredClone(template),
-            id,
-            name: input.name,
-            city: input.city,
-            address: input.address,
-            neighborhood: input.neighborhood,
-            googleMapsUrl: makeMapsUrl(input.address, input.city),
-            googleMapsEmbedUrl: makeMapsEmbedUrl(input.address, input.city),
-            projectType: input.projectType,
-            tagline: input.tagline,
-            description: input.tagline,
-            logoMark: makeLogoMark(input.name),
-            projectLogo: "",
-            mainImage: "",
-            location: `${input.neighborhood}, ${input.city}`,
-            keyFacts: ["טיוטת פרויקט", "ממתין לחומרים", "תוכן דמו"],
-            stats: {
-              floors: "0",
-              units: "0",
-              occupancy: "טרם נקבע",
-              parking: "טרם עודכן",
-              buildings: "0",
-              existingApartments: "לא רלוונטי",
-              newApartments: "0",
-              storage: "טרם עודכן",
-            },
-            apartmentMix: {
-              threeRooms: "0",
-              fourRooms: "0",
-              fiveRooms: "0",
-              gardenApartments: "0",
-              penthouses: "0",
-            },
-          };
-
-          const readiness: ProjectReadiness = {
-            projectId: id,
-            city: input.city,
-            marketingStatus: input.marketingStatus || "טיוטה",
-            readinessPercentage: 12,
-            lastUpdated: "04/07/2026",
-            missing: {
-              critical: ["מחירון", "דירות זמינות", "הדמיה ראשית", "תוכניות דירה"],
-              important: ["הדמיות פנים", "מפרט טכני", "מיקום וסביבה", "שאלות נפוצות"],
-              optional: ["ברושור שיווקי", "וידאו"],
-            },
-          };
-          const apartment: Apartment = {
-            id: `${id}-apt-1`,
-            projectId: id,
-            number: "401",
-            floor: 4,
-            rooms: 4,
-            apartmentArea: 102,
-            balconyArea: 12,
-            gardenArea: 0,
-            parking: "חניה אחת",
-            storage: "מחסן 4 מ\"ר",
-            direction: "מערב",
-            price: 3450000,
-            specialPrice: 3290000,
-            status: "available",
-            planAttached: false,
-            notes: "דירת דמו ראשונית לעריכה",
-          };
-
-          const nextState = {
-            ...current,
-            projects: [...current.projects, project],
-            apartments: [...current.apartments, apartment],
-            readinessItems: [...current.readinessItems, readiness],
-          };
-          persistState(nextState);
-
-          return nextState;
-        });
+        setState(nextState);
+        runSupabaseWrite(
+          "addProject",
+          () => supabaseProjectsRepository.addProject(input) as Promise<ProjectsRepositoryState>,
+          { applyReturnedState: true },
+        );
       },
 
       updateProject(
@@ -226,59 +149,56 @@ export function useProjectsStore() {
         patch: Partial<Project>,
         readinessPatch?: Partial<ProjectReadiness>,
       ) {
-        setState((current) => {
-          const nextState = {
-            ...current,
-            projects: current.projects.map((project) =>
-              project.id === projectId ? { ...project, ...patch } : project,
-            ),
-            readinessItems: current.readinessItems.map((readiness) =>
-              readiness.projectId === projectId ? { ...readiness, ...readinessPatch } : readiness,
-            ),
-          };
-          persistState(nextState);
+        const nextState = localProjectsRepository.updateProject(
+          projectId,
+          patch,
+          readinessPatch,
+        ) as ProjectsRepositoryState;
 
-          return nextState;
-        });
+        setState(nextState);
+        runSupabaseWrite("updateProject", () =>
+          supabaseProjectsRepository.updateProject(
+            projectId,
+            patch,
+            readinessPatch,
+          ) as Promise<ProjectsRepositoryState>,
+        );
       },
 
       deleteProject(projectId: string) {
-        setState((current) => {
-          const nextState = {
-            projects: current.projects.filter((project) => project.id !== projectId),
-            apartments: current.apartments.filter((apartment) => apartment.projectId !== projectId),
-            readinessItems: current.readinessItems.filter(
-              (readiness) => readiness.projectId !== projectId,
-            ),
-          };
-          persistState(nextState);
+        const nextState = localProjectsRepository.deleteProject(projectId) as ProjectsRepositoryState;
 
-          return nextState;
-        });
+        setState(nextState);
+        runSupabaseWrite("deleteProject", () =>
+          supabaseProjectsRepository.deleteProject(projectId) as Promise<ProjectsRepositoryState>,
+        );
       },
 
       updateApartment(projectId: string, apartmentId: string, patch: Partial<Apartment>) {
-        setState((current) => {
-          const nextState = {
-            ...current,
-            apartments: current.apartments.map((apartment) =>
-              apartment.projectId === projectId && apartment.id === apartmentId
-                ? { ...apartment, ...patch, id: apartment.id, projectId: apartment.projectId }
-                : apartment,
-            ),
-          };
-          persistState(nextState);
+        const nextState = localProjectsRepository.updateApartment(
+          projectId,
+          apartmentId,
+          patch,
+        ) as ProjectsRepositoryState;
 
-          return nextState;
-        });
+        setState(nextState);
+        runSupabaseWrite("updateApartment", () =>
+          supabaseProjectsRepository.updateApartment(
+            projectId,
+            apartmentId,
+            patch,
+          ) as Promise<ProjectsRepositoryState>,
+        );
       },
 
       resetDemoData() {
-        window.localStorage.removeItem(STORAGE_KEY);
-        setState(cloneInitialState());
+        const nextState = localProjectsRepository.resetDemoData() as ProjectsRepositoryState;
+
+        supabaseWritesEnabledRef.current = false;
+        commitState(nextState);
       },
     }),
-    [],
+    [commitState, runSupabaseWrite],
   );
 
   return {

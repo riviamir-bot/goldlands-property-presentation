@@ -8,7 +8,7 @@ import type { AddProjectInput, ProjectsRepository, ProjectsRepositoryState } fro
 
 export const LOCAL_PROJECTS_STORAGE_KEY = "goldlands.presentation.demo.v1";
 
-function cloneInitialState(): ProjectsRepositoryState {
+export function cloneInitialProjectsState(): ProjectsRepositoryState {
   return {
     projects: structuredClone(mockProjects).map(normalizeProject),
     apartments: structuredClone(mockApartments),
@@ -64,7 +64,7 @@ function normalizeProject(project: Project): Project {
   };
 }
 
-function normalizeState(state: ProjectsRepositoryState): ProjectsRepositoryState {
+export function normalizeProjectsState(state: ProjectsRepositoryState): ProjectsRepositoryState {
   const projectIds = new Set(state.projects.map((project) => project.id));
 
   return {
@@ -74,12 +74,12 @@ function normalizeState(state: ProjectsRepositoryState): ProjectsRepositoryState
   };
 }
 
-function readState(): ProjectsRepositoryState {
-  if (typeof window === "undefined") return cloneInitialState();
+export function readLocalProjectsState(): ProjectsRepositoryState {
+  if (typeof window === "undefined") return cloneInitialProjectsState();
 
   try {
     const raw = window.localStorage.getItem(LOCAL_PROJECTS_STORAGE_KEY);
-    if (!raw) return cloneInitialState();
+    if (!raw) return cloneInitialProjectsState();
 
     const parsed = JSON.parse(raw) as Partial<ProjectsRepositoryState>;
     if (
@@ -87,10 +87,10 @@ function readState(): ProjectsRepositoryState {
       parsed.projects.length === 0 ||
       !Array.isArray(parsed.apartments)
     ) {
-      return cloneInitialState();
+      return cloneInitialProjectsState();
     }
 
-    return normalizeState({
+    return normalizeProjectsState({
       projects: parsed.projects as Project[],
       apartments: parsed.apartments,
       readinessItems: Array.isArray(parsed.readinessItems)
@@ -98,27 +98,30 @@ function readState(): ProjectsRepositoryState {
         : structuredClone(mockReadiness),
     });
   } catch {
-    return cloneInitialState();
+    return cloneInitialProjectsState();
   }
 }
 
-function persistState(state: ProjectsRepositoryState) {
+export function persistLocalProjectsState(state: ProjectsRepositoryState) {
   if (typeof window === "undefined") return;
 
-  window.localStorage.setItem(LOCAL_PROJECTS_STORAGE_KEY, JSON.stringify(state));
+  window.localStorage.setItem(
+    LOCAL_PROJECTS_STORAGE_KEY,
+    JSON.stringify(normalizeProjectsState(state)),
+  );
 }
 
 export const localProjectsRepository: ProjectsRepository = {
   getState() {
-    return readState();
+    return readLocalProjectsState();
   },
 
   saveState(state) {
-    persistState(state);
+    persistLocalProjectsState(state);
   },
 
   addProject(input: AddProjectInput) {
-    const current = readState();
+    const current = readLocalProjectsState();
     const idBase = makeSlug(input.name);
     const id = current.projects.some((project) => project.id === idBase)
       ? `${idBase}-${Date.now()}`
@@ -196,13 +199,13 @@ export const localProjectsRepository: ProjectsRepository = {
       readinessItems: [...current.readinessItems, readiness],
     };
 
-    persistState(nextState);
+    persistLocalProjectsState(nextState);
 
     return nextState;
   },
 
   updateProject(projectId, patch, readinessPatch) {
-    const current = readState();
+    const current = readLocalProjectsState();
     const nextState = {
       ...current,
       projects: current.projects.map((project) =>
@@ -213,26 +216,26 @@ export const localProjectsRepository: ProjectsRepository = {
       ),
     };
 
-    persistState(nextState);
+    persistLocalProjectsState(nextState);
 
     return nextState;
   },
 
   deleteProject(projectId) {
-    const current = readState();
+    const current = readLocalProjectsState();
     const nextState = {
       projects: current.projects.filter((project) => project.id !== projectId),
       apartments: current.apartments.filter((apartment) => apartment.projectId !== projectId),
       readinessItems: current.readinessItems.filter((readiness) => readiness.projectId !== projectId),
     };
 
-    persistState(nextState);
+    persistLocalProjectsState(nextState);
 
     return nextState;
   },
 
   updateApartment(projectId, apartmentId, patch) {
-    const current = readState();
+    const current = readLocalProjectsState();
     const nextState = {
       ...current,
       apartments: current.apartments.map((apartment) =>
@@ -242,13 +245,13 @@ export const localProjectsRepository: ProjectsRepository = {
       ),
     };
 
-    persistState(nextState);
+    persistLocalProjectsState(nextState);
 
     return nextState;
   },
 
   resetDemoData() {
-    const initialState = cloneInitialState();
+    const initialState = cloneInitialProjectsState();
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(LOCAL_PROJECTS_STORAGE_KEY);

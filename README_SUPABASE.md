@@ -40,6 +40,23 @@ supabase db push
 
 No migration is required to run the current local prototype.
 
+## Seed Demo Projects And Apartments
+
+After the migrations are applied, you can seed the current mock projects and apartments from the Supabase Dashboard:
+
+1. Open your Supabase project.
+2. Go to SQL Editor.
+3. Open `supabase/seed_mock_projects_apartments.sql` locally.
+4. Paste the SQL into the editor.
+5. Click Run.
+
+The seed is idempotent. It upserts the current demo rows in:
+
+- `projects`
+- `apartments`
+
+It does not seed storage, uploads, documents, images, auth users, or profile roles.
+
 ## Tables
 
 - `profiles`: application profile for each Supabase Auth user, including `admin`, `sales`, or `viewer` role.
@@ -76,14 +93,27 @@ project-documents/
 
 ## Current Runtime
 
-For now, `useProjectsStore.ts` remains the live runtime and continues to use localStorage key:
+`useProjectsStore.ts` remains the only app-facing runtime interface and continues to use localStorage key:
 
 ```text
 goldlands.presentation.demo.v1
 ```
 
-The new repository files are preparation only:
+Runtime behavior:
+
+1. The app starts immediately from localStorage.
+2. If localStorage is empty or invalid, it falls back to `mockData`.
+3. If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` exist, the app tries to read `projects` and `apartments` from Supabase in the background.
+4. If Supabase returns valid non-empty project data, that state is used and cached back to localStorage.
+5. If Supabase is unavailable, blocked by RLS, or empty, the app keeps using localStorage/mockData.
+6. Project and apartment edits save to localStorage immediately.
+7. When Supabase has been successfully loaded, the app also tries to write project and apartment edits to Supabase.
+8. If a Supabase write fails, the local edit remains and the app logs a warning.
+
+Because full Supabase Auth is not wired yet, RLS may block browser reads or writes even when tables exist and env vars are configured. That is expected for this milestone. Do not expose `service_role`, `secret`, or `sb_secret_...` keys in the browser to bypass RLS.
+
+The repository files are:
 
 - `src/services/projectsRepository.ts`: common repository interface.
 - `src/services/localProjectsRepository.ts`: localStorage-compatible implementation.
-- `src/services/supabaseProjectsRepository.ts`: Supabase read preparation and write stubs.
+- `src/services/supabaseProjectsRepository.ts`: Supabase read/write implementation for `projects` and `apartments`.
