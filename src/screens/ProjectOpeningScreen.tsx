@@ -5,6 +5,7 @@ interface ProjectOpeningScreenProps {
 }
 
 export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
+  const mainImage = project.mainImage || project.heroImage;
   const overviewGroups = [
     {
       title: "פרטי מיקום",
@@ -48,7 +49,7 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
     <section className="panel project-overview-panel">
       <div className="project-overview-layout">
         <section className="project-overview-visual" aria-label="הדמיית הפרויקט">
-          <div className="project-overview-image" style={{ backgroundImage: `url(${project.heroImage})` }} />
+          <div className="project-overview-image" style={{ backgroundImage: `url(${mainImage})` }} />
         </section>
 
         <section className="project-overview-copy">

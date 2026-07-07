@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   apartments as mockApartments,
+  readinessChecklist as mockReadinessChecklist,
   projectReadiness as mockReadiness,
   projects as mockProjects,
 } from "../data/mockData";
@@ -26,7 +27,7 @@ export interface AddProjectInput {
 
 function cloneInitialState(): ProjectsStoreState {
   return {
-    projects: structuredClone(mockProjects),
+    projects: structuredClone(mockProjects).map(normalizeProject),
     apartments: structuredClone(mockApartments),
     readinessItems: structuredClone(mockReadiness),
   };
@@ -68,13 +69,25 @@ function makeMapsEmbedUrl(address: string, city: string) {
 
 function normalizeProject(project: Project): Project {
   const legacyThumbnail = (project as Project & { thumbnailImage?: string }).thumbnailImage;
+  const mainImage = project.mainImage ?? legacyThumbnail ?? project.heroImage ?? "";
 
   return {
     ...project,
     projectLogo: project.projectLogo ?? "",
-    mainImage: project.mainImage ?? legacyThumbnail ?? project.heroImage,
+    heroImage: project.heroImage || mainImage,
+    mainImage,
     googleMapsUrl: project.googleMapsUrl || makeMapsUrl(project.address, project.city),
     googleMapsEmbedUrl: makeMapsEmbedUrl(project.address, project.city),
+  };
+}
+
+function normalizeState(state: ProjectsStoreState): ProjectsStoreState {
+  const projectIds = new Set(state.projects.map((project) => project.id));
+
+  return {
+    projects: state.projects.map(normalizeProject),
+    apartments: state.apartments.filter((apartment) => projectIds.has(apartment.projectId)),
+    readinessItems: state.readinessItems.filter((readiness) => projectIds.has(readiness.projectId)),
   };
 }
 
@@ -86,33 +99,37 @@ function readInitialState(): ProjectsStoreState {
     if (!raw) return cloneInitialState();
 
     const parsed = JSON.parse(raw) as Partial<ProjectsStoreState>;
-    if (!Array.isArray(parsed.projects) || !Array.isArray(parsed.apartments)) {
+    if (
+      !Array.isArray(parsed.projects) ||
+      parsed.projects.length === 0 ||
+      !Array.isArray(parsed.apartments)
+    ) {
       return cloneInitialState();
     }
 
-    return {
-      projects: parsed.projects.map((project) => normalizeProject(project as Project)),
+    return normalizeState({
+      projects: parsed.projects as Project[],
       apartments: parsed.apartments,
       readinessItems: Array.isArray(parsed.readinessItems)
         ? parsed.readinessItems
         : structuredClone(mockReadiness),
-    };
+    });
   } catch {
     return cloneInitialState();
   }
 }
 
+function persistState(state: ProjectsStoreState) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
 export function useProjectsStore() {
   const [state, setState] = useState<ProjectsStoreState>(() => readInitialState());
-  const skipNextPersistRef = useRef(false);
 
   useEffect(() => {
-    if (skipNextPersistRef.current) {
-      skipNextPersistRef.current = false;
-      return;
-    }
-
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    persistState(state);
   }, [state]);
 
   const actions = useMemo(
@@ -192,12 +209,15 @@ export function useProjectsStore() {
             notes: "דירת דמו ראשונית לעריכה",
           };
 
-          return {
+          const nextState = {
             ...current,
             projects: [...current.projects, project],
             apartments: [...current.apartments, apartment],
             readinessItems: [...current.readinessItems, readiness],
           };
+          persistState(nextState);
+
+          return nextState;
         });
       },
 
@@ -206,38 +226,54 @@ export function useProjectsStore() {
         patch: Partial<Project>,
         readinessPatch?: Partial<ProjectReadiness>,
       ) {
-        setState((current) => ({
-          ...current,
-          projects: current.projects.map((project) =>
-            project.id === projectId ? { ...project, ...patch } : project,
-          ),
-          readinessItems: current.readinessItems.map((readiness) =>
-            readiness.projectId === projectId ? { ...readiness, ...readinessPatch } : readiness,
-          ),
-        }));
+        setState((current) => {
+          const nextState = {
+            ...current,
+            projects: current.projects.map((project) =>
+              project.id === projectId ? { ...project, ...patch } : project,
+            ),
+            readinessItems: current.readinessItems.map((readiness) =>
+              readiness.projectId === projectId ? { ...readiness, ...readinessPatch } : readiness,
+            ),
+          };
+          persistState(nextState);
+
+          return nextState;
+        });
       },
 
       deleteProject(projectId: string) {
-        setState((current) => ({
-          projects: current.projects.filter((project) => project.id !== projectId),
-          apartments: current.apartments.filter((apartment) => apartment.projectId !== projectId),
-          readinessItems: current.readinessItems.filter(
-            (readiness) => readiness.projectId !== projectId,
-          ),
-        }));
+        setState((current) => {
+          const nextState = {
+            projects: current.projects.filter((project) => project.id !== projectId),
+            apartments: current.apartments.filter((apartment) => apartment.projectId !== projectId),
+            readinessItems: current.readinessItems.filter(
+              (readiness) => readiness.projectId !== projectId,
+            ),
+          };
+          persistState(nextState);
+
+          return nextState;
+        });
       },
 
-      updateApartment(apartmentId: string, patch: Partial<Apartment>) {
-        setState((current) => ({
-          ...current,
-          apartments: current.apartments.map((apartment) =>
-            apartment.id === apartmentId ? { ...apartment, ...patch } : apartment,
-          ),
-        }));
+      updateApartment(projectId: string, apartmentId: string, patch: Partial<Apartment>) {
+        setState((current) => {
+          const nextState = {
+            ...current,
+            apartments: current.apartments.map((apartment) =>
+              apartment.projectId === projectId && apartment.id === apartmentId
+                ? { ...apartment, ...patch, id: apartment.id, projectId: apartment.projectId }
+                : apartment,
+            ),
+          };
+          persistState(nextState);
+
+          return nextState;
+        });
       },
 
       resetDemoData() {
-        skipNextPersistRef.current = true;
         window.localStorage.removeItem(STORAGE_KEY);
         setState(cloneInitialState());
       },
@@ -247,6 +283,7 @@ export function useProjectsStore() {
 
   return {
     ...state,
+    readinessChecklistCount: mockReadinessChecklist.length,
     ...actions,
   };
 }

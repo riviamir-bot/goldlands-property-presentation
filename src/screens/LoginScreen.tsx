@@ -1,15 +1,18 @@
 import { ArrowLeft, LockKeyhole, Mail } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
-import { projects } from "../data/mockData";
 
 interface LoginScreenProps {
+  backgroundImage?: string;
   onLogin: () => void;
 }
 
-export function LoginScreen({ onLogin }: LoginScreenProps) {
+export function LoginScreen({ backgroundImage, onLogin }: LoginScreenProps) {
   return (
     <main className="login-screen">
-      <div className="login-screen__image" style={{ backgroundImage: `url(${projects[0].heroImage})` }} />
+      <div
+        className="login-screen__image"
+        style={backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined}
+      />
       <section className="login-panel" aria-label="כניסה למערכת">
         <BrandLogo />
         <form className="login-form" onSubmit={(event) => event.preventDefault()}>

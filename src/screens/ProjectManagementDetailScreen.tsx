@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   BadgeHelp,
   Building2,
@@ -32,7 +32,11 @@ interface ProjectManagementDetailScreenProps {
     patch: Partial<Project>,
     readinessPatch?: Partial<ProjectReadiness>,
   ) => void;
-  onUpdateApartment: (apartmentId: string, patch: Partial<Apartment>) => void;
+  onUpdateApartment: (
+    projectId: string,
+    apartmentId: string,
+    patch: Partial<Apartment>,
+  ) => void;
   canViewReadiness?: boolean;
   canManageProjects?: boolean;
 }
@@ -68,6 +72,7 @@ interface ProjectDetailsFormState {
   marketingStatus: string;
   projectType: string;
   projectLogo: string;
+  mainImage: string;
   tagline: string;
   description: string;
   existingApartments: string;
@@ -97,6 +102,25 @@ interface ProjectDetailField {
   dir?: "rtl" | "ltr";
   placeholder?: string;
 }
+
+interface ApartmentInventoryFormState {
+  number: string;
+  floor: string;
+  rooms: string;
+  apartmentArea: string;
+  balconyArea: string;
+  gardenArea: string;
+  parking: string;
+  storage: string;
+  direction: string;
+  price: string;
+  specialPrice: string;
+  status: ApartmentStatus;
+  planAttached: "yes" | "no";
+  notes: string;
+}
+
+type ApartmentInventoryFieldName = keyof ApartmentInventoryFormState;
 
 const statusLabels: Record<SectionStatus, string> = {
   missing: "חסר",
@@ -146,8 +170,9 @@ function getFormValue(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
 }
 
-function getNumberValue(formData: FormData, name: string) {
-  const raw = getFormValue(formData, name).replace(/[^\d.-]/g, "");
+function getNumberFromString(value: string) {
+  const raw = value.replace(/[^\d.-]/g, "");
+
   return Number(raw) || 0;
 }
 
@@ -163,6 +188,7 @@ function makeProjectDetailsFormState(
     marketingStatus: readiness?.marketingStatus ?? "טיוטה",
     projectType: project.projectType,
     projectLogo: project.projectLogo ?? "",
+    mainImage: project.mainImage ?? project.heroImage,
     tagline: project.tagline,
     description: project.description,
     existingApartments: project.stats.existingApartments,
@@ -178,6 +204,25 @@ function makeProjectDetailsFormState(
     storage: project.stats.storage,
     occupancy: project.stats.occupancy,
     googleMapsUrl: project.googleMapsUrl,
+  };
+}
+
+function makeApartmentInventoryFormState(apartment?: Apartment): ApartmentInventoryFormState {
+  return {
+    number: apartment?.number ?? "",
+    floor: apartment ? String(apartment.floor) : "",
+    rooms: apartment ? String(apartment.rooms) : "",
+    apartmentArea: apartment ? String(apartment.apartmentArea) : "",
+    balconyArea: apartment ? String(apartment.balconyArea) : "",
+    gardenArea: apartment ? String(apartment.gardenArea) : "0",
+    parking: apartment?.parking ?? "",
+    storage: apartment?.storage ?? "",
+    direction: apartment?.direction ?? "",
+    price: apartment ? String(apartment.price) : "",
+    specialPrice: apartment ? String(apartment.specialPrice) : "",
+    status: apartment?.status ?? "available",
+    planAttached: apartment?.planAttached ? "yes" : "no",
+    notes: apartment?.notes ?? "",
   };
 }
 
@@ -327,6 +372,8 @@ export function ProjectManagementDetailScreen({
   const [projectDetailsForm, setProjectDetailsForm] = useState<ProjectDetailsFormState>(() =>
     makeProjectDetailsFormState(project, readiness),
   );
+  const [apartmentInventoryForm, setApartmentInventoryForm] =
+    useState<ApartmentInventoryFormState>(() => makeApartmentInventoryFormState(apartments[0]));
   const [successMessage, setSuccessMessage] = useState("");
 
   const materialSections = useMemo<MaterialSection[]>(() => {
@@ -341,6 +388,7 @@ export function ProjectManagementDetailScreen({
         { label: "שכונה", value: project.neighborhood },
         { label: "סוג פרויקט", value: project.projectType },
         { label: "לוגו פרויקט", value: project.projectLogo || "טרם הוגדר" },
+        { label: "תמונה ראשית", value: project.mainImage || project.heroImage || "טרם הוגדרה" },
         { label: "סטטוס שיווקי", value: readiness?.marketingStatus ?? "פעיל" },
         { label: "משפט שיווקי קצר", value: project.tagline },
         {
@@ -359,6 +407,18 @@ export function ProjectManagementDetailScreen({
         {
           label: "הערת דמו",
           value: "בהמשך כאן יועלה לוגו הפרויקט שיופיע בכרטיס הפרויקט ובכל מסכי התצוגה.",
+          multiline: true,
+        },
+      ],
+      "main-image": [
+        {
+          label: "mainImage URL / path",
+          value: project.mainImage ?? project.heroImage,
+          name: "mainImage",
+        },
+        {
+          label: "הערת דמו",
+          value: "שדה מקומי לתמונה הראשית שמופיעה בכרטיס הפרויקט, בפתיחת הפרויקט ובתצוגת הלקוח.",
           multiline: true,
         },
       ],
@@ -425,6 +485,18 @@ export function ProjectManagementDetailScreen({
         };
       }
 
+      if (section.id === "main-image") {
+        return {
+          ...section,
+          status: project.mainImage ? "complete" : "missing",
+          summary: project.mainImage
+            ? "תמונה ראשית הוגדרה ונשמרת מקומית."
+            : "מקום שמור לתמונה הראשית של הפרויקט.",
+          lastUpdated: project.mainImage ? readiness?.lastUpdated ?? "עודכן מקומית" : "לא עודכן",
+          fields: manualFields[section.id] ?? fileMetadataFields,
+        };
+      }
+
       return {
         ...section,
         lastUpdated: section.lastUpdated ?? readiness?.lastUpdated ?? "לא עודכן",
@@ -443,7 +515,9 @@ export function ProjectManagementDetailScreen({
         ? "inventory-detail-form"
         : activePanel?.mode === "manual" && panelSection?.id === "logo"
           ? "project-logo-form"
-          : undefined;
+          : activePanel?.mode === "manual" && panelSection?.id === "main-image"
+            ? "project-main-image-form"
+            : undefined;
   const projectDetailFields: ProjectDetailField[] = [
     { label: "שם פרויקט", name: "name", value: projectDetailsForm.name },
     { label: "עיר", name: "city", value: projectDetailsForm.city },
@@ -467,6 +541,14 @@ export function ProjectManagementDetailScreen({
       wide: true,
       dir: "ltr",
       placeholder: "לדוגמה: /assets/project-logo.png או URL דמו",
+    },
+    {
+      label: "mainImage URL / path",
+      name: "mainImage",
+      value: projectDetailsForm.mainImage,
+      wide: true,
+      dir: "ltr",
+      placeholder: "לדוגמה: /assets/main-rendering.png או URL דמו",
     },
     { label: "משפט שיווקי קצר", name: "tagline", value: projectDetailsForm.tagline, multiline: true },
     { label: "תיאור פרויקט", name: "description", value: projectDetailsForm.description, multiline: true },
@@ -494,41 +576,39 @@ export function ProjectManagementDetailScreen({
     apartments.find((apartment) => apartment.id === selectedInventoryApartmentId) ?? apartments[0];
   const selectedInventoryFields: ManualField[] = selectedInventoryApartment
     ? [
-        { label: "מספר דירה", name: "number", value: selectedInventoryApartment.number },
-        { label: "קומה", name: "floor", value: String(selectedInventoryApartment.floor) },
-        { label: "חדרים", name: "rooms", value: String(selectedInventoryApartment.rooms) },
-        { label: "שטח דירה", name: "apartmentArea", value: String(selectedInventoryApartment.apartmentArea) },
-        { label: "שטח מרפסת", name: "balconyArea", value: String(selectedInventoryApartment.balconyArea) },
-        {
-          label: "שטח גינה",
-          name: "gardenArea",
-          value: selectedInventoryApartment.gardenArea
-            ? String(selectedInventoryApartment.gardenArea)
-            : "0",
-        },
-        { label: "חניה", name: "parking", value: selectedInventoryApartment.parking },
-        { label: "מחסן", name: "storage", value: selectedInventoryApartment.storage },
-        { label: "כיוון", name: "direction", value: selectedInventoryApartment.direction },
-        { label: "מחיר", name: "price", value: String(selectedInventoryApartment.price) },
-        { label: "מחיר מיוחד", name: "specialPrice", value: String(selectedInventoryApartment.specialPrice) },
+        { label: "מספר דירה", name: "number", value: apartmentInventoryForm.number },
+        { label: "קומה", name: "floor", value: apartmentInventoryForm.floor },
+        { label: "חדרים", name: "rooms", value: apartmentInventoryForm.rooms },
+        { label: "שטח דירה", name: "apartmentArea", value: apartmentInventoryForm.apartmentArea },
+        { label: "שטח מרפסת", name: "balconyArea", value: apartmentInventoryForm.balconyArea },
+        { label: "שטח גינה", name: "gardenArea", value: apartmentInventoryForm.gardenArea },
+        { label: "חניה", name: "parking", value: apartmentInventoryForm.parking },
+        { label: "מחסן", name: "storage", value: apartmentInventoryForm.storage },
+        { label: "כיוון", name: "direction", value: apartmentInventoryForm.direction },
+        { label: "מחיר", name: "price", value: apartmentInventoryForm.price },
+        { label: "מחיר מיוחד", name: "specialPrice", value: apartmentInventoryForm.specialPrice },
         {
           label: "סטטוס",
           name: "status",
-          value: selectedInventoryApartment.status,
+          value: apartmentInventoryForm.status,
           options: apartmentStatusOptions,
         },
         {
           label: "קובץ תוכנית מצורף",
           name: "planAttached",
-          value: selectedInventoryApartment.planAttached ? "yes" : "no",
+          value: apartmentInventoryForm.planAttached,
           options: [
             { label: "כן", value: "yes" },
             { label: "לא", value: "no" },
           ],
         },
-        { label: "הערות", name: "notes", value: selectedInventoryApartment.notes, multiline: true },
+        { label: "הערות", name: "notes", value: apartmentInventoryForm.notes, multiline: true },
       ]
     : [];
+
+  useEffect(() => {
+    setApartmentInventoryForm(makeApartmentInventoryFormState(selectedInventoryApartment));
+  }, [selectedInventoryApartment]);
 
   const handleProjectDetailsFieldChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -542,8 +622,20 @@ export function ProjectManagementDetailScreen({
     }));
   };
 
+  const handleApartmentFieldChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) => {
+    const fieldName = event.currentTarget.name as ApartmentInventoryFieldName;
+    const { value } = event.currentTarget;
+
+    setApartmentInventoryForm((current) => ({
+      ...current,
+      [fieldName]: value,
+    }));
+  };
+
   const openPanel = (id: string, mode: PanelMode) => {
-    if ((id === "details" || id === "logo") && mode === "manual") {
+    if ((id === "details" || id === "logo" || id === "main-image") && mode === "manual") {
       setProjectDetailsForm(makeProjectDetailsFormState(project, readiness));
     }
     if (id === "inventory" && !selectedInventoryApartmentId) {
@@ -563,6 +655,7 @@ export function ProjectManagementDetailScreen({
       marketingStatus: projectDetailsForm.marketingStatus.trim(),
       projectType: projectDetailsForm.projectType.trim(),
       projectLogo: projectDetailsForm.projectLogo.trim(),
+      mainImage: projectDetailsForm.mainImage.trim(),
       tagline: projectDetailsForm.tagline.trim(),
       description: projectDetailsForm.description.trim(),
       existingApartments: projectDetailsForm.existingApartments.trim(),
@@ -601,6 +694,7 @@ export function ProjectManagementDetailScreen({
         googleMapsEmbedUrl,
         projectType,
         projectLogo: values.projectLogo,
+        mainImage: values.mainImage,
         tagline: values.tagline,
         description: values.description,
         logoMark: makeLogoMark(values.name),
@@ -633,6 +727,7 @@ export function ProjectManagementDetailScreen({
     );
     setProjectDetailsForm({ ...values, projectType, googleMapsUrl });
     setSuccessMessage("נשמר בהצלחה");
+    setActivePanel(null);
   };
 
   const handleProjectLogoSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -643,30 +738,42 @@ export function ProjectManagementDetailScreen({
     onUpdateProject(project.id, { projectLogo });
     setProjectDetailsForm((current) => ({ ...current, projectLogo }));
     setSuccessMessage("לוגו הפרויקט נשמר מקומית");
+    setActivePanel(null);
+  };
+
+  const handleProjectMainImageSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const mainImage = getFormValue(formData, "mainImage");
+
+    onUpdateProject(project.id, { mainImage });
+    setProjectDetailsForm((current) => ({ ...current, mainImage }));
+    setSuccessMessage("התמונה הראשית נשמרה מקומית");
+    setActivePanel(null);
   };
 
   const handleApartmentSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedInventoryApartment) return;
 
-    const formData = new FormData(event.currentTarget);
-    onUpdateApartment(selectedInventoryApartment.id, {
-      number: getFormValue(formData, "number"),
-      floor: getNumberValue(formData, "floor"),
-      rooms: getNumberValue(formData, "rooms"),
-      apartmentArea: getNumberValue(formData, "apartmentArea"),
-      balconyArea: getNumberValue(formData, "balconyArea"),
-      gardenArea: getNumberValue(formData, "gardenArea"),
-      parking: getFormValue(formData, "parking"),
-      storage: getFormValue(formData, "storage"),
-      direction: getFormValue(formData, "direction"),
-      price: getNumberValue(formData, "price"),
-      specialPrice: getNumberValue(formData, "specialPrice"),
-      status: getFormValue(formData, "status") as ApartmentStatus,
-      planAttached: getFormValue(formData, "planAttached") === "yes",
-      notes: getFormValue(formData, "notes"),
+    onUpdateApartment(project.id, selectedInventoryApartment.id, {
+      number: apartmentInventoryForm.number.trim(),
+      floor: getNumberFromString(apartmentInventoryForm.floor),
+      rooms: getNumberFromString(apartmentInventoryForm.rooms),
+      apartmentArea: getNumberFromString(apartmentInventoryForm.apartmentArea),
+      balconyArea: getNumberFromString(apartmentInventoryForm.balconyArea),
+      gardenArea: getNumberFromString(apartmentInventoryForm.gardenArea),
+      parking: apartmentInventoryForm.parking.trim(),
+      storage: apartmentInventoryForm.storage.trim(),
+      direction: apartmentInventoryForm.direction.trim(),
+      price: getNumberFromString(apartmentInventoryForm.price),
+      specialPrice: getNumberFromString(apartmentInventoryForm.specialPrice),
+      status: apartmentInventoryForm.status,
+      planAttached: apartmentInventoryForm.planAttached === "yes",
+      notes: apartmentInventoryForm.notes.trim(),
     });
     setSuccessMessage("נשמר בהצלחה");
+    setActivePanel(null);
   };
 
   const activePanelModeLabel =
@@ -794,6 +901,23 @@ export function ProjectManagementDetailScreen({
                         </label>
                       </form>
                     </div>
+                  ) : panelSection.id === "main-image" ? (
+                    <form
+                      className="mock-field-grid"
+                      id="project-main-image-form"
+                      onSubmit={handleProjectMainImageSubmit}
+                    >
+                      <label className="mock-field mock-field--wide">
+                        <span>mainImage URL / path</span>
+                        <input
+                          dir="ltr"
+                          name="mainImage"
+                          onChange={handleProjectDetailsFieldChange}
+                          placeholder="לדוגמה: /assets/main-rendering.png או URL דמו"
+                          value={projectDetailsForm.mainImage}
+                        />
+                      </label>
+                    </form>
                   ) : panelSection.id === "inventory" ? (
                     <div className="inventory-editor">
                       <div className="inventory-editor__note">
@@ -874,7 +998,11 @@ export function ProjectManagementDetailScreen({
                               >
                                 <span>{field.label}</span>
                                 {field.options ? (
-                                  <select name={field.name} defaultValue={field.value}>
+                                  <select
+                                    name={field.name}
+                                    onChange={handleApartmentFieldChange}
+                                    value={field.value}
+                                  >
                                     {field.options.map((option) => (
                                       <option key={option.value} value={option.value}>
                                         {option.label}
@@ -882,9 +1010,18 @@ export function ProjectManagementDetailScreen({
                                     ))}
                                   </select>
                                 ) : field.multiline ? (
-                                  <textarea name={field.name} defaultValue={field.value} rows={3} />
+                                  <textarea
+                                    name={field.name}
+                                    onChange={handleApartmentFieldChange}
+                                    rows={3}
+                                    value={field.value}
+                                  />
                                 ) : (
-                                  <input name={field.name} defaultValue={field.value} />
+                                  <input
+                                    name={field.name}
+                                    onChange={handleApartmentFieldChange}
+                                    value={field.value}
+                                  />
                                 )}
                               </label>
                             ))}

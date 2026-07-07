@@ -8,7 +8,6 @@ import {
   canViewProjectReadiness,
   currentUser,
 } from "./data/mockCurrentUser";
-import { readinessChecklist } from "./data/mockData";
 import { useProjectsStore } from "./hooks/useProjectsStore";
 import { AllProjectsScreen } from "./screens/AllProjectsScreen";
 import { ApartmentsScreen } from "./screens/ApartmentsScreen";
@@ -82,6 +81,7 @@ export default function App() {
     projects,
     apartments,
     readinessItems,
+    readinessChecklistCount,
     addProject,
     updateProject,
     deleteProject,
@@ -101,6 +101,14 @@ export default function App() {
       setScreen("projects");
     }
   }, [screen]);
+
+  useEffect(() => {
+    if (!projects.some((project) => project.id === selectedProjectId)) {
+      setSelectedProjectId(projects[0]?.id ?? "");
+      setSelectedApartmentId(null);
+      setClientShareConfig(null);
+    }
+  }, [projects, selectedProjectId]);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? projects[0]!,
@@ -197,7 +205,12 @@ export default function App() {
   const previousScreen = currentFlowIndex > 0 ? flow[currentFlowIndex - 1] : "projects";
 
   if (screen === "login") {
-    return <LoginScreen onLogin={goToProjects} />;
+    return (
+      <LoginScreen
+        backgroundImage={projects[0]?.mainImage || projects[0]?.heroImage}
+        onLogin={goToProjects}
+      />
+    );
   }
 
   if (!canAccessScreen(currentUser, screen)) {
@@ -231,7 +244,7 @@ export default function App() {
       <ProjectReadinessScreen
         projects={projects}
         readinessItems={readinessItems}
-        checklistCount={readinessChecklist.length}
+        checklistCount={readinessChecklistCount}
         onProjects={goToProjects}
         onAdmin={openAdmin}
         onOpenProject={openProjectManagement}
