@@ -171,6 +171,7 @@ function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
     tagline: row.tagline,
     description: row.description,
     logoMark: row.logo_mark,
+    isSupabaseBacked: true,
     projectLogo: logoUrl ?? mockProject?.projectLogo ?? "",
     projectLogoPath: row.project_logo_path ?? undefined,
     heroImage: mainImage || mockProject?.heroImage || "",

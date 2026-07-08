@@ -104,6 +104,7 @@ export default function App() {
     deleteProject,
     updateApartment,
     resetDemoData,
+    isSupabaseSourceActive,
   } = useProjectsStore({
     canUseSupabase: Boolean(currentUser && authMode === "supabase" && hasSupabaseSession),
     supabaseRetryKey: currentUser?.id ?? "anonymous",
@@ -115,7 +116,7 @@ export default function App() {
   const [clientShareConfig, setClientShareConfig] = useState<ClientShareConfig | null>(null);
   const userCanManageProjects = canManageProjects(currentUser);
   const userCanViewReadiness = canViewProjectReadiness(currentUser);
-  const userCanUploadProjectFiles =
+  const userHasRealSupabaseAdmin =
     currentUser?.role === "admin" && authMode === "supabase" && hasSupabaseSession;
   const authModeLabel =
     authMode === "demo" && currentUser
@@ -152,15 +153,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    console.info("[GOLDLANDS] Runtime auth mode", {
-      authMode,
-      profileRole: currentUser?.role ?? null,
-      hasSupabaseSession,
-      canUploadProjectFiles: userCanUploadProjectFiles,
-    });
-  }, [authMode, currentUser?.role, hasSupabaseSession, userCanUploadProjectFiles]);
-
-  useEffect(() => {
     if (!currentUser && screen !== "login") {
       setScreen("login");
       return;
@@ -188,6 +180,31 @@ export default function App() {
     () => projects.find((project) => project.id === selectedProjectId) ?? projects[0]!,
     [projects, selectedProjectId],
   );
+  const userCanUploadProjectFiles =
+    userHasRealSupabaseAdmin && isSupabaseSourceActive && selectedProject.isSupabaseBacked === true;
+  const uploadUnavailableMessage = userHasRealSupabaseAdmin
+    ? "יש לשמור את הפרויקט בענן לפני העלאת קבצים."
+    : "Upload requires real Supabase admin login.";
+
+  useEffect(() => {
+    console.info("[GOLDLANDS] Runtime auth mode", {
+      authMode,
+      profileRole: currentUser?.role ?? null,
+      hasSupabaseSession,
+      isSupabaseSourceActive,
+      selectedProjectId: selectedProject.id,
+      selectedProjectIsSupabaseBacked: selectedProject.isSupabaseBacked === true,
+      canUploadProjectFiles: userCanUploadProjectFiles,
+    });
+  }, [
+    authMode,
+    currentUser?.role,
+    hasSupabaseSession,
+    isSupabaseSourceActive,
+    selectedProject.id,
+    selectedProject.isSupabaseBacked,
+    userCanUploadProjectFiles,
+  ]);
 
   const projectApartments = useMemo(
     () => apartments.filter((apartment) => apartment.projectId === selectedProject.id),
@@ -374,6 +391,7 @@ export default function App() {
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
         canUploadProjectFiles={userCanUploadProjectFiles}
+        uploadUnavailableMessage={uploadUnavailableMessage}
         authModeLabel={authModeLabel}
         onSignOut={handleSignOut}
       />

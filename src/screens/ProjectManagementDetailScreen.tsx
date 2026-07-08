@@ -45,6 +45,7 @@ interface ProjectManagementDetailScreenProps {
   canViewReadiness?: boolean;
   canManageProjects?: boolean;
   canUploadProjectFiles?: boolean;
+  uploadUnavailableMessage?: string;
   authModeLabel?: string;
   onSignOut?: () => void;
 }
@@ -441,6 +442,7 @@ export function ProjectManagementDetailScreen({
   canViewReadiness = true,
   canManageProjects = true,
   canUploadProjectFiles = false,
+  uploadUnavailableMessage = "Upload requires real Supabase admin login.",
   authModeLabel,
   onSignOut,
 }: ProjectManagementDetailScreenProps) {
@@ -755,7 +757,7 @@ export function ProjectManagementDetailScreen({
     }
     if (mode === "upload") {
       setSelectedUploadFiles([]);
-      setUploadError("");
+      setUploadError(canUploadProjectFiles ? "" : uploadUnavailableMessage);
       setIsUploading(false);
 
       if (uploadSectionConfigs[id]?.needsApartment) {
@@ -961,7 +963,7 @@ export function ProjectManagementDetailScreen({
     const uploadConfig = uploadSectionConfigs[activePanel.id];
 
     if (!canUploadProjectFiles) {
-      setUploadError("Upload requires real Supabase admin login.");
+      setUploadError(uploadUnavailableMessage);
       return;
     }
 
@@ -1013,10 +1015,14 @@ export function ProjectManagementDetailScreen({
       setSuccessMessage(`${uploadedFiles.length} קבצים הועלו בהצלחה`);
     } catch (error) {
       console.warn("[GOLDLANDS] Supabase Storage upload failed. Keeping the app on localStorage fallback.", error);
+      const errorMessage = error instanceof Error ? error.message : "";
       setUploadError(
-        error instanceof Error
-          ? `העלאה ל-Supabase Storage נכשלה: ${error.message}`
-          : "העלאה ל-Supabase Storage נכשלה. הנתונים המקומיים נשארו זמינים.",
+        errorMessage === "יש לשמור את הפרויקט בענן לפני העלאת קבצים." ||
+        errorMessage === "Upload requires real Supabase admin login."
+          ? errorMessage
+          : errorMessage
+            ? `העלאה ל-Supabase Storage נכשלה: ${errorMessage}`
+            : "העלאה ל-Supabase Storage נכשלה. הנתונים המקומיים נשארו זמינים.",
       );
     } finally {
       setIsUploading(false);
@@ -1381,7 +1387,10 @@ export function ProjectManagementDetailScreen({
                 </button>
                 <button
                   className="gold-button gold-button--compact"
-                  disabled={isUploadPanel && (isUploading || selectedUploadFiles.length === 0)}
+                  disabled={
+                    isUploadPanel &&
+                    (!canUploadProjectFiles || isUploading || selectedUploadFiles.length === 0)
+                  }
                   form={activeSaveFormId}
                   onClick={
                     isUploadPanel

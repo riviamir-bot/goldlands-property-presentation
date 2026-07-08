@@ -56,6 +56,7 @@ function normalizeProject(project: Project): Project {
 
   return {
     ...project,
+    isSupabaseBacked: project.isSupabaseBacked ?? false,
     projectLogo: project.projectLogo ?? "",
     heroImage: project.heroImage || mainImage,
     mainImage,
@@ -140,6 +141,7 @@ export const localProjectsRepository: ProjectsRepository = {
       tagline: input.tagline,
       description: input.tagline,
       logoMark: makeLogoMark(input.name),
+      isSupabaseBacked: false,
       projectLogo: "",
       mainImage: "",
       location: `${input.neighborhood}, ${input.city}`,

@@ -208,6 +208,14 @@ function assertStorageClient() {
   return supabase;
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function getStorageFolderSegments(storagePath: string) {
+  return storagePath.split("/").filter(Boolean);
+}
+
 function getFileExtension(filename: string) {
   return filename.split(".").pop()?.toLowerCase() ?? "";
 }
@@ -288,6 +296,88 @@ function makeDocumentTitle(category: ProjectFileCategory, file: File) {
   };
 
   return `${titles[category] ?? "מסמך פרויקט"} - ${file.name}`;
+}
+
+async function runStorageUploadPreflight(
+  client: NonNullable<typeof supabase>,
+  projectId: string,
+  storageBucket: StorageBucket,
+  storagePath: string,
+  category: ProjectFileCategory,
+) {
+  const folderSegments = getStorageFolderSegments(storagePath);
+  const folderProjectId = folderSegments[1] ?? "";
+  const projectIdLooksLikeUuid = isUuid(projectId);
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+
+  if (sessionError) throw sessionError;
+
+  const userId = sessionData.session?.user.id ?? null;
+  let profileRole: string | null = null;
+  let profileIsActive: boolean | null = null;
+  let projectExists = false;
+  let projectIsActive: boolean | null = null;
+
+  if (userId) {
+    const { data: profileRow, error: profileError } = await client
+      .from("profiles")
+      .select("role, is_active")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+
+    profileRole = (profileRow as { role?: string | null } | null)?.role ?? null;
+    profileIsActive = (profileRow as { is_active?: boolean | null } | null)?.is_active ?? null;
+  }
+
+  if (projectIdLooksLikeUuid) {
+    const { data: projectRow, error: projectError } = await client
+      .from("projects")
+      .select("id, is_active")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (projectError) throw projectError;
+
+    projectExists = Boolean(projectRow);
+    projectIsActive = (projectRow as { is_active?: boolean | null } | null)?.is_active ?? null;
+  }
+
+  console.info("[GOLDLANDS] Storage upload preflight", {
+    storageBucket,
+    storagePath,
+    category,
+    projectId,
+    pathFolder1: folderSegments[0] ?? null,
+    pathFolder2: folderProjectId || null,
+    pathStartsWithProjects: folderSegments[0] === "projects",
+    pathProjectIdMatches: folderProjectId === projectId,
+    projectIdLooksLikeUuid,
+    projectExists,
+    projectIsActive,
+    profileRole,
+    profileIsActive,
+    hasSupabaseSession: Boolean(sessionData.session),
+  });
+
+  if (!sessionData.session) {
+    throw new Error("Upload requires real Supabase admin login.");
+  }
+
+  if (profileRole !== "admin" || profileIsActive === false) {
+    throw new Error("Upload requires real Supabase admin login.");
+  }
+
+  if (folderSegments[0] !== "projects" || folderProjectId !== projectId) {
+    throw new Error("Storage path does not match the required projects/{project_id}/... format.");
+  }
+
+  if (!projectExists || projectIsActive !== true) {
+    throw new Error("יש לשמור את הפרויקט בענן לפני העלאת קבצים.");
+  }
+
+  return userId;
 }
 
 async function safelyCreateSignedUrl(record: Omit<ProjectFileRecord, "publicUrl">) {
@@ -432,8 +522,13 @@ export async function uploadProjectFile(
 
   const filename = makeUniqueStorageFilename(file, config.kind);
   const storagePath = config.buildPath(projectId, filename, apartmentId);
-  const { data: userData } = await client.auth.getUser();
-  const uploadedBy = userData.user?.id ?? null;
+  const uploadedBy = await runStorageUploadPreflight(
+    client,
+    projectId,
+    config.bucket,
+    storagePath,
+    category,
+  );
   const { error: uploadError } = await client.storage
     .from(config.bucket)
     .upload(storagePath, file, {

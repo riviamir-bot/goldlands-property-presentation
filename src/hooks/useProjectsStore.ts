@@ -72,6 +72,7 @@ export function useProjectsStore({
   supabaseRetryKey = "initial",
 }: UseProjectsStoreOptions = {}) {
   const [state, setState] = useState<ProjectsRepositoryState>(() => readLocalProjectsState());
+  const [isSupabaseSourceActive, setIsSupabaseSourceActive] = useState(false);
   const supabaseWritesEnabledRef = useRef(false);
 
   const commitState = useCallback((nextState: ProjectsRepositoryState) => {
@@ -100,11 +101,13 @@ export function useProjectsStore({
       void operation()
         .then((remoteState) => {
           if (options.applyReturnedState && hasUsableRemoteState(remoteState)) {
+            setIsSupabaseSourceActive(true);
             applyRemoteState(remoteState);
           }
         })
         .catch((error) => {
           supabaseWritesEnabledRef.current = false;
+          setIsSupabaseSourceActive(false);
           warnAndContinue(`Supabase ${label} failed`, error);
         });
     },
@@ -114,6 +117,7 @@ export function useProjectsStore({
   useEffect(() => {
     if (!isSupabaseConfigured || !canUseSupabase) {
       supabaseWritesEnabledRef.current = false;
+      setIsSupabaseSourceActive(false);
       return undefined;
     }
 
@@ -125,17 +129,24 @@ export function useProjectsStore({
 
         if (!hasUsableRemoteState(remoteState)) {
           supabaseWritesEnabledRef.current = false;
+          setIsSupabaseSourceActive(false);
           console.warn("[GOLDLANDS] Supabase returned no active project data. Continuing with localStorage fallback.");
           return;
         }
 
         supabaseWritesEnabledRef.current = true;
+        setIsSupabaseSourceActive(true);
+        console.info("[GOLDLANDS] Supabase projects source activated", {
+          projectCount: remoteState.projects.length,
+          projectIds: remoteState.projects.map((project) => project.id),
+        });
         applyRemoteState(remoteState);
       })
       .catch((error: unknown) => {
         if (isCancelled) return;
 
         supabaseWritesEnabledRef.current = false;
+        setIsSupabaseSourceActive(false);
         warnAndContinue("Supabase read failed", error);
       });
 
@@ -211,6 +222,7 @@ export function useProjectsStore({
         const nextState = localProjectsRepository.resetDemoData() as ProjectsRepositoryState;
 
         supabaseWritesEnabledRef.current = false;
+        setIsSupabaseSourceActive(false);
         commitState(nextState);
       },
     }),
@@ -220,6 +232,7 @@ export function useProjectsStore({
   return {
     ...state,
     readinessChecklistCount: mockReadinessChecklist.length,
+    isSupabaseSourceActive,
     ...actions,
   };
 }

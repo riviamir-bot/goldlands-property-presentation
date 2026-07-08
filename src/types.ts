@@ -67,6 +67,7 @@ export interface Project {
   tagline: string;
   description: string;
   logoMark: string;
+  isSupabaseBacked?: boolean;
   projectLogo: string;
   projectLogoPath?: string;
   heroImage: string;
