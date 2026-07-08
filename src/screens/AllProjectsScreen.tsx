@@ -10,6 +10,8 @@ interface AllProjectsScreenProps {
   onAdmin: () => void;
   canViewReadiness?: boolean;
   canManageProjects?: boolean;
+  authModeLabel?: string;
+  onSignOut?: () => void;
 }
 
 export function AllProjectsScreen({
@@ -19,6 +21,8 @@ export function AllProjectsScreen({
   onAdmin,
   canViewReadiness = true,
   canManageProjects = true,
+  authModeLabel,
+  onSignOut,
 }: AllProjectsScreenProps) {
   return (
     <div className="management-layout">
@@ -29,6 +33,8 @@ export function AllProjectsScreen({
         onAdmin={onAdmin}
         canViewReadiness={canViewReadiness}
         canManageProjects={canManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={onSignOut}
       />
 
       <main className="management-main">

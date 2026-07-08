@@ -16,6 +16,8 @@ interface ProjectManagementScreenProps {
   onResetDemoData: () => void;
   canViewReadiness?: boolean;
   canManageProjects?: boolean;
+  authModeLabel?: string;
+  onSignOut?: () => void;
 }
 
 function getReadiness(readinessItems: ProjectReadiness[], projectId: string) {
@@ -39,6 +41,8 @@ export function ProjectManagementScreen({
   onResetDemoData,
   canViewReadiness = true,
   canManageProjects = true,
+  authModeLabel,
+  onSignOut,
 }: ProjectManagementScreenProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
@@ -70,6 +74,8 @@ export function ProjectManagementScreen({
         onAdmin={() => undefined}
         canViewReadiness={canViewReadiness}
         canManageProjects={canManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={onSignOut}
       />
 
       <main className="management-main project-management-screen">

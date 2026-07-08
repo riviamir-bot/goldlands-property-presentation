@@ -88,6 +88,27 @@ button:disabled {
   gap: 10px;
 }
 
+.auth-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.auth-status-chip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(214, 178, 94, 0.18);
+  border-radius: 999px;
+  color: var(--gold-light);
+  background: rgba(214, 178, 94, 0.06);
+}
+
 .presentation-header__brand {
   display: grid;
   place-items: center;
@@ -1401,6 +1422,11 @@ button:disabled {
 .side-navigation__support span {
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.side-navigation__logout {
+  width: 100%;
+  margin-top: 4px;
 }
 
 .management-main {
@@ -4601,6 +4627,14 @@ a.gold-button {
   gap: 14px;
 }
 
+.client-preview-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 760px) {
   .management-title-actions {
     display: grid;
@@ -4634,6 +4668,11 @@ a.gold-button {
 
   .client-preview-header__identity {
     display: grid;
+  }
+
+  .client-preview-header__actions {
+    display: grid;
+    justify-content: stretch;
   }
 
   .client-preview-hero {

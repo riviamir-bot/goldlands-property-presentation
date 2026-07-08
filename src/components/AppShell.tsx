@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Building2, ClipboardList, LayoutDashboard, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, ClipboardList, LayoutDashboard, LogOut, Send } from "lucide-react";
 import { BrandLogo } from "./BrandLogo";
 import { ProjectLogoSlot } from "./ProjectLogoSlot";
 import type { Project } from "../types";
@@ -19,6 +19,8 @@ interface AppShellProps {
   nextLabel?: string;
   hideHeading?: boolean;
   hideFooter?: boolean;
+  authModeLabel?: string;
+  onSignOut?: () => void;
 }
 
 export function AppShell({
@@ -37,6 +39,8 @@ export function AppShell({
   nextLabel = "המשך",
   hideHeading = false,
   hideFooter = false,
+  authModeLabel,
+  onSignOut,
 }: AppShellProps) {
   return (
     <div className="app-shell">
@@ -48,6 +52,15 @@ export function AppShell({
           <BrandLogo compact onClick={onProjects} />
         </div>
         <nav className="topbar__actions presentation-header__actions" aria-label="ניווט ראשי">
+          {onSignOut && (
+            <div className="auth-status-chip">
+              {authModeLabel && <span>{authModeLabel}</span>}
+              <button className="ghost-button ghost-button--compact" onClick={onSignOut} type="button">
+                <LogOut size={16} />
+                התנתקות
+              </button>
+            </div>
+          )}
           <button className="ghost-button header-back-button" onClick={onBack} disabled={!onBack}>
             <ArrowRight size={18} />
             חזרה

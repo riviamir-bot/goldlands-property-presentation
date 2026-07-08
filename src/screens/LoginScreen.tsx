@@ -5,17 +5,21 @@ import { BrandLogo } from "../components/BrandLogo";
 interface LoginScreenProps {
   backgroundImage?: string;
   onLogin: (credentials: { email: string; password: string }) => void | Promise<void>;
+  onDemoLogin?: () => void | Promise<void>;
   isLoading?: boolean;
   error?: string | null;
-  isDemoMode?: boolean;
+  isDemoOnly?: boolean;
+  canUseDemoLogin?: boolean;
 }
 
 export function LoginScreen({
   backgroundImage,
   onLogin,
+  onDemoLogin,
   isLoading = false,
   error,
-  isDemoMode = false,
+  isDemoOnly = false,
+  canUseDemoLogin = false,
 }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,8 +46,8 @@ export function LoginScreen({
                 autoComplete="email"
                 disabled={isLoading}
                 onChange={(event) => setEmail(event.currentTarget.value)}
-                placeholder={isDemoMode ? "מצב דמו מקומי" : "name@goldlands.co.il"}
-                required={!isDemoMode}
+                placeholder={isDemoOnly ? "מצב דמו מקומי" : "name@goldlands.co.il"}
+                required={!isDemoOnly}
                 type="email"
                 value={email}
               />
@@ -57,8 +61,8 @@ export function LoginScreen({
                 autoComplete="current-password"
                 disabled={isLoading}
                 onChange={(event) => setPassword(event.currentTarget.value)}
-                placeholder={isDemoMode ? "אין צורך בסיסמה במצב דמו" : "סיסמה"}
-                required={!isDemoMode}
+                placeholder={isDemoOnly ? "אין צורך בסיסמה במצב דמו" : "סיסמה"}
+                required={!isDemoOnly}
                 type="password"
                 value={password}
               />
@@ -66,9 +70,19 @@ export function LoginScreen({
           </label>
           {error && <p role="alert">{error}</p>}
           <button className="gold-button gold-button--wide" disabled={isLoading} type="submit">
-            {isLoading ? "מתחבר..." : isDemoMode ? "כניסה למצב דמו" : "כניסה למערכת"}
+            {isLoading ? "מתחבר..." : isDemoOnly ? "כניסה למצב דמו" : "כניסה למערכת"}
             <ArrowLeft size={18} />
           </button>
+          {!isDemoOnly && canUseDemoLogin && onDemoLogin && (
+            <button
+              className="ghost-button gold-button--wide"
+              disabled={isLoading}
+              onClick={() => void onDemoLogin()}
+              type="button"
+            >
+              כניסה לדמו מקומי
+            </button>
+          )}
         </form>
       </section>
     </main>

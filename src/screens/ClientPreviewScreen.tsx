@@ -1,4 +1,4 @@
-import { ArrowRight, Building2, CalendarClock, FileText, Home, Images, MapPin, Ruler } from "lucide-react";
+import { ArrowRight, Building2, CalendarClock, FileText, Home, Images, LogOut, MapPin, Ruler } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
 import { ProjectLogoSlot } from "../components/ProjectLogoSlot";
 import { StatusBadge } from "../components/StatusBadge";
@@ -11,6 +11,8 @@ interface ClientPreviewScreenProps {
   apartments: Apartment[];
   shareConfig: ClientShareConfig;
   onBack: () => void;
+  authModeLabel?: string;
+  onSignOut?: () => void;
 }
 
 const expiryLabels: Record<ClientShareExpiry, string> = {
@@ -31,6 +33,8 @@ export function ClientPreviewScreen({
   apartments,
   shareConfig,
   onBack,
+  authModeLabel,
+  onSignOut,
 }: ClientPreviewScreenProps) {
   const selectedApartments = shareConfig.selectedApartments
     .map((selection) => ({
@@ -56,10 +60,21 @@ export function ClientPreviewScreen({
           <BrandLogo compact />
           <ProjectLogoSlot project={project} compact />
         </div>
-        <button className="ghost-button ghost-button--compact" onClick={onBack} type="button">
-          <ArrowRight size={17} />
-          חזרה למצגת
-        </button>
+        <div className="client-preview-header__actions">
+          {onSignOut && (
+            <div className="auth-status-chip">
+              {authModeLabel && <span>{authModeLabel}</span>}
+              <button className="ghost-button ghost-button--compact" onClick={onSignOut} type="button">
+                <LogOut size={16} />
+                התנתקות
+              </button>
+            </div>
+          )}
+          <button className="ghost-button ghost-button--compact" onClick={onBack} type="button">
+            <ArrowRight size={17} />
+            חזרה למצגת
+          </button>
+        </div>
       </header>
 
       <section className="client-preview-hero" style={{ backgroundImage: `url(${heroImage})` }}>

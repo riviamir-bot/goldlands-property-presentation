@@ -44,6 +44,9 @@ interface ProjectManagementDetailScreenProps {
   ) => void;
   canViewReadiness?: boolean;
   canManageProjects?: boolean;
+  canUploadProjectFiles?: boolean;
+  authModeLabel?: string;
+  onSignOut?: () => void;
 }
 
 type SectionStatus = "missing" | "partial" | "complete";
@@ -437,6 +440,9 @@ export function ProjectManagementDetailScreen({
   onUpdateApartment,
   canViewReadiness = true,
   canManageProjects = true,
+  canUploadProjectFiles = false,
+  authModeLabel,
+  onSignOut,
 }: ProjectManagementDetailScreenProps) {
   const [activePanel, setActivePanel] = useState<{ id: string; mode: PanelMode } | null>(null);
   const [selectedInventoryApartmentId, setSelectedInventoryApartmentId] = useState<string | null>(
@@ -954,8 +960,8 @@ export function ProjectManagementDetailScreen({
 
     const uploadConfig = uploadSectionConfigs[activePanel.id];
 
-    if (!canManageProjects) {
-      setUploadError("אין הרשאת ניהול להעלאת קבצים.");
+    if (!canUploadProjectFiles) {
+      setUploadError("Upload requires real Supabase admin login.");
       return;
     }
 
@@ -1039,6 +1045,8 @@ export function ProjectManagementDetailScreen({
         onAdmin={onAdmin}
         canViewReadiness={canViewReadiness}
         canManageProjects={canManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={onSignOut}
       />
 
       <main className="management-main project-detail-screen">

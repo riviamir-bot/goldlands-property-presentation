@@ -16,6 +16,8 @@ interface SignInInput {
   password: string;
 }
 
+export type AuthMode = "signed-out" | "supabase" | "demo";
+
 const authUnavailableMessage = "Supabase Auth אינו זמין כרגע. ניתן להמשיך במצב דמו מקומי.";
 
 function isUserRole(value: string | null | undefined): value is UserRole {
@@ -64,11 +66,14 @@ export function useAuthProfile() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState<string | null>(null);
-  const [isDemoMode, setIsDemoMode] = useState(!isSupabaseConfigured);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [hasSupabaseSession, setHasSupabaseSession] = useState(false);
+  const authMode: AuthMode = currentUser ? (isDemoMode ? "demo" : "supabase") : "signed-out";
 
-  const enterDemoMode = useCallback((message?: string) => {
+  const resetToSignedOut = useCallback((message?: string | null, sessionExists = false) => {
     setCurrentUser(null);
-    setIsDemoMode(true);
+    setIsDemoMode(false);
+    setHasSupabaseSession(sessionExists);
     setIsLoading(false);
     setError(message ?? null);
   }, []);
@@ -78,12 +83,13 @@ export function useAuthProfile() {
 
     setCurrentUser(profileUser);
     setIsDemoMode(false);
+    setHasSupabaseSession(true);
     setError(null);
   }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
-      enterDemoMode();
+      resetToSignedOut(null);
       return undefined;
     }
 
@@ -99,10 +105,12 @@ export function useAuthProfile() {
       if (!data.session?.user) {
         setCurrentUser(null);
         setIsDemoMode(false);
+        setHasSupabaseSession(false);
         setError(null);
         return;
       }
 
+      setHasSupabaseSession(true);
       await loadAuthenticatedUser(data.session.user);
     };
 
@@ -110,16 +118,19 @@ export function useAuthProfile() {
       .catch((initialError: unknown) => {
         if (isCancelled) return;
 
-        console.warn("[GOLDLANDS] Supabase auth initialization failed. Falling back to demo mode.", initialError);
-        enterDemoMode(authUnavailableMessage);
+        console.warn("[GOLDLANDS] Supabase auth initialization failed. Staying signed out.", initialError);
+        resetToSignedOut(authUnavailableMessage);
       })
       .finally(() => {
         if (!isCancelled) setIsLoading(false);
       });
 
     const { data } = client.auth.onAuthStateChange((event, session) => {
+      setHasSupabaseSession(Boolean(session?.user));
+
       if (event === "SIGNED_OUT" || !session?.user) {
         setCurrentUser(null);
+        setIsDemoMode(false);
         setError(null);
         setIsLoading(false);
         return;
@@ -130,8 +141,8 @@ export function useAuthProfile() {
         .catch((profileError: unknown) => {
           if (isCancelled) return;
 
-          console.warn("[GOLDLANDS] Supabase profile load failed. Falling back to demo mode.", profileError);
-          enterDemoMode(authUnavailableMessage);
+          console.warn("[GOLDLANDS] Supabase profile load failed. Staying signed out.", profileError);
+          resetToSignedOut(authUnavailableMessage, Boolean(session?.user));
         })
         .finally(() => {
           if (!isCancelled) setIsLoading(false);
@@ -142,15 +153,25 @@ export function useAuthProfile() {
       isCancelled = true;
       data.subscription.unsubscribe();
     };
-  }, [enterDemoMode, loadAuthenticatedUser]);
+  }, [loadAuthenticatedUser, resetToSignedOut]);
+
+  useEffect(() => {
+    console.info("[GOLDLANDS] Auth state", {
+      authMode,
+      profileRole: currentUser?.role ?? null,
+      hasSupabaseSession,
+      isSupabaseConfigured,
+    });
+  }, [authMode, currentUser?.role, hasSupabaseSession]);
 
   const signIn = useCallback(
     async ({ email, password }: SignInInput) => {
       setError(null);
 
-      if (isDemoMode || !isSupabaseConfigured || !supabase) {
+      if (!isSupabaseConfigured || !supabase) {
         setCurrentUser(demoCurrentUser);
         setIsDemoMode(true);
+        setHasSupabaseSession(false);
         return true;
       }
 
@@ -173,7 +194,7 @@ export function useAuthProfile() {
           await loadAuthenticatedUser(data.user);
         } catch (profileError: unknown) {
           console.warn("[GOLDLANDS] Supabase profile load failed after sign in.", profileError);
-          enterDemoMode(authUnavailableMessage);
+          resetToSignedOut(authUnavailableMessage, Boolean(data.session ?? data.user));
           return false;
         }
 
@@ -185,8 +206,18 @@ export function useAuthProfile() {
         setIsLoading(false);
       }
     },
-    [enterDemoMode, isDemoMode, loadAuthenticatedUser],
+    [loadAuthenticatedUser, resetToSignedOut],
   );
+
+  const signInDemo = useCallback(async () => {
+    setCurrentUser(demoCurrentUser);
+    setIsDemoMode(true);
+    setHasSupabaseSession(false);
+    setIsLoading(false);
+    setError(null);
+
+    return true;
+  }, []);
 
   const signOut = useCallback(async () => {
     setError(null);
@@ -201,7 +232,8 @@ export function useAuthProfile() {
     }
 
     setCurrentUser(null);
-    setIsDemoMode(!isSupabaseConfigured || isDemoMode);
+    setIsDemoMode(false);
+    setHasSupabaseSession(false);
 
     return true;
   }, [isDemoMode]);
@@ -210,8 +242,12 @@ export function useAuthProfile() {
     currentUser,
     isLoading,
     error,
+    authMode,
+    hasSupabaseSession,
     isDemoMode,
+    isSupabaseConfigured,
     signIn,
+    signInDemo,
     signOut,
   };
 }

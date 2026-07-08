@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, LayoutDashboard } from "lucide-react";
+import { Building2, ClipboardList, LayoutDashboard, LogOut } from "lucide-react";
 import { BrandLogo } from "./BrandLogo";
 
 interface SideNavigationProps {
@@ -8,6 +8,8 @@ interface SideNavigationProps {
   onAdmin: () => void;
   canViewReadiness?: boolean;
   canManageProjects?: boolean;
+  authModeLabel?: string;
+  onSignOut?: () => void;
 }
 
 export function SideNavigation({
@@ -17,6 +19,8 @@ export function SideNavigation({
   onAdmin,
   canViewReadiness = true,
   canManageProjects = true,
+  authModeLabel,
+  onSignOut,
 }: SideNavigationProps) {
   return (
     <aside className="side-navigation" aria-label="תפריט פנימי">
@@ -40,8 +44,14 @@ export function SideNavigation({
         )}
       </nav>
       <div className="side-navigation__support">
-        <strong>צוות מכירות</strong>
+        <strong>{authModeLabel ?? "צוות מכירות"}</strong>
         <span>תצוגת חומרים פנימית</span>
+        {onSignOut && (
+          <button className="mini-button side-navigation__logout" onClick={onSignOut} type="button">
+            <LogOut size={15} />
+            התנתקות
+          </button>
+        )}
       </div>
     </aside>
   );

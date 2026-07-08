@@ -4,6 +4,21 @@ const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"] as const;
 const DOCUMENT_EXTENSIONS = ["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx"] as const;
+const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+const DOCUMENT_MIME_EXTENSIONS: Record<string, string> = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+};
 
 type StorageBucket = "project-media" | "project-documents";
 type ProjectFileKind = "image" | "document";
@@ -197,44 +212,68 @@ function getFileExtension(filename: string) {
   return filename.split(".").pop()?.toLowerCase() ?? "";
 }
 
-function makeSafeFilename(filename: string) {
-  const extension = getFileExtension(filename);
-  const baseName = filename
-    .replace(/\.[^.]+$/, "")
-    .trim()
-    .replace(/[^\w\u0590-\u05ff.-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  const safeBaseName = baseName || "file";
+function extensionsMatch(extension: string, expectedExtension: string) {
+  if (expectedExtension === "jpg") return extension === "jpg" || extension === "jpeg";
 
-  return extension ? `${safeBaseName}.${extension}` : safeBaseName;
+  return extension === expectedExtension;
 }
 
-function makeUniqueFilename(filename: string) {
+function resolveStorageExtension(file: File, kind: ProjectFileKind) {
+  const extension = getFileExtension(file.name);
+  const mimeType = file.type.toLowerCase();
+  const allowedExtensions: readonly string[] =
+    kind === "image" ? IMAGE_EXTENSIONS : DOCUMENT_EXTENSIONS;
+  const mimeExtension =
+    kind === "image"
+      ? IMAGE_MIME_EXTENSIONS[mimeType]
+      : DOCUMENT_MIME_EXTENSIONS[mimeType];
+
+  if (!allowedExtensions.includes(extension)) {
+    throw new Error(
+      kind === "image"
+        ? "סוג קובץ לא נתמך. ניתן להעלות תמונות jpg, jpeg, png או webp."
+        : "סוג קובץ לא נתמך. ניתן להעלות pdf, ppt, pptx, doc, docx, xls או xlsx.",
+    );
+  }
+
+  if (kind === "image" && !mimeExtension) {
+    throw new Error("סוג תמונה לא נתמך. ניתן להעלות jpg, jpeg, png או webp.");
+  }
+
+  if (mimeExtension && !extensionsMatch(extension, mimeExtension)) {
+    throw new Error("סיומת הקובץ אינה תואמת לסוג הקובץ שנבחר.");
+  }
+
+  if (
+    kind === "document" &&
+    mimeType &&
+    mimeType !== "application/octet-stream" &&
+    !mimeExtension
+  ) {
+    throw new Error("סוג מסמך לא נתמך. ניתן להעלות pdf, ppt, pptx, doc, docx, xls או xlsx.");
+  }
+
+  return mimeExtension ?? extension;
+}
+
+function makeUniqueStorageFilename(file: File, kind: ProjectFileKind) {
   const randomId =
     typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
+      ? crypto.randomUUID().replace(/-/g, "").slice(0, 8)
+      : Math.random().toString(36).replace(/[^a-z0-9]/g, "").slice(2, 10);
+  const extension = resolveStorageExtension(file, kind);
 
-  return `${Date.now()}-${randomId}-${makeSafeFilename(filename)}`;
+  return `${Date.now()}-${randomId}.${extension}`;
 }
 
 function validateProjectFile(file: File, category: ProjectFileCategory) {
   const config = categoryConfigs[category];
-  const extension = getFileExtension(file.name);
-  const allowedExtensions: readonly string[] =
-    config.kind === "image" ? IMAGE_EXTENSIONS : DOCUMENT_EXTENSIONS;
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
     throw new Error("הקובץ גדול מדי. כרגע ניתן להעלות קבצים עד 25MB.");
   }
 
-  if (!allowedExtensions.includes(extension)) {
-    throw new Error(
-      config.kind === "image"
-        ? "סוג קובץ לא נתמך. ניתן להעלות תמונות jpg, jpeg, png או webp."
-        : "סוג קובץ לא נתמך. ניתן להעלות pdf, ppt, pptx, doc, docx, xls או xlsx.",
-    );
-  }
+  resolveStorageExtension(file, config.kind);
 }
 
 function makeDocumentTitle(category: ProjectFileCategory, file: File) {
@@ -391,7 +430,7 @@ export async function uploadProjectFile(
 
   validateProjectFile(file, category);
 
-  const filename = makeUniqueFilename(file.name);
+  const filename = makeUniqueStorageFilename(file, config.kind);
   const storagePath = config.buildPath(projectId, filename, apartmentId);
   const { data: userData } = await client.auth.getUser();
   const uploadedBy = userData.user?.id ?? null;

@@ -54,6 +54,12 @@ const flow: Screen[] = [
   "location",
 ];
 
+const authRoleLabels = {
+  admin: "Admin",
+  sales: "Sales",
+  viewer: "Viewer",
+};
+
 function makeDefaultShareConfig(availableApartments: Apartment[]): ClientShareConfig {
   const apartment = availableApartments[0];
 
@@ -81,8 +87,12 @@ export default function App() {
     currentUser,
     isLoading: isAuthLoading,
     error: authError,
-    isDemoMode,
+    authMode,
+    hasSupabaseSession,
+    isSupabaseConfigured,
     signIn,
+    signInDemo,
+    signOut,
   } = useAuthProfile();
   const {
     projects,
@@ -95,7 +105,7 @@ export default function App() {
     updateApartment,
     resetDemoData,
   } = useProjectsStore({
-    canUseSupabase: Boolean(currentUser && !isDemoMode),
+    canUseSupabase: Boolean(currentUser && authMode === "supabase" && hasSupabaseSession),
     supabaseRetryKey: currentUser?.id ?? "anonymous",
   });
   const [screen, setScreen] = useState<Screen>("login");
@@ -105,6 +115,14 @@ export default function App() {
   const [clientShareConfig, setClientShareConfig] = useState<ClientShareConfig | null>(null);
   const userCanManageProjects = canManageProjects(currentUser);
   const userCanViewReadiness = canViewProjectReadiness(currentUser);
+  const userCanUploadProjectFiles =
+    currentUser?.role === "admin" && authMode === "supabase" && hasSupabaseSession;
+  const authModeLabel =
+    authMode === "demo" && currentUser
+      ? "Demo Admin"
+      : authMode === "supabase" && currentUser
+        ? `Supabase ${authRoleLabels[currentUser.role]}`
+        : "";
 
   const handleLogin = async (credentials: { email: string; password: string }) => {
     const didLogin = await signIn(credentials);
@@ -113,6 +131,34 @@ export default function App() {
       setScreen("projects");
     }
   };
+
+  const handleDemoLogin = async () => {
+    const didLogin = await signInDemo();
+
+    if (didLogin) {
+      setScreen("projects");
+    }
+  };
+
+  const handleSignOut = async () => {
+    const didSignOut = await signOut();
+
+    if (!didSignOut) return;
+
+    setIsClientShareOpen(false);
+    setClientShareConfig(null);
+    setSelectedApartmentId(null);
+    setScreen("login");
+  };
+
+  useEffect(() => {
+    console.info("[GOLDLANDS] Runtime auth mode", {
+      authMode,
+      profileRole: currentUser?.role ?? null,
+      hasSupabaseSession,
+      canUploadProjectFiles: userCanUploadProjectFiles,
+    });
+  }, [authMode, currentUser?.role, hasSupabaseSession, userCanUploadProjectFiles]);
 
   useEffect(() => {
     if (!currentUser && screen !== "login") {
@@ -237,9 +283,11 @@ export default function App() {
       <LoginScreen
         backgroundImage={projects[0]?.mainImage || projects[0]?.heroImage}
         error={authError}
-        isDemoMode={isDemoMode}
+        isDemoOnly={!isSupabaseConfigured}
         isLoading={isAuthLoading}
+        canUseDemoLogin={isSupabaseConfigured}
         onLogin={handleLogin}
+        onDemoLogin={handleDemoLogin}
       />
     );
   }
@@ -253,6 +301,8 @@ export default function App() {
         onAdmin={openAdmin}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={handleSignOut}
       />
     );
   }
@@ -266,6 +316,8 @@ export default function App() {
         onAdmin={openAdmin}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={handleSignOut}
       />
     );
   }
@@ -281,6 +333,8 @@ export default function App() {
         onOpenProject={openProjectManagement}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={handleSignOut}
       />
     );
   }
@@ -299,6 +353,8 @@ export default function App() {
         onResetDemoData={handleResetDemoData}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={handleSignOut}
       />
     );
   }
@@ -317,6 +373,9 @@ export default function App() {
         onUpdateApartment={updateApartment}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
+        canUploadProjectFiles={userCanUploadProjectFiles}
+        authModeLabel={authModeLabel}
+        onSignOut={handleSignOut}
       />
     );
   }
@@ -328,6 +387,8 @@ export default function App() {
         apartments={projectApartments}
         shareConfig={clientShareConfig ?? makeDefaultShareConfig(availableApartments)}
         onBack={() => setScreen("opening")}
+        authModeLabel={authModeLabel}
+        onSignOut={handleSignOut}
       />
     );
   }
@@ -343,6 +404,8 @@ export default function App() {
         onAdmin={openAdmin}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={handleSignOut}
         onClientShare={projectSectionScreens.includes(screen) ? openClientShare : undefined}
         onBack={() => setScreen(previousScreen)}
         onNext={nextScreen ? () => setScreen(nextScreen) : undefined}
