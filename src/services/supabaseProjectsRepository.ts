@@ -228,6 +228,7 @@ function makeProjectInsertRow(input: AddProjectInput, slug: string): Record<stri
       penthouses: "0",
     },
     readiness_percentage: 12,
+    is_active: true,
   };
 }
 
@@ -317,16 +318,32 @@ function makeApartmentPatchRow(patch: Partial<Apartment>): Record<string, unknow
 
 async function readSupabaseProjectsState(): Promise<ProjectsRepositoryState> {
   const client = assertSupabase();
-  const [{ data: projectRows, error: projectsError }, { data: apartmentRows, error: apartmentsError }] =
-    await Promise.all([
-      client.from("projects").select("*").order("created_at", { ascending: true }),
-      client.from("apartments").select("*").order("sort_order", { ascending: true }),
-    ]);
+  const { data: projectRows, error: projectsError } = await client
+    .from("projects")
+    .select("*")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
 
   if (projectsError) throw projectsError;
-  if (apartmentsError) throw apartmentsError;
 
   const projects = (projectRows as ProjectRow[] | null ?? []).map(mapProject);
+  const projectIds = projects.map((project) => project.id);
+
+  if (projectIds.length === 0) {
+    return {
+      projects: [],
+      apartments: [],
+      readinessItems: [],
+    };
+  }
+
+  const { data: apartmentRows, error: apartmentsError } = await client
+    .from("apartments")
+    .select("*")
+    .in("project_id", projectIds)
+    .order("sort_order", { ascending: true });
+
+  if (apartmentsError) throw apartmentsError;
 
   return {
     projects,
@@ -393,7 +410,10 @@ export const supabaseProjectsRepository: ProjectsRepository = {
 
   async deleteProject(projectId: string) {
     const client = assertSupabase();
-    const { error } = await client.from("projects").delete().eq("id", projectId);
+    const { error } = await client
+      .from("projects")
+      .update({ is_active: false })
+      .eq("id", projectId);
 
     if (error) throw error;
 

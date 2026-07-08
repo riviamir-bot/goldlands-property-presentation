@@ -124,6 +124,7 @@ export function useProjectsStore({
 
         if (!hasUsableRemoteState(remoteState)) {
           supabaseWritesEnabledRef.current = false;
+          console.warn("[GOLDLANDS] Supabase returned no active project data. Continuing with localStorage fallback.");
           return;
         }
 
@@ -173,6 +174,7 @@ export function useProjectsStore({
             patch,
             readinessPatch,
           ) as Promise<ProjectsRepositoryState>,
+          { applyReturnedState: true },
         );
       },
 
@@ -182,6 +184,7 @@ export function useProjectsStore({
         setState(nextState);
         runSupabaseWrite("deleteProject", () =>
           supabaseProjectsRepository.deleteProject(projectId) as Promise<ProjectsRepositoryState>,
+          { applyReturnedState: true },
         );
       },
 
@@ -199,6 +202,7 @@ export function useProjectsStore({
             apartmentId,
             patch,
           ) as Promise<ProjectsRepositoryState>,
+          { applyReturnedState: true },
         );
       },
 
