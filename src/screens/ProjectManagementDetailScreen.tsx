@@ -16,8 +16,13 @@ import {
 import { ProjectLogoSlot } from "../components/ProjectLogoSlot";
 import { SideNavigation } from "../components/SideNavigation";
 import { StatusBadge } from "../components/StatusBadge";
+import {
+  uploadProjectFile,
+  type ProjectFileCategory,
+  type ProjectFileRecord,
+} from "../services/storageService";
 import { formatPrice } from "../utils/format";
-import type { Apartment, ApartmentStatus, Project, ProjectReadiness } from "../types";
+import type { Apartment, ApartmentStatus, GalleryCategory, Project, ProjectReadiness } from "../types";
 
 interface ProjectManagementDetailScreenProps {
   project: Project;
@@ -141,6 +146,74 @@ const projectTypeOptions: Project["projectType"][] = [
   "תמ״א 38/1",
   "תמ״א 38/2 / פינוי בינוי",
 ];
+
+const imageUploadAccept = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+const documentUploadAccept = ".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx";
+
+interface UploadSectionConfig {
+  category: ProjectFileCategory;
+  accept: string;
+  multiple: boolean;
+  needsApartment?: boolean;
+}
+
+const uploadSectionConfigs: Partial<Record<string, UploadSectionConfig>> = {
+  logo: {
+    category: "logo",
+    accept: imageUploadAccept,
+    multiple: false,
+  },
+  "main-image": {
+    category: "main",
+    accept: imageUploadAccept,
+    multiple: false,
+  },
+  exterior: {
+    category: "exterior",
+    accept: imageUploadAccept,
+    multiple: true,
+  },
+  interior: {
+    category: "interior",
+    accept: imageUploadAccept,
+    multiple: true,
+  },
+  plans: {
+    category: "apartment_plan",
+    accept: documentUploadAccept,
+    multiple: true,
+    needsApartment: true,
+  },
+  "floor-plans": {
+    category: "floor_plan",
+    accept: documentUploadAccept,
+    multiple: true,
+  },
+  prices: {
+    category: "price_list",
+    accept: documentUploadAccept,
+    multiple: true,
+  },
+  technical: {
+    category: "technical_spec",
+    accept: documentUploadAccept,
+    multiple: true,
+  },
+  documents: {
+    category: "brochure",
+    accept: documentUploadAccept,
+    multiple: true,
+  },
+};
+
+function isGalleryCategory(category: ProjectFileCategory): category is GalleryCategory {
+  return (
+    category === "exterior" ||
+    category === "interior" ||
+    category === "lobby" ||
+    category === "surroundings"
+  );
+}
 
 function makeLogoMark(name: string) {
   return name
@@ -375,6 +448,11 @@ export function ProjectManagementDetailScreen({
   const [apartmentInventoryForm, setApartmentInventoryForm] =
     useState<ApartmentInventoryFormState>(() => makeApartmentInventoryFormState(apartments[0]));
   const [successMessage, setSuccessMessage] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [selectedUploadFiles, setSelectedUploadFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadApartmentId, setUploadApartmentId] = useState(apartments[0]?.id ?? "");
+  const [uploadedSectionCounts, setUploadedSectionCounts] = useState<Record<string, number>>({});
 
   const materialSections = useMemo<MaterialSection[]>(() => {
     const city = readiness?.city ?? project.city;
@@ -473,6 +551,11 @@ export function ProjectManagementDetailScreen({
     };
 
     return materialBlueprints.map((section) => {
+      const uploadedCount = Math.max(
+        uploadedSectionCounts[section.id] ?? 0,
+        project.materialFileCounts?.[section.id] ?? 0,
+      );
+
       if (section.id === "logo") {
         return {
           ...section,
@@ -497,13 +580,23 @@ export function ProjectManagementDetailScreen({
         };
       }
 
+      if (uploadedCount > 0) {
+        return {
+          ...section,
+          status: "complete",
+          summary: `${uploadedCount} קבצים הועלו בהצלחה.`,
+          lastUpdated: "עודכן כעת",
+          fields: manualFields[section.id] ?? fileMetadataFields,
+        };
+      }
+
       return {
         ...section,
         lastUpdated: section.lastUpdated ?? readiness?.lastUpdated ?? "לא עודכן",
         fields: manualFields[section.id] ?? fileMetadataFields,
       };
     });
-  }, [apartments, project, readiness]);
+  }, [apartments, project, readiness, uploadedSectionCounts]);
 
   const panelSection = activePanel
     ? materialSections.find((section) => section.id === activePanel.id)
@@ -518,6 +611,8 @@ export function ProjectManagementDetailScreen({
           : activePanel?.mode === "manual" && panelSection?.id === "main-image"
             ? "project-main-image-form"
             : undefined;
+  const activeUploadConfig = activePanel ? uploadSectionConfigs[activePanel.id] : undefined;
+  const isUploadPanel = activePanel?.mode === "upload";
   const projectDetailFields: ProjectDetailField[] = [
     { label: "שם פרויקט", name: "name", value: projectDetailsForm.name },
     { label: "עיר", name: "city", value: projectDetailsForm.city },
@@ -610,6 +705,17 @@ export function ProjectManagementDetailScreen({
     setApartmentInventoryForm(makeApartmentInventoryFormState(selectedInventoryApartment));
   }, [selectedInventoryApartment]);
 
+  useEffect(() => {
+    if (!apartments.length) {
+      setUploadApartmentId("");
+      return;
+    }
+
+    if (!apartments.some((apartment) => apartment.id === uploadApartmentId)) {
+      setUploadApartmentId(apartments[0].id);
+    }
+  }, [apartments, uploadApartmentId]);
+
   const handleProjectDetailsFieldChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
@@ -640,6 +746,15 @@ export function ProjectManagementDetailScreen({
     }
     if (id === "inventory" && !selectedInventoryApartmentId) {
       setSelectedInventoryApartmentId(apartments[0]?.id ?? null);
+    }
+    if (mode === "upload") {
+      setSelectedUploadFiles([]);
+      setUploadError("");
+      setIsUploading(false);
+
+      if (uploadSectionConfigs[id]?.needsApartment) {
+        setUploadApartmentId(selectedInventoryApartmentId ?? apartments[0]?.id ?? "");
+      }
     }
     setSuccessMessage("");
     setActivePanel({ id, mode });
@@ -774,6 +889,132 @@ export function ProjectManagementDetailScreen({
     });
     setSuccessMessage("נשמר בהצלחה");
     setActivePanel(null);
+  };
+
+  const handleUploadFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSelectedUploadFiles(Array.from(event.currentTarget.files ?? []));
+    setUploadError("");
+    setSuccessMessage("");
+  };
+
+  const applyUploadedFilesToLocalState = (
+    category: ProjectFileCategory,
+    uploadedFiles: ProjectFileRecord[],
+  ) => {
+    const uploadedUrls = uploadedFiles
+      .map((file) => file.publicUrl)
+      .filter((url): url is string => Boolean(url));
+
+    if (category === "logo" && uploadedFiles[0]) {
+      const projectLogo = uploadedUrls[0] ?? project.projectLogo;
+
+      onUpdateProject(project.id, {
+        projectLogo,
+        projectLogoPath: uploadedFiles[0].storagePath,
+      });
+      setProjectDetailsForm((current) => ({ ...current, projectLogo }));
+      return;
+    }
+
+    if (category === "main" && uploadedFiles[0]) {
+      const mainImage = uploadedUrls[0] ?? project.mainImage ?? project.heroImage;
+
+      onUpdateProject(project.id, {
+        heroImage: mainImage,
+        mainImage,
+        mainImagePath: uploadedFiles[0].storagePath,
+      });
+      setProjectDetailsForm((current) => ({ ...current, mainImage }));
+      return;
+    }
+
+    if (isGalleryCategory(category) && uploadedUrls.length > 0) {
+      onUpdateProject(project.id, {
+        gallery: {
+          ...project.gallery,
+          [category]: [...(project.gallery[category] ?? []), ...uploadedUrls],
+        },
+      });
+      return;
+    }
+
+    if (category === "apartment_plan" && uploadApartmentId) {
+      const planFile = uploadedFiles[0];
+
+      onUpdateApartment(project.id, uploadApartmentId, {
+        planAttached: true,
+        planUrl: planFile?.publicUrl,
+        planFileName: planFile?.fileName,
+      });
+    }
+  };
+
+  const handleUploadSubmit = async () => {
+    if (!activePanel) return;
+
+    const uploadConfig = uploadSectionConfigs[activePanel.id];
+
+    if (!canManageProjects) {
+      setUploadError("אין הרשאת ניהול להעלאת קבצים.");
+      return;
+    }
+
+    if (!uploadConfig) {
+      setUploadError("העלאה עדיין לא זמינה עבור שורה זו.");
+      return;
+    }
+
+    if (uploadConfig.needsApartment && !uploadApartmentId) {
+      setUploadError("יש לבחור דירה לפני העלאת תוכנית.");
+      return;
+    }
+
+    if (selectedUploadFiles.length === 0) {
+      setUploadError("יש לבחור לפחות קובץ אחד להעלאה.");
+      return;
+    }
+
+    const filesToUpload = uploadConfig.multiple ? selectedUploadFiles : selectedUploadFiles.slice(0, 1);
+
+    setIsUploading(true);
+    setUploadError("");
+    setSuccessMessage("");
+
+    try {
+      const uploadedFiles = await Promise.all(
+        filesToUpload.map((file) =>
+          uploadProjectFile(
+            project.id,
+            file,
+            uploadConfig.category,
+            uploadConfig.needsApartment ? uploadApartmentId : undefined,
+          ),
+        ),
+      );
+
+      applyUploadedFilesToLocalState(uploadConfig.category, uploadedFiles);
+      onUpdateProject(project.id, {
+        materialFileCounts: {
+          ...project.materialFileCounts,
+          [activePanel.id]: (project.materialFileCounts?.[activePanel.id] ?? 0) + uploadedFiles.length,
+        },
+      });
+      setUploadedSectionCounts((current) => ({
+        ...current,
+        [activePanel.id]: (current[activePanel.id] ?? 0) + uploadedFiles.length,
+      }));
+      setSelectedUploadFiles([]);
+      setSuccessMessage(`${uploadedFiles.length} קבצים הועלו בהצלחה`);
+    } catch (error) {
+      console.warn("[GOLDLANDS] Supabase Storage upload failed. Keeping the app on localStorage fallback.", error);
+      setUploadError(
+        error instanceof Error
+          ? `העלאה ל-Supabase Storage נכשלה: ${error.message}`
+          : "העלאה ל-Supabase Storage נכשלה. הנתונים המקומיים נשארו זמינים.",
+      );
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const activePanelModeLabel =
@@ -1070,21 +1311,58 @@ export function ProjectManagementDetailScreen({
                   <div className="mock-upload-panel">
                     <UploadCloud size={34} strokeWidth={1.5} />
                     <div>
-                      <strong>גרירת קבצים לכאן</strong>
+                      <strong>בחירת קבצים</strong>
                       <p>
                         {panelSection.id === "logo"
-                          ? "בהמשך כאן יועלה לוגו הפרויקט שיופיע בכרטיס הפרויקט ובכל מסכי התצוגה."
-                          : `אזור דמו להעלאת קבצים או ייבוא חומרים עבור ${panelSection.title}.`}
+                          ? "לוגו הפרויקט יופיע בכרטיסים ובמסכי התצוגה."
+                          : `${panelSection.title} עבור חומרי הפרויקט.`}
                       </p>
+                      {selectedUploadFiles.length > 0 && (
+                        <ul className="upload-file-list" aria-label="קבצים שנבחרו">
+                          {selectedUploadFiles.map((file) => (
+                            <li key={`${file.name}-${file.lastModified}`}>
+                              {file.name}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                    <button className="gold-button gold-button--compact" type="button">
+                    <label className="gold-button gold-button--compact">
                       בחירת קבצים
-                    </button>
+                      <input
+                        accept={activeUploadConfig?.accept}
+                        hidden
+                        multiple={activeUploadConfig?.multiple}
+                        onChange={handleUploadFileChange}
+                        type="file"
+                      />
+                    </label>
                   </div>
+                  {activeUploadConfig?.needsApartment && (
+                    <label className="mock-field mock-field--wide upload-apartment-field">
+                      <span>שיוך לדירה</span>
+                      <select
+                        onChange={(event) => setUploadApartmentId(event.currentTarget.value)}
+                        value={uploadApartmentId}
+                      >
+                        {apartments.map((apartment) => (
+                          <option key={apartment.id} value={apartment.id}>
+                            דירה {apartment.number}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {uploadError && (
+                    <p className="material-modal__note material-modal__note--error" role="alert">
+                      {uploadError}
+                    </p>
+                  )}
                   <p className="material-modal__note">
-                    {panelSection.id === "logo"
-                      ? "בהמשך כאן יועלה לוגו הפרויקט שיופיע בכרטיס הפרויקט ובכל מסכי התצוגה."
-                      : "בשלב זה מדובר בהדמיה בלבד"}
+                    {activeUploadConfig &&
+                    ["logo", "main", "exterior", "interior", "lobby", "surroundings"].includes(activeUploadConfig.category)
+                      ? "קבצי תמונה נתמכים: jpg, jpeg, png, webp. עד 25MB."
+                      : "קבצים נתמכים: pdf, ppt, pptx, doc, docx, xls, xlsx. עד 25MB."}
                   </p>
                 </>
               )}
@@ -1095,11 +1373,18 @@ export function ProjectManagementDetailScreen({
                 </button>
                 <button
                   className="gold-button gold-button--compact"
+                  disabled={isUploadPanel && (isUploading || selectedUploadFiles.length === 0)}
                   form={activeSaveFormId}
-                  onClick={activeSaveFormId ? undefined : () => setActivePanel(null)}
+                  onClick={
+                    isUploadPanel
+                      ? () => void handleUploadSubmit()
+                      : activeSaveFormId
+                        ? undefined
+                        : () => setActivePanel(null)
+                  }
                   type={activeSaveFormId ? "submit" : "button"}
                 >
-                  שמירה
+                  {isUploadPanel ? (isUploading ? "מעלה..." : "העלאה") : "שמירה"}
                 </button>
               </footer>
             </section>

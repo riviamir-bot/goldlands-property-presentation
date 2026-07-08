@@ -57,6 +57,21 @@ The seed is idempotent. It upserts the current demo rows in:
 
 It does not seed storage, uploads, documents, images, auth users, or profile roles.
 
+## Apply The Storage Path Migration
+
+Before using project logo or main image uploads, apply:
+
+```text
+supabase/migrations/20260708000000_project_file_paths.sql
+```
+
+This adds nullable stable path columns to `projects`:
+
+- `project_logo_path`
+- `main_image_path`
+
+The app does not store expiring signed URLs in these columns. It stores stable Storage object paths and requests fresh signed URLs at runtime.
+
 ## Create The First Admin User
 
 This milestone uses Supabase Auth email/password login and reads the matching row from `profiles`.
@@ -111,7 +126,7 @@ Never place `service_role`, `secret`, or `sb_secret_...` keys in `.env`, Vercel 
 
 ## Draft Storage Structure
 
-Future buckets should stay private by default and use signed URLs:
+Buckets should stay private by default and use signed URLs:
 
 ```text
 project-media/
@@ -130,6 +145,163 @@ project-documents/
   projects/{project_id}/technical/{filename}
   projects/{project_id}/sales/{filename}
 ```
+
+## Create Storage Buckets
+
+Create these buckets in Supabase Dashboard -> Storage:
+
+- `project-media`
+- `project-documents`
+
+Recommended privacy:
+
+- Keep both buckets private.
+- Do not mark them public unless you intentionally want anyone with a URL to access project materials.
+- Use signed URLs from the browser client.
+
+You can also create/update the buckets from SQL Editor:
+
+```sql
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  (
+    'project-media',
+    'project-media',
+    false,
+    26214400,
+    array['image/jpeg', 'image/png', 'image/webp']
+  ),
+  (
+    'project-documents',
+    'project-documents',
+    false,
+    26214400,
+    array[
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    ]
+  )
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+```
+
+## Storage Policies
+
+The frontend must only use the Supabase URL and anon/publishable key. Never use the service role key in Vite or Vercel frontend env vars.
+
+Run these policies once from SQL Editor after the buckets exist. They keep uploads/deletes admin-only and allow authenticated active project reads for `admin`, `sales`, and `viewer` profiles:
+
+```sql
+drop policy if exists goldlands_storage_project_files_select on storage.objects;
+drop policy if exists goldlands_storage_project_files_insert_admin on storage.objects;
+drop policy if exists goldlands_storage_project_files_update_admin on storage.objects;
+drop policy if exists goldlands_storage_project_files_delete_admin on storage.objects;
+
+create policy goldlands_storage_project_files_select
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id in ('project-media', 'project-documents')
+  and public.current_profile_role() in ('admin', 'sales', 'viewer')
+  and (storage.foldername(name))[1] = 'projects'
+  and exists (
+    select 1
+    from public.projects
+    where projects.id::text = (storage.foldername(name))[2]
+      and projects.is_active = true
+  )
+);
+
+create policy goldlands_storage_project_files_insert_admin
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id in ('project-media', 'project-documents')
+  and public.current_profile_role() = 'admin'
+  and (storage.foldername(name))[1] = 'projects'
+  and exists (
+    select 1
+    from public.projects
+    where projects.id::text = (storage.foldername(name))[2]
+      and projects.is_active = true
+  )
+);
+
+create policy goldlands_storage_project_files_update_admin
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id in ('project-media', 'project-documents')
+  and public.current_profile_role() = 'admin'
+  and (storage.foldername(name))[1] = 'projects'
+  and exists (
+    select 1
+    from public.projects
+    where projects.id::text = (storage.foldername(name))[2]
+      and projects.is_active = true
+  )
+)
+with check (
+  bucket_id in ('project-media', 'project-documents')
+  and public.current_profile_role() = 'admin'
+  and (storage.foldername(name))[1] = 'projects'
+  and exists (
+    select 1
+    from public.projects
+    where projects.id::text = (storage.foldername(name))[2]
+      and projects.is_active = true
+  )
+);
+
+create policy goldlands_storage_project_files_delete_admin
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id in ('project-media', 'project-documents')
+  and public.current_profile_role() = 'admin'
+  and (storage.foldername(name))[1] = 'projects'
+  and exists (
+    select 1
+    from public.projects
+    where projects.id::text = (storage.foldername(name))[2]
+      and projects.is_active = true
+  )
+);
+```
+
+## Storage Upload Runtime
+
+Admin uploads now use `src/services/storageService.ts`.
+
+Uploads write the file into Storage and then insert metadata:
+
+- Images go to `project_images`.
+- Documents go to `project_documents`.
+- Project logo uploads also update `projects.project_logo_path`.
+- Main image uploads also update `projects.main_image_path`.
+- Apartment plan uploads also mark the apartment plan status as attached.
+
+The app requests signed URLs when reading project data. If Storage, bucket policies, or RLS block access, the app logs a warning and keeps using localStorage/project metadata fallback instead of crashing.
+
+To verify an upload:
+
+1. Open Supabase Dashboard -> Storage.
+2. Open `project-media` or `project-documents`.
+3. Confirm the file path starts with `projects/{project_id}/...`.
+4. Open Table Editor -> `project_images` or `project_documents`.
+5. Confirm the metadata row has the same `storage_bucket` and `storage_path`.
+6. For logo/main image uploads, open Table Editor -> `projects` and confirm `project_logo_path` or `main_image_path` was updated.
 
 ## Current Runtime
 
@@ -151,6 +323,8 @@ Runtime behavior:
 8. Project and apartment edits save to localStorage immediately.
 9. When Supabase has been successfully loaded, the app also tries to write project and apartment edits to Supabase.
 10. If a Supabase write fails, the local edit remains and the app logs a warning.
+11. Project material uploads require Supabase Storage, the private buckets, and authenticated `admin` RLS access.
+12. If Storage upload or signed URL creation fails, the local app remains usable and shows/logs a clear warning.
 
 If Supabase env vars are missing or Auth/profile loading is unavailable, the login screen offers local demo mode. Demo mode uses the local admin fallback user and does not attempt Supabase project writes.
 

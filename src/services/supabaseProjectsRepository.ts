@@ -5,6 +5,7 @@ import {
 } from "../data/mockData";
 import type { Apartment, Project, ProjectReadiness } from "../types";
 import type { AddProjectInput, ProjectsRepository, ProjectsRepositoryState } from "./projectsRepository";
+import { listProjectFiles, type ProjectFileRecord } from "./storageService";
 
 interface ProjectRow {
   id: string;
@@ -21,6 +22,8 @@ interface ProjectRow {
   tagline: string;
   description: string;
   logo_mark: string;
+  project_logo_path: string | null;
+  main_image_path: string | null;
   key_facts: string[] | null;
   floors: string | null;
   units: string | null;
@@ -117,9 +120,43 @@ function makeApartmentMix(value: Project["apartmentMix"] | null): Project["apart
   };
 }
 
-function mapProject(row: ProjectRow): Project {
+function getFirstFileUrl(files: ProjectFileRecord[], category: ProjectFileRecord["category"]) {
+  return files
+    .filter((file) => file.category === category && file.publicUrl)
+    .sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.displayOrder - b.displayOrder;
+    })[0]?.publicUrl;
+}
+
+function getGalleryImages(
+  files: ProjectFileRecord[],
+  category: keyof Project["gallery"],
+  fallback: string[],
+) {
+  const uploadedImages = files
+    .filter((file) => file.category === category && file.publicUrl)
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .map((file) => file.publicUrl)
+    .filter((url): url is string => Boolean(url));
+
+  return uploadedImages.length > 0 ? uploadedImages : fallback;
+}
+
+function countFiles(files: ProjectFileRecord[], categories: ProjectFileRecord["category"][]) {
+  return files.filter((file) => categories.includes(file.category)).length;
+}
+
+function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
   const mockProject = getMockProject(row.slug);
-  const mainImage = mockProject?.mainImage ?? mockProject?.heroImage ?? "";
+  const logoUrl = getFirstFileUrl(files, "logo");
+  const mainImage = getFirstFileUrl(files, "main") ?? mockProject?.mainImage ?? mockProject?.heroImage ?? "";
+  const fallbackGallery = mockProject?.gallery ?? {
+    exterior: [],
+    interior: [],
+    lobby: [],
+    surroundings: [],
+  };
 
   return {
     id: row.id,
@@ -134,9 +171,11 @@ function mapProject(row: ProjectRow): Project {
     tagline: row.tagline,
     description: row.description,
     logoMark: row.logo_mark,
-    projectLogo: mockProject?.projectLogo ?? "",
-    heroImage: mockProject?.heroImage ?? mainImage,
+    projectLogo: logoUrl ?? mockProject?.projectLogo ?? "",
+    projectLogoPath: row.project_logo_path ?? undefined,
+    heroImage: mainImage || mockProject?.heroImage || "",
     mainImage,
+    mainImagePath: row.main_image_path ?? undefined,
     keyFacts: row.key_facts ?? [],
     stats: {
       floors: row.floors ?? "",
@@ -149,16 +188,31 @@ function mapProject(row: ProjectRow): Project {
       storage: row.storage_summary ?? "",
     },
     apartmentMix: makeApartmentMix(row.apartment_mix),
-    gallery: mockProject?.gallery ?? {
-      exterior: [],
-      interior: [],
-      lobby: [],
-      surroundings: [],
+    gallery: {
+      exterior: getGalleryImages(files, "exterior", fallbackGallery.exterior),
+      interior: getGalleryImages(files, "interior", fallbackGallery.interior),
+      lobby: getGalleryImages(files, "lobby", fallbackGallery.lobby),
+      surroundings: getGalleryImages(files, "surroundings", fallbackGallery.surroundings),
+    },
+    materialFileCounts: {
+      logo: countFiles(files, ["logo"]),
+      "main-image": countFiles(files, ["main"]),
+      exterior: countFiles(files, ["exterior"]),
+      interior: countFiles(files, ["interior"]),
+      plans: countFiles(files, ["apartment_plan"]),
+      "floor-plans": countFiles(files, ["floor_plan"]),
+      prices: countFiles(files, ["price_list"]),
+      technical: countFiles(files, ["technical_spec"]),
+      documents: countFiles(files, ["brochure", "sales_deck", "other"]),
     },
   };
 }
 
-function mapApartment(row: ApartmentRow): Apartment {
+function mapApartment(row: ApartmentRow, files: ProjectFileRecord[] = []): Apartment {
+  const planFile = files.find(
+    (file) => file.category === "apartment_plan" && file.apartmentId === row.id,
+  );
+
   return {
     id: row.id,
     projectId: row.project_id,
@@ -174,7 +228,9 @@ function mapApartment(row: ApartmentRow): Apartment {
     price: toNumber(row.price),
     specialPrice: toNumber(row.special_price),
     status: row.status,
-    planAttached: row.plan_file_status === "attached",
+    planAttached: row.plan_file_status === "attached" || Boolean(planFile),
+    planUrl: planFile?.publicUrl,
+    planFileName: planFile?.fileName,
     notes: row.notes,
   };
 }
@@ -270,6 +326,8 @@ function makeProjectPatchRow(
   if (patch.tagline !== undefined) row.tagline = patch.tagline;
   if (patch.description !== undefined) row.description = patch.description;
   if (patch.logoMark !== undefined) row.logo_mark = patch.logoMark;
+  if (patch.projectLogoPath !== undefined) row.project_logo_path = patch.projectLogoPath;
+  if (patch.mainImagePath !== undefined) row.main_image_path = patch.mainImagePath;
   if (patch.keyFacts !== undefined) row.key_facts = patch.keyFacts;
   if (patch.stats !== undefined) {
     row.floors = patch.stats.floors;
@@ -326,8 +384,8 @@ async function readSupabaseProjectsState(): Promise<ProjectsRepositoryState> {
 
   if (projectsError) throw projectsError;
 
-  const projects = (projectRows as ProjectRow[] | null ?? []).map(mapProject);
-  const projectIds = projects.map((project) => project.id);
+  const typedProjectRows = (projectRows as ProjectRow[] | null) ?? [];
+  const projectIds = typedProjectRows.map((project) => project.id);
 
   if (projectIds.length === 0) {
     return {
@@ -345,10 +403,27 @@ async function readSupabaseProjectsState(): Promise<ProjectsRepositoryState> {
 
   if (apartmentsError) throw apartmentsError;
 
+  const fileEntries = await Promise.all(
+    projectIds.map(async (projectId) => {
+      try {
+        return [projectId, await listProjectFiles(projectId)] as const;
+      } catch (error) {
+        console.warn(
+          `[GOLDLANDS] Supabase Storage metadata read failed for project ${projectId}. Continuing without storage files.`,
+          error,
+        );
+        return [projectId, [] as ProjectFileRecord[]] as const;
+      }
+    }),
+  );
+  const filesByProjectId = new Map(fileEntries);
+
   return {
-    projects,
-    apartments: (apartmentRows as ApartmentRow[] | null ?? []).map(mapApartment),
-    readinessItems: (projectRows as ProjectRow[] | null ?? []).map(makeReadiness),
+    projects: typedProjectRows.map((project) => mapProject(project, filesByProjectId.get(project.id) ?? [])),
+    apartments: ((apartmentRows as ApartmentRow[] | null) ?? []).map((apartment) =>
+      mapApartment(apartment, filesByProjectId.get(apartment.project_id) ?? []),
+    ),
+    readinessItems: typedProjectRows.map(makeReadiness),
   };
 }
 

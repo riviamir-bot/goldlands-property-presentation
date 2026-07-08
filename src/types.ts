@@ -68,8 +68,10 @@ export interface Project {
   description: string;
   logoMark: string;
   projectLogo: string;
+  projectLogoPath?: string;
   heroImage: string;
   mainImage?: string;
+  mainImagePath?: string;
   keyFacts: string[];
   stats: {
     floors: string;
@@ -89,6 +91,7 @@ export interface Project {
     penthouses: string;
   };
   gallery: Record<GalleryCategory, string[]>;
+  materialFileCounts?: Partial<Record<string, number>>;
 }
 
 export interface Apartment {
@@ -107,6 +110,8 @@ export interface Apartment {
   specialPrice: number;
   status: ApartmentStatus;
   planAttached: boolean;
+  planUrl?: string;
+  planFileName?: string;
   notes: string;
 }
 

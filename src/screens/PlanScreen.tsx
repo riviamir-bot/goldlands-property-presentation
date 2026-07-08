@@ -7,20 +7,32 @@ interface PlanScreenProps {
 }
 
 export function PlanScreen({ apartment }: PlanScreenProps) {
+  const uploadedPlanUrl = apartment.planUrl?.trim();
+
   return (
     <section className="plan-layout">
       <div className="plan-canvas" aria-label="תוכנית דירה">
-        <div className="plan-canvas__label">
-          <span>תוכנית דירה {apartment.number}</span>
-          <strong>{apartment.planAttached ? "קובץ תוכנית משויך לדירה" : "מקום שמור לקובץ תוכנית"}</strong>
-        </div>
-        <div className="room room--living">סלון</div>
-        <div className="room room--kitchen">מטבח</div>
-        <div className="room room--master">חדר הורים</div>
-        <div className="room room--bedroom">חדר</div>
-        <div className="room room--safe">ממ&quot;ד</div>
-        <div className="room room--bath">רחצה</div>
-        <div className="room room--balcony">מרפסת</div>
+        {uploadedPlanUrl ? (
+          <iframe
+            className="plan-canvas__document"
+            src={uploadedPlanUrl}
+            title={`תוכנית דירה ${apartment.number}`}
+          />
+        ) : (
+          <>
+            <div className="plan-canvas__label">
+              <span>תוכנית דירה {apartment.number}</span>
+              <strong>{apartment.planAttached ? "קובץ תוכנית משויך לדירה" : "מקום שמור לקובץ תוכנית"}</strong>
+            </div>
+            <div className="room room--living">סלון</div>
+            <div className="room room--kitchen">מטבח</div>
+            <div className="room room--master">חדר הורים</div>
+            <div className="room room--bedroom">חדר</div>
+            <div className="room room--safe">ממ&quot;ד</div>
+            <div className="room room--bath">רחצה</div>
+            <div className="room room--balcony">מרפסת</div>
+          </>
+        )}
       </div>
 
       <aside className="details-card">
@@ -68,11 +80,18 @@ export function PlanScreen({ apartment }: PlanScreenProps) {
           </div>
           <div>
             <dt>קובץ תוכנית</dt>
-            <dd>{apartment.planAttached ? `תוכנית דירה ${apartment.number}` : "טרם צורף"}</dd>
+            <dd>{apartment.planAttached ? apartment.planFileName ?? `תוכנית דירה ${apartment.number}` : "טרם צורף"}</dd>
           </div>
         </dl>
         <div className="action-row">
-          <button className="mini-button">
+          <button
+            className="mini-button"
+            disabled={!uploadedPlanUrl}
+            onClick={() => {
+              if (uploadedPlanUrl) window.open(uploadedPlanUrl, "_blank", "noopener,noreferrer");
+            }}
+            type="button"
+          >
             <FileDown size={17} />
             PDF
           </button>

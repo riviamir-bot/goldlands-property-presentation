@@ -26,10 +26,11 @@ function mergeProjectLocalOnlyFields(remoteProject: Project, localProject?: Proj
 
   return {
     ...remoteProject,
-    projectLogo: localProject.projectLogo || remoteProject.projectLogo,
-    heroImage: localProject.heroImage || remoteProject.heroImage,
-    mainImage: localProject.mainImage || remoteProject.mainImage,
-    gallery: localProject.gallery ?? remoteProject.gallery,
+    projectLogo: remoteProject.projectLogo || localProject.projectLogo,
+    heroImage: remoteProject.heroImage || localProject.heroImage,
+    mainImage: remoteProject.mainImage || localProject.mainImage,
+    gallery: remoteProject.gallery ?? localProject.gallery,
+    materialFileCounts: remoteProject.materialFileCounts ?? localProject.materialFileCounts,
   };
 }
 
