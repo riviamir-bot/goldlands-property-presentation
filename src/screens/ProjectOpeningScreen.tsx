@@ -1,3 +1,4 @@
+import { ProjectLogoSlot } from "../components/ProjectLogoSlot";
 import type { Project } from "../types";
 
 interface ProjectOpeningScreenProps {
@@ -54,8 +55,13 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
 
         <section className="project-overview-copy">
           <div className="project-overview-title">
-            <span className="eyebrow">{project.location}</span>
-            <h2>{project.name}</h2>
+            <div className="project-overview-heading">
+              <ProjectLogoSlot project={project} compact markOnly />
+              <div>
+                <span className="eyebrow">{project.location}</span>
+                <h2>{project.name}</h2>
+              </div>
+            </div>
             <p>{project.tagline}</p>
             <p className="project-overview-description">{project.description}</p>
           </div>

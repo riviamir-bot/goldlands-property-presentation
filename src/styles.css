@@ -539,6 +539,10 @@ button:disabled {
   padding: 26px;
 }
 
+.project-card__body > .project-logo-slot {
+  justify-self: start;
+}
+
 .project-card__meta-row {
   display: flex;
   align-items: center;
@@ -3204,6 +3208,17 @@ button:disabled {
   min-width: 0;
 }
 
+.project-overview-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.project-overview-heading > div {
+  min-width: 0;
+}
+
 .project-overview-image {
   position: relative;
   min-height: min(58vh, 600px);
@@ -4601,6 +4616,35 @@ a.gold-button {
 .project-card__image .project-logo-slot--mark-only .project-logo-slot__mark {
   width: 34px;
   height: 34px;
+}
+
+.project-card__body > .project-logo-slot--mark-only,
+.project-overview-heading > .project-logo-slot--mark-only {
+  border-color: rgba(214, 178, 94, 0.28);
+  background:
+    linear-gradient(145deg, rgba(214, 178, 94, 0.12), rgba(255, 255, 255, 0.026)),
+    rgba(5, 5, 5, 0.62);
+}
+
+.project-card__body > .project-logo-slot--mark-only {
+  padding: 11px;
+}
+
+.project-card__body > .project-logo-slot--mark-only .project-logo-slot__mark {
+  width: 52px;
+  height: 52px;
+  font-size: 1rem;
+}
+
+.project-overview-heading > .project-logo-slot--mark-only {
+  flex: 0 0 auto;
+  padding: 12px;
+}
+
+.project-overview-heading > .project-logo-slot--mark-only .project-logo-slot__mark {
+  width: 68px;
+  height: 68px;
+  font-size: 1.1rem;
 }
 
 .project-logo-editor {

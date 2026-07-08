@@ -63,9 +63,9 @@ export function AllProjectsScreen({
                       <strong>{project.logoMark}</strong>
                     </div>
                   )}
-                  <ProjectLogoSlot project={project} compact markOnly />
                 </div>
                 <div className="project-card__body">
+                  <ProjectLogoSlot project={project} compact markOnly />
                   <div className="project-card__meta-row">
                     <span className="project-card__meta">
                       <MapPin size={16} />
