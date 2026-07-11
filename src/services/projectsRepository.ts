@@ -1,4 +1,4 @@
-import type { Apartment, Project, ProjectReadiness } from "../types";
+import type { Apartment, Project, ProjectFile, ProjectFileAssociation, ProjectReadiness } from "../types";
 
 export interface ProjectsRepositoryState {
   projects: Project[];
@@ -16,6 +16,11 @@ export interface AddProjectInput {
   tagline: string;
 }
 
+export interface ProjectSortOrderUpdate {
+  projectId: string;
+  sortOrder: number;
+}
+
 export interface ProjectsRepository {
   getState(): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
   saveState(state: ProjectsRepositoryState): Promise<void> | void;
@@ -30,6 +35,22 @@ export interface ProjectsRepository {
     projectId: string,
     apartmentId: string,
     patch: Partial<Apartment>,
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  reorderProjects(
+    updates: ProjectSortOrderUpdate[],
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  importProjectBundle?(state: ProjectsRepositoryState): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  updateProjectFileType?(
+    projectId: string,
+    fileId: string,
+    type: ProjectFileAssociation,
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  deleteProjectFile?(
+    projectId: string,
+    file: ProjectFile,
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  migrateLocalState?(
+    state: ProjectsRepositoryState,
   ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
   resetDemoData(): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
 }

@@ -13,7 +13,8 @@ export type Screen =
   | "clientPreview"
   | "readiness"
   | "admin"
-  | "projectManagement";
+  | "projectManagement"
+  | "importProject";
 
 export type UserRole = "admin" | "sales" | "viewer";
 
@@ -54,6 +55,29 @@ export type GalleryCategory = "exterior" | "interior" | "lobby" | "surroundings"
 
 export type ReadinessPriority = "critical" | "important" | "optional";
 
+export type ProjectFileAssociation =
+  | "מחירון"
+  | "תכנית דירה"
+  | "מצגת"
+  | "הדמיה"
+  | "תמונת פרויקט"
+  | "מפרט"
+  | "משפטי"
+  | "אחר";
+
+export interface ProjectFile {
+  id: string;
+  name: string;
+  type: ProjectFileAssociation;
+  target: string;
+  url: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  mimeType?: string;
+  storageBucket?: string;
+  storagePath?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -68,11 +92,19 @@ export interface Project {
   description: string;
   logoMark: string;
   isSupabaseBacked?: boolean;
+  sortOrder?: number;
+  sort_order?: number;
   projectLogo: string;
   projectLogoPath?: string;
   heroImage: string;
   mainImage?: string;
   mainImagePath?: string;
+  block?: string;
+  parcel?: string;
+  licensingRoute?: string;
+  planningStatus?: string;
+  developerUnits?: string;
+  ownerUnits?: string;
   keyFacts: string[];
   stats: {
     floors: string;
@@ -93,6 +125,8 @@ export interface Project {
   };
   gallery: Record<GalleryCategory, string[]>;
   materialFileCounts?: Partial<Record<string, number>>;
+  projectFiles?: ProjectFile[];
+  technicalSpecNotes?: string[];
 }
 
 export interface Apartment {

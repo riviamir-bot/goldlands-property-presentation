@@ -4,8 +4,19 @@ import {
   projects as mockProjects,
 } from "../data/mockData";
 import type { Apartment, Project, ProjectReadiness } from "../types";
-import type { AddProjectInput, ProjectsRepository, ProjectsRepositoryState } from "./projectsRepository";
-import { listProjectFiles, type ProjectFileRecord } from "./storageService";
+import type {
+  AddProjectInput,
+  ProjectSortOrderUpdate,
+  ProjectsRepository,
+  ProjectsRepositoryState,
+} from "./projectsRepository";
+import {
+  deleteStoredProjectFile,
+  getProjectFileAssociation,
+  listProjectFiles,
+  updateStoredProjectFileAssociation,
+  type ProjectFileRecord,
+} from "./storageService";
 
 interface ProjectRow {
   id: string;
@@ -24,6 +35,13 @@ interface ProjectRow {
   logo_mark: string;
   project_logo_path: string | null;
   main_image_path: string | null;
+  block: string | null;
+  parcel: string | null;
+  licensing_route: string | null;
+  planning_status: string | null;
+  developer_units: string | null;
+  owner_units: string | null;
+  technical_spec_notes: string[] | null;
   key_facts: string[] | null;
   floors: string | null;
   units: string | null;
@@ -35,6 +53,7 @@ interface ProjectRow {
   storage_summary: string | null;
   apartment_mix: Project["apartmentMix"] | null;
   readiness_percentage: number | null;
+  sort_order: number | null;
 }
 
 interface ApartmentRow {
@@ -102,6 +121,10 @@ function toNumber(value: number | string | null | undefined) {
   return Number(value ?? 0) || 0;
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
+}
+
 function getMockProject(slug: string) {
   return mockProjects.find((project) => project.id === slug);
 }
@@ -118,6 +141,25 @@ function makeApartmentMix(value: Project["apartmentMix"] | null): Project["apart
     gardenApartments: value?.gardenApartments ?? "0",
     penthouses: value?.penthouses ?? "0",
   };
+}
+
+function getProjectSortOrder(project: Project) {
+  const value = project.sortOrder ?? project.sort_order;
+
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function compareProjectRowsBySortOrder(a: ProjectRow, b: ProjectRow) {
+  const aOrder = typeof a.sort_order === "number" && Number.isFinite(a.sort_order) ? a.sort_order : null;
+  const bOrder = typeof b.sort_order === "number" && Number.isFinite(b.sort_order) ? b.sort_order : null;
+
+  if (aOrder !== null && bOrder !== null && aOrder !== bOrder) {
+    return aOrder - bOrder;
+  }
+  if (aOrder !== null && bOrder === null) return -1;
+  if (aOrder === null && bOrder !== null) return 1;
+
+  return a.name.localeCompare(b.name, "he");
 }
 
 function getFirstFileUrl(files: ProjectFileRecord[], category: ProjectFileRecord["category"]) {
@@ -147,6 +189,21 @@ function countFiles(files: ProjectFileRecord[], categories: ProjectFileRecord["c
   return files.filter((file) => categories.includes(file.category)).length;
 }
 
+function mapProjectFileRecord(file: ProjectFileRecord) {
+  return {
+    id: file.id,
+    name: file.fileName,
+    type: file.association ?? getProjectFileAssociation(file.category),
+    target: file.target ?? file.title ?? "",
+    url: file.publicUrl ?? "",
+    sizeBytes: file.sizeBytes,
+    uploadedAt: file.uploadedAt ?? new Date().toISOString(),
+    mimeType: file.mimeType,
+    storageBucket: file.storageBucket,
+    storagePath: file.storagePath,
+  };
+}
+
 function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
   const mockProject = getMockProject(row.slug);
   const logoUrl = getFirstFileUrl(files, "logo");
@@ -172,11 +229,19 @@ function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
     description: row.description,
     logoMark: row.logo_mark,
     isSupabaseBacked: true,
+    sortOrder: row.sort_order ?? undefined,
+    sort_order: row.sort_order ?? undefined,
     projectLogo: logoUrl ?? mockProject?.projectLogo ?? "",
     projectLogoPath: row.project_logo_path ?? undefined,
     heroImage: mainImage || mockProject?.heroImage || "",
     mainImage,
     mainImagePath: row.main_image_path ?? undefined,
+    block: row.block ?? undefined,
+    parcel: row.parcel ?? undefined,
+    licensingRoute: row.licensing_route ?? undefined,
+    planningStatus: row.planning_status ?? undefined,
+    developerUnits: row.developer_units ?? undefined,
+    ownerUnits: row.owner_units ?? undefined,
     keyFacts: row.key_facts ?? [],
     stats: {
       floors: row.floors ?? "",
@@ -206,6 +271,8 @@ function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
       technical: countFiles(files, ["technical_spec"]),
       documents: countFiles(files, ["brochure", "sales_deck", "other"]),
     },
+    projectFiles: files.map(mapProjectFileRecord),
+    technicalSpecNotes: row.technical_spec_notes ?? undefined,
   };
 }
 
@@ -277,6 +344,13 @@ function makeProjectInsertRow(input: AddProjectInput, slug: string): Record<stri
     existing_apartments: "לא רלוונטי",
     new_apartments: "0",
     storage_summary: "טרם עודכן",
+    block: "",
+    parcel: "",
+    licensing_route: "",
+    planning_status: "",
+    developer_units: "",
+    owner_units: "",
+    technical_spec_notes: [],
     apartment_mix: {
       threeRooms: "0",
       fourRooms: "0",
@@ -327,8 +401,17 @@ function makeProjectPatchRow(
   if (patch.tagline !== undefined) row.tagline = patch.tagline;
   if (patch.description !== undefined) row.description = patch.description;
   if (patch.logoMark !== undefined) row.logo_mark = patch.logoMark;
-  if (patch.projectLogoPath !== undefined) row.project_logo_path = patch.projectLogoPath;
-  if (patch.mainImagePath !== undefined) row.main_image_path = patch.mainImagePath;
+  if (patch.sortOrder !== undefined) row.sort_order = patch.sortOrder;
+  if (patch.sort_order !== undefined) row.sort_order = patch.sort_order;
+  if ("projectLogoPath" in patch) row.project_logo_path = patch.projectLogoPath ?? null;
+  if ("mainImagePath" in patch) row.main_image_path = patch.mainImagePath ?? null;
+  if (patch.block !== undefined) row.block = patch.block;
+  if (patch.parcel !== undefined) row.parcel = patch.parcel;
+  if (patch.licensingRoute !== undefined) row.licensing_route = patch.licensingRoute;
+  if (patch.planningStatus !== undefined) row.planning_status = patch.planningStatus;
+  if (patch.developerUnits !== undefined) row.developer_units = patch.developerUnits;
+  if (patch.ownerUnits !== undefined) row.owner_units = patch.ownerUnits;
+  if (patch.technicalSpecNotes !== undefined) row.technical_spec_notes = patch.technicalSpecNotes;
   if (patch.keyFacts !== undefined) row.key_facts = patch.keyFacts;
   if (patch.stats !== undefined) {
     row.floors = patch.stats.floors;
@@ -350,6 +433,69 @@ function makeProjectPatchRow(
   }
 
   return row;
+}
+
+function makeProjectRowFromProject(project: Project, readiness?: ProjectReadiness): Record<string, unknown> {
+  const sortOrder = getProjectSortOrder(project);
+
+  return {
+    slug: makeSlug(project.name || project.id),
+    name: project.name,
+    location: project.location,
+    city: project.city,
+    neighborhood: project.neighborhood,
+    address: project.address,
+    google_maps_url: project.googleMapsUrl || makeMapsUrl(project.address, project.city),
+    google_maps_embed_url: project.googleMapsEmbedUrl || makeMapsEmbedUrl(project.address, project.city),
+    project_type: project.projectType,
+    marketing_status: readiness?.marketingStatus ?? "טיוטה",
+    tagline: project.tagline,
+    description: project.description,
+    logo_mark: project.logoMark || makeLogoMark(project.name),
+    project_logo_path: project.projectLogoPath ?? null,
+    main_image_path: project.mainImagePath ?? null,
+    block: project.block ?? "",
+    parcel: project.parcel ?? "",
+    licensing_route: project.licensingRoute ?? "",
+    planning_status: project.planningStatus ?? "",
+    developer_units: project.developerUnits ?? "",
+    owner_units: project.ownerUnits ?? "",
+    technical_spec_notes: project.technicalSpecNotes ?? [],
+    key_facts: project.keyFacts ?? [],
+    floors: project.stats.floors,
+    units: project.stats.units,
+    occupancy: project.stats.occupancy,
+    parking_summary: project.stats.parking,
+    buildings: project.stats.buildings,
+    existing_apartments: project.stats.existingApartments,
+    new_apartments: project.stats.newApartments,
+    storage_summary: project.stats.storage,
+    apartment_mix: project.apartmentMix,
+    readiness_percentage: readiness?.readinessPercentage ?? 0,
+    ...(sortOrder === null ? {} : { sort_order: sortOrder }),
+    is_active: true,
+  };
+}
+
+function makeApartmentRowFromApartment(projectId: string, apartment: Apartment, sortOrder: number) {
+  return {
+    project_id: projectId,
+    number: apartment.number,
+    floor: apartment.floor,
+    rooms: apartment.rooms,
+    apartment_area: apartment.apartmentArea,
+    balcony_area: apartment.balconyArea,
+    garden_area: apartment.gardenArea,
+    parking: apartment.parking,
+    storage: apartment.storage,
+    direction: apartment.direction,
+    price: apartment.price,
+    special_price: apartment.specialPrice,
+    status: apartment.status,
+    plan_file_status: apartment.planAttached ? "attached" : "missing",
+    notes: apartment.notes,
+    sort_order: sortOrder,
+  };
 }
 
 function makeApartmentPatchRow(patch: Partial<Apartment>): Record<string, unknown> {
@@ -375,6 +521,132 @@ function makeApartmentPatchRow(patch: Partial<Apartment>): Record<string, unknow
   return row;
 }
 
+async function findProjectForMigration(project: Project) {
+  const client = assertSupabase();
+
+  if (isUuid(project.id)) {
+    const { data, error } = await client
+      .from("projects")
+      .select("id")
+      .eq("id", project.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data) return (data as { id: string }).id;
+  }
+
+  const { data, error } = await client
+    .from("projects")
+    .select("id")
+    .eq("name", project.name)
+    .eq("address", project.address)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+async function upsertMigratedProject(project: Project, readiness?: ProjectReadiness) {
+  const client = assertSupabase();
+  const existingProjectId = await findProjectForMigration(project);
+  const row = makeProjectRowFromProject(project, readiness);
+
+  if (existingProjectId) {
+    const { error } = await client.from("projects").update(row).eq("id", existingProjectId);
+    if (error) throw error;
+    return existingProjectId;
+  }
+
+  const insertRow = isUuid(project.id) ? { ...row, id: project.id } : row;
+  const { data, error } = await client
+    .from("projects")
+    .insert(insertRow)
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  return (data as { id: string }).id;
+}
+
+async function upsertMigratedApartments(
+  remoteProjectId: string,
+  localProjectId: string,
+  apartments: Apartment[],
+) {
+  const client = assertSupabase();
+  const projectApartments = apartments.filter((apartment) => apartment.projectId === localProjectId);
+
+  for (const [index, apartment] of projectApartments.entries()) {
+    const baseRow = makeApartmentRowFromApartment(remoteProjectId, apartment, index + 1);
+    let existingApartmentId: string | null = null;
+
+    if (isUuid(apartment.id)) {
+      const { data, error } = await client
+        .from("apartments")
+        .select("id")
+        .eq("project_id", remoteProjectId)
+        .eq("id", apartment.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      existingApartmentId = (data as { id: string } | null)?.id ?? null;
+    }
+
+    if (!existingApartmentId) {
+      const { data, error } = await client
+        .from("apartments")
+        .select("id")
+        .eq("project_id", remoteProjectId)
+        .eq("number", apartment.number)
+        .maybeSingle();
+
+      if (error) throw error;
+      existingApartmentId = (data as { id: string } | null)?.id ?? null;
+    }
+
+    if (existingApartmentId) {
+      const { error } = await client.from("apartments").update(baseRow).eq("id", existingApartmentId);
+      if (error) throw error;
+      continue;
+    }
+
+    const insertRow = isUuid(apartment.id) ? { ...baseRow, id: apartment.id } : baseRow;
+    const { error } = await client.from("apartments").insert(insertRow);
+    if (error) throw error;
+  }
+}
+
+async function migrateStateToSupabase(state: ProjectsRepositoryState) {
+  for (const project of state.projects) {
+    const readiness = state.readinessItems.find((item) => item.projectId === project.id);
+    const remoteProjectId = await upsertMigratedProject(project, readiness);
+    await upsertMigratedApartments(remoteProjectId, project.id, state.apartments);
+  }
+
+  return readSupabaseProjectsState();
+}
+
+async function updateProjectSortOrders(updates: ProjectSortOrderUpdate[]) {
+  if (updates.length === 0) return readSupabaseProjectsState();
+
+  const client = assertSupabase();
+
+  await Promise.all(
+    updates.map(async (update) => {
+      const { error } = await client
+        .from("projects")
+        .update({ sort_order: update.sortOrder })
+        .eq("id", update.projectId);
+
+      if (error) throw error;
+    }),
+  );
+
+  return readSupabaseProjectsState();
+}
+
 async function readSupabaseProjectsState(): Promise<ProjectsRepositoryState> {
   const client = assertSupabase();
   const { data: projectRows, error: projectsError } = await client
@@ -386,7 +658,8 @@ async function readSupabaseProjectsState(): Promise<ProjectsRepositoryState> {
   if (projectsError) throw projectsError;
 
   const typedProjectRows = (projectRows as ProjectRow[] | null) ?? [];
-  const projectIds = typedProjectRows.map((project) => project.id);
+  const sortedProjectRows = [...typedProjectRows].sort(compareProjectRowsBySortOrder);
+  const projectIds = sortedProjectRows.map((project) => project.id);
 
   if (projectIds.length === 0) {
     return {
@@ -420,7 +693,7 @@ async function readSupabaseProjectsState(): Promise<ProjectsRepositoryState> {
   const filesByProjectId = new Map(fileEntries);
 
   return {
-    projects: typedProjectRows.map((project) => mapProject(project, filesByProjectId.get(project.id) ?? [])),
+    projects: sortedProjectRows.map((project) => mapProject(project, filesByProjectId.get(project.id) ?? [])),
     apartments: ((apartmentRows as ApartmentRow[] | null) ?? []).map((apartment) =>
       mapApartment(apartment, filesByProjectId.get(apartment.project_id) ?? []),
     ),
@@ -484,6 +757,10 @@ export const supabaseProjectsRepository: ProjectsRepository = {
     return readSupabaseProjectsState();
   },
 
+  async importProjectBundle(state: ProjectsRepositoryState) {
+    return migrateStateToSupabase(state);
+  },
+
   async deleteProject(projectId: string) {
     const client = assertSupabase();
     const { error } = await client
@@ -511,6 +788,26 @@ export const supabaseProjectsRepository: ProjectsRepository = {
     }
 
     return readSupabaseProjectsState();
+  },
+
+  async reorderProjects(updates) {
+    return updateProjectSortOrders(updates);
+  },
+
+  async updateProjectFileType(projectId, fileId, type) {
+    await updateStoredProjectFileAssociation(projectId, fileId, type);
+
+    return readSupabaseProjectsState();
+  },
+
+  async deleteProjectFile(projectId, file) {
+    await deleteStoredProjectFile(projectId, file.id);
+
+    return readSupabaseProjectsState();
+  },
+
+  async migrateLocalState(state) {
+    return migrateStateToSupabase(state);
   },
 
   async resetDemoData() {

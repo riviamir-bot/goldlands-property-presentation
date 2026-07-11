@@ -1,9 +1,10 @@
 import { supabase } from "../lib/supabaseClient";
+import type { ProjectFileAssociation } from "../types";
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"] as const;
-const DOCUMENT_EXTENSIONS = ["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx"] as const;
+const DOCUMENT_EXTENSIONS = ["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx", "csv"] as const;
 const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/jpg": "jpg",
@@ -18,6 +19,8 @@ const DOCUMENT_MIME_EXTENSIONS: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
   "application/vnd.ms-powerpoint": "ppt",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "text/csv": "csv",
+  "application/csv": "csv",
 };
 
 type StorageBucket = "project-media" | "project-documents";
@@ -52,6 +55,9 @@ export interface ProjectFileRecord {
   isPrimary: boolean;
   displayOrder: number;
   title?: string;
+  association?: ProjectFileAssociation;
+  target?: string;
+  uploadedAt?: string;
   publicUrl?: string;
 }
 
@@ -73,6 +79,9 @@ interface ProjectImageRow {
     mime_type?: string;
     size_bytes?: number;
   } | null;
+  association?: ProjectFileAssociation | null;
+  target?: string | null;
+  created_at?: string;
 }
 
 interface ProjectDocumentRow {
@@ -91,6 +100,9 @@ interface ProjectDocumentRow {
   size_bytes: number;
   version: number;
   status: "draft" | "active" | "archived";
+  association?: ProjectFileAssociation | null;
+  target?: string | null;
+  created_at?: string;
 }
 
 interface CategoryConfig {
@@ -200,6 +212,22 @@ const categoryConfigs: Record<ProjectFileCategory, CategoryConfig> = {
   },
 };
 
+const categoryAssociations: Record<ProjectFileCategory, ProjectFileAssociation> = {
+  logo: "אחר",
+  main: "תמונת פרויקט",
+  exterior: "הדמיה",
+  interior: "הדמיה",
+  lobby: "הדמיה",
+  surroundings: "הדמיה",
+  apartment_plan: "תכנית דירה",
+  floor_plan: "תכנית דירה",
+  price_list: "מחירון",
+  brochure: "מצגת",
+  technical_spec: "מפרט",
+  sales_deck: "מצגת",
+  other: "אחר",
+};
+
 function assertStorageClient() {
   if (!supabase) {
     throw new Error("Supabase Storage is unavailable because Supabase env vars are not configured.");
@@ -240,7 +268,7 @@ function resolveStorageExtension(file: File, kind: ProjectFileKind) {
     throw new Error(
       kind === "image"
         ? "סוג קובץ לא נתמך. ניתן להעלות תמונות jpg, jpeg, png או webp."
-        : "סוג קובץ לא נתמך. ניתן להעלות pdf, ppt, pptx, doc, docx, xls או xlsx.",
+        : "סוג קובץ לא נתמך. ניתן להעלות pdf, ppt, pptx, doc, docx, xls, xlsx או csv.",
     );
   }
 
@@ -258,7 +286,7 @@ function resolveStorageExtension(file: File, kind: ProjectFileKind) {
     mimeType !== "application/octet-stream" &&
     !mimeExtension
   ) {
-    throw new Error("סוג מסמך לא נתמך. ניתן להעלות pdf, ppt, pptx, doc, docx, xls או xlsx.");
+    throw new Error("סוג מסמך לא נתמך. ניתן להעלות pdf, ppt, pptx, doc, docx, xls, xlsx או csv.");
   }
 
   return mimeExtension ?? extension;
@@ -403,6 +431,9 @@ function mapImageRow(row: ProjectImageRow): Omit<ProjectFileRecord, "publicUrl">
     isPrimary: row.is_primary,
     displayOrder: row.display_order,
     title: row.caption || row.alt_text,
+    association: row.association ?? categoryAssociations[row.category],
+    target: row.target ?? (row.category === "main" ? "תמונה ראשית" : "גלריית הפרויקט"),
+    uploadedAt: row.created_at,
   };
 }
 
@@ -421,6 +452,9 @@ function mapDocumentRow(row: ProjectDocumentRow): Omit<ProjectFileRecord, "publi
     isPrimary: false,
     displayOrder: row.version,
     title: row.title,
+    association: row.association ?? categoryAssociations[row.document_type],
+    target: row.target ?? row.title,
+    uploadedAt: row.created_at,
   };
 }
 
@@ -443,6 +477,10 @@ export function isDocumentFileCategory(category: ProjectFileCategory) {
 
 export function getProjectFileCategoryKind(category: ProjectFileCategory): ProjectFileKind {
   return categoryConfigs[category].kind;
+}
+
+export function getProjectFileAssociation(category: ProjectFileCategory) {
+  return categoryAssociations[category];
 }
 
 export async function getPublicOrSignedUrl(fileRecord: Omit<ProjectFileRecord, "publicUrl">) {
@@ -567,6 +605,8 @@ export async function uploadProjectFile(
             mime_type: file.type,
             size_bytes: file.size,
           },
+          association: categoryAssociations[category],
+          target: category === "main" ? "תמונה ראשית" : "גלריית הפרויקט",
           uploaded_by: uploadedBy,
         })
         .select("*")
@@ -607,6 +647,8 @@ export async function uploadProjectFile(
         size_bytes: file.size,
         version: 1,
         status: "active",
+        association: categoryAssociations[category],
+        target: makeDocumentTitle(category, file),
         uploaded_by: uploadedBy,
       })
       .select("*")
@@ -668,4 +710,60 @@ export async function deleteProjectFile(fileRecord: ProjectFileRecord) {
 
   const { error } = await client.from("project_documents").delete().eq("id", fileRecord.id);
   if (error) throw error;
+}
+
+export async function updateStoredProjectFileAssociation(
+  projectId: string,
+  fileId: string,
+  association: ProjectFileAssociation,
+) {
+  const client = assertStorageClient();
+  const imageUpdate = await client
+    .from("project_images")
+    .update({ association })
+    .eq("project_id", projectId)
+    .eq("id", fileId)
+    .select("id");
+
+  if (imageUpdate.error) throw imageUpdate.error;
+  if ((imageUpdate.data ?? []).length > 0) return;
+
+  const documentUpdate = await client
+    .from("project_documents")
+    .update({ association })
+    .eq("project_id", projectId)
+    .eq("id", fileId)
+    .select("id");
+
+  if (documentUpdate.error) throw documentUpdate.error;
+}
+
+export async function deleteStoredProjectFile(projectId: string, fileId: string) {
+  const client = assertStorageClient();
+  const { data: imageRow, error: imageError } = await client
+    .from("project_images")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("id", fileId)
+    .maybeSingle();
+
+  if (imageError) throw imageError;
+
+  if (imageRow) {
+    await deleteProjectFile(mapImageRow(imageRow as ProjectImageRow));
+    return;
+  }
+
+  const { data: documentRow, error: documentError } = await client
+    .from("project_documents")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("id", fileId)
+    .maybeSingle();
+
+  if (documentError) throw documentError;
+
+  if (documentRow) {
+    await deleteProjectFile(mapDocumentRow(documentRow as ProjectDocumentRow));
+  }
 }

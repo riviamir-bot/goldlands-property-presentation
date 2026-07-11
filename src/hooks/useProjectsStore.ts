@@ -8,7 +8,8 @@ import {
 } from "../services/localProjectsRepository";
 import type { AddProjectInput, ProjectsRepositoryState } from "../services/projectsRepository";
 import { supabaseProjectsRepository } from "../services/supabaseProjectsRepository";
-import type { Apartment, Project, ProjectReadiness } from "../types";
+import type { Apartment, Project, ProjectFile, ProjectFileAssociation, ProjectReadiness } from "../types";
+import type { ProjectImportBundle } from "../data/karlNetterImport";
 
 export type { AddProjectInput } from "../services/projectsRepository";
 
@@ -31,6 +32,14 @@ function mergeProjectLocalOnlyFields(remoteProject: Project, localProject?: Proj
     mainImage: remoteProject.mainImage || localProject.mainImage,
     gallery: remoteProject.gallery ?? localProject.gallery,
     materialFileCounts: remoteProject.materialFileCounts ?? localProject.materialFileCounts,
+    projectFiles: remoteProject.projectFiles ?? localProject.projectFiles ?? [],
+    block: remoteProject.block ?? localProject.block,
+    parcel: remoteProject.parcel ?? localProject.parcel,
+    licensingRoute: remoteProject.licensingRoute ?? localProject.licensingRoute,
+    planningStatus: remoteProject.planningStatus ?? localProject.planningStatus,
+    developerUnits: remoteProject.developerUnits ?? localProject.developerUnits,
+    ownerUnits: remoteProject.ownerUnits ?? localProject.ownerUnits,
+    technicalSpecNotes: remoteProject.technicalSpecNotes ?? localProject.technicalSpecNotes,
   };
 }
 
@@ -65,6 +74,12 @@ function mergeRemoteStateWithLocalCache(
 
 function warnAndContinue(message: string, error: unknown) {
   console.warn(`[GOLDLANDS] ${message}. Continuing with localStorage fallback.`, error);
+}
+
+function getProjectSortOrder(project: Project) {
+  const value = project.sortOrder ?? project.sort_order;
+
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 export function useProjectsStore({
@@ -200,6 +215,44 @@ export function useProjectsStore({
         );
       },
 
+      async reorderProjects(projectIds: string[]) {
+        const previousState = readLocalProjectsState();
+        const projectsById = new Map(previousState.projects.map((project) => [project.id, project]));
+        const updates = projectIds
+          .map((projectId, index) => {
+            const project = projectsById.get(projectId);
+            const sortOrder = index + 1;
+
+            if (!project || getProjectSortOrder(project) === sortOrder) return null;
+
+            return { projectId, sortOrder };
+          })
+          .filter((update): update is { projectId: string; sortOrder: number } => Boolean(update));
+
+        if (updates.length === 0) return;
+
+        const nextState = localProjectsRepository.reorderProjects(updates) as ProjectsRepositoryState;
+
+        setState(nextState);
+
+        if (!isSupabaseConfigured || !supabaseWritesEnabledRef.current) return;
+
+        try {
+          const remoteState = await supabaseProjectsRepository.reorderProjects(updates);
+
+          if (hasUsableRemoteState(remoteState)) {
+            setIsSupabaseSourceActive(true);
+            applyRemoteState(remoteState);
+          }
+        } catch (error) {
+          supabaseWritesEnabledRef.current = false;
+          setIsSupabaseSourceActive(false);
+          commitState(previousState);
+          warnAndContinue("Supabase reorderProjects failed", error);
+          throw error;
+        }
+      },
+
       updateApartment(projectId: string, apartmentId: string, patch: Partial<Apartment>) {
         const nextState = localProjectsRepository.updateApartment(
           projectId,
@@ -218,6 +271,99 @@ export function useProjectsStore({
         );
       },
 
+      importProjectBundle(bundle: ProjectImportBundle) {
+        const current = readLocalProjectsState();
+        const nextState: ProjectsRepositoryState = {
+          projects: [
+            ...current.projects.filter((project) => project.id !== bundle.project.id),
+            bundle.project,
+          ],
+          apartments: [
+            ...current.apartments.filter((apartment) => apartment.projectId !== bundle.project.id),
+            ...bundle.apartments,
+          ],
+          readinessItems: [
+            ...current.readinessItems.filter((item) => item.projectId !== bundle.project.id),
+            bundle.readiness,
+          ],
+        };
+
+        commitState(nextState);
+        runSupabaseWrite(
+          "importProjectBundle",
+          () => supabaseProjectsRepository.importProjectBundle?.(nextState) as Promise<ProjectsRepositoryState>,
+          { applyReturnedState: true },
+        );
+      },
+
+      async updateProjectFileType(
+        projectId: string,
+        fileId: string,
+        type: ProjectFileAssociation,
+        patch: Partial<Project>,
+      ) {
+        const nextState = localProjectsRepository.updateProject(projectId, patch) as ProjectsRepositoryState;
+
+        setState(nextState);
+
+        if (!isSupabaseConfigured || !supabaseWritesEnabledRef.current) return;
+
+        try {
+          const remoteState = await supabaseProjectsRepository.updateProjectFileType?.(
+            projectId,
+            fileId,
+            type,
+          );
+
+          if (remoteState && hasUsableRemoteState(remoteState)) {
+            setIsSupabaseSourceActive(true);
+            applyRemoteState(remoteState);
+          }
+        } catch (error) {
+          supabaseWritesEnabledRef.current = false;
+          setIsSupabaseSourceActive(false);
+          warnAndContinue("Supabase updateProjectFileType failed", error);
+          throw error;
+        }
+      },
+
+      async deleteProjectFile(projectId: string, file: ProjectFile, patch: Partial<Project>) {
+        const nextState = localProjectsRepository.updateProject(projectId, patch) as ProjectsRepositoryState;
+
+        setState(nextState);
+
+        if (!isSupabaseConfigured || !supabaseWritesEnabledRef.current) return;
+
+        try {
+          const remoteState = await supabaseProjectsRepository.deleteProjectFile?.(projectId, file);
+
+          if (remoteState && hasUsableRemoteState(remoteState)) {
+            setIsSupabaseSourceActive(true);
+            applyRemoteState(remoteState);
+          }
+        } catch (error) {
+          supabaseWritesEnabledRef.current = false;
+          setIsSupabaseSourceActive(false);
+          warnAndContinue("Supabase deleteProjectFile failed", error);
+          throw error;
+        }
+      },
+
+      async migrateLocalStateToSupabase() {
+        if (!isSupabaseConfigured) {
+          throw new Error("Supabase is not configured. Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.");
+        }
+
+        const localState = readLocalProjectsState();
+        const remoteState = await supabaseProjectsRepository.migrateLocalState?.(localState);
+
+        if (remoteState && hasUsableRemoteState(remoteState)) {
+          supabaseWritesEnabledRef.current = true;
+          setIsSupabaseSourceActive(true);
+          applyRemoteState(remoteState);
+        }
+      },
+
       resetDemoData() {
         const nextState = localProjectsRepository.resetDemoData() as ProjectsRepositoryState;
 
@@ -226,7 +372,7 @@ export function useProjectsStore({
         commitState(nextState);
       },
     }),
-    [commitState, runSupabaseWrite],
+    [applyRemoteState, commitState, runSupabaseWrite],
   );
 
   return {

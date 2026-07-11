@@ -4,6 +4,7 @@ import {
   projects as mockProjects,
 } from "../data/mockData";
 import type { Apartment, Project, ProjectReadiness } from "../types";
+import { canUseFileAsProjectMainImage } from "../utils/projectImages";
 import type { AddProjectInput, ProjectsRepository, ProjectsRepositoryState } from "./projectsRepository";
 
 export const LOCAL_PROJECTS_STORAGE_KEY = "goldlands.presentation.demo.v1";
@@ -52,24 +53,56 @@ function makeMapsEmbedUrl(address: string, city: string) {
 
 function normalizeProject(project: Project): Project {
   const legacyThumbnail = (project as Project & { thumbnailImage?: string }).thumbnailImage;
-  const mainImage = project.mainImage ?? legacyThumbnail ?? project.heroImage ?? "";
+  const rawMainImage = project.mainImage ?? legacyThumbnail ?? "";
+  const sortOrder = getProjectSortOrder(project);
+  const projectFiles = project.projectFiles ?? [];
+  const matchingMainImageFile = projectFiles.find(
+    (file) => file.url === rawMainImage || file.id === rawMainImage,
+  );
+  const mainImage =
+    matchingMainImageFile && !canUseFileAsProjectMainImage(matchingMainImageFile)
+      ? ""
+      : rawMainImage;
 
   return {
     ...project,
     isSupabaseBacked: project.isSupabaseBacked ?? false,
+    sortOrder: sortOrder ?? undefined,
     projectLogo: project.projectLogo ?? "",
-    heroImage: project.heroImage || mainImage,
+    heroImage: mainImage ? project.heroImage || mainImage : project.heroImage || "",
     mainImage,
     googleMapsUrl: project.googleMapsUrl || makeMapsUrl(project.address, project.city),
     googleMapsEmbedUrl: makeMapsEmbedUrl(project.address, project.city),
+    projectFiles,
   };
+}
+
+function getProjectSortOrder(project: Project) {
+  const value = project.sortOrder ?? project.sort_order;
+
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function compareProjectsBySortOrder(a: Project, b: Project) {
+  const aOrder = getProjectSortOrder(a);
+  const bOrder = getProjectSortOrder(b);
+
+  if (aOrder !== null && bOrder !== null && aOrder !== bOrder) return aOrder - bOrder;
+  if (aOrder !== null && bOrder === null) return -1;
+  if (aOrder === null && bOrder !== null) return 1;
+
+  return a.name.localeCompare(b.name, "he");
+}
+
+function sortProjectsByOrder(projects: Project[]) {
+  return [...projects].sort(compareProjectsBySortOrder);
 }
 
 export function normalizeProjectsState(state: ProjectsRepositoryState): ProjectsRepositoryState {
   const projectIds = new Set(state.projects.map((project) => project.id));
 
   return {
-    projects: state.projects.map(normalizeProject),
+    projects: sortProjectsByOrder(state.projects.map(normalizeProject)),
     apartments: state.apartments.filter((apartment) => projectIds.has(apartment.projectId)),
     readinessItems: state.readinessItems.filter((readiness) => projectIds.has(readiness.projectId)),
   };
@@ -250,6 +283,25 @@ export const localProjectsRepository: ProjectsRepository = {
     persistLocalProjectsState(nextState);
 
     return nextState;
+  },
+
+  reorderProjects(updates) {
+    const current = readLocalProjectsState();
+    const orderByProjectId = new Map(updates.map((update) => [update.projectId, update.sortOrder]));
+    const nextState = {
+      ...current,
+      projects: current.projects.map((project) => {
+        const sortOrder = orderByProjectId.get(project.id);
+
+        return sortOrder === undefined
+          ? project
+          : { ...project, sortOrder, sort_order: sortOrder };
+      }),
+    };
+
+    persistLocalProjectsState(nextState);
+
+    return normalizeProjectsState(nextState);
   },
 
   resetDemoData() {

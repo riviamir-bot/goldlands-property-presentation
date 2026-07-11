@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, FilePenLine, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, FilePenLine, FolderUp, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { SideNavigation } from "../components/SideNavigation";
 import type { AddProjectInput } from "../hooks/useProjectsStore";
-import type { Project, ProjectReadiness } from "../types";
+import type { Apartment, Project, ProjectReadiness } from "../types";
 
 interface ProjectManagementScreenProps {
   projects: Project[];
+  apartments: Apartment[];
   readinessItems: ProjectReadiness[];
   onProjects: () => void;
   onReadiness: () => void;
@@ -14,6 +15,10 @@ interface ProjectManagementScreenProps {
   onAddProject: (project: AddProjectInput) => void;
   onDeleteProject: (projectId: string) => void;
   onResetDemoData: () => void;
+  onImportProject: () => void;
+  onMigrateLocalToSupabase?: () => Promise<void> | void;
+  canMigrateLocalToSupabase?: boolean;
+  isSupabaseSourceActive?: boolean;
   canViewReadiness?: boolean;
   canManageProjects?: boolean;
   authModeLabel?: string;
@@ -31,6 +36,7 @@ function countMissing(readiness?: ProjectReadiness) {
 
 export function ProjectManagementScreen({
   projects,
+  apartments,
   readinessItems,
   onProjects,
   onReadiness,
@@ -39,30 +45,83 @@ export function ProjectManagementScreen({
   onAddProject,
   onDeleteProject,
   onResetDemoData,
+  onImportProject,
+  onMigrateLocalToSupabase,
+  canMigrateLocalToSupabase = false,
+  isSupabaseSourceActive = false,
   canViewReadiness = true,
   canManageProjects = true,
   authModeLabel,
   onSignOut,
 }: ProjectManagementScreenProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isMigrationOpen, setIsMigrationOpen] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const [modalError, setModalError] = useState("");
+  const [isModalSaving, setIsModalSaving] = useState(false);
   const projectToDelete = projects.find((project) => project.id === deleteProjectId);
+  const localProjects = projects.filter((project) => project.isSupabaseBacked !== true);
+  const migrationProjectCount = localProjects.length;
+  const migrationApartmentCount = apartments.filter((apartment) =>
+    localProjects.some((project) => project.id === apartment.projectId),
+  ).length;
+  const migrationFileCount = localProjects.reduce(
+    (total, project) => total + (project.projectFiles?.length ?? 0),
+    0,
+  );
 
   const handleAddProject = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isModalSaving) return;
+
     const formData = new FormData(event.currentTarget);
-    onAddProject({
-      name: String(formData.get("name") ?? ""),
-      city: String(formData.get("city") ?? ""),
-      address: String(formData.get("address") ?? ""),
-      neighborhood: String(formData.get("neighborhood") ?? ""),
-      marketingStatus: String(formData.get("marketingStatus") ?? "טיוטה"),
-      projectType: String(formData.get("projectType") ?? "פרויקט חדש") as AddProjectInput["projectType"],
-      tagline: String(formData.get("tagline") ?? ""),
-    });
-    setIsAddOpen(false);
-    setSuccessMessage("הפרויקט נוסף ונשמר מקומית");
+
+    setIsModalSaving(true);
+    setModalError("");
+    setSuccessMessage("");
+
+    try {
+      onAddProject({
+        name: String(formData.get("name") ?? ""),
+        city: String(formData.get("city") ?? ""),
+        address: String(formData.get("address") ?? ""),
+        neighborhood: String(formData.get("neighborhood") ?? ""),
+        marketingStatus: String(formData.get("marketingStatus") ?? "טיוטה"),
+        projectType: String(formData.get("projectType") ?? "פרויקט חדש") as AddProjectInput["projectType"],
+        tagline: String(formData.get("tagline") ?? ""),
+      });
+      setIsAddOpen(false);
+      setSuccessMessage("הפרויקט נוסף ונשמר מקומית");
+    } catch (error) {
+      setModalError(error instanceof Error ? error.message : "שמירת הפרויקט נכשלה.");
+    } finally {
+      setIsModalSaving(false);
+    }
+  };
+
+  const handleMigrateLocalToSupabase = async () => {
+    if (!onMigrateLocalToSupabase) return;
+    if (!canMigrateLocalToSupabase) {
+      setModalError("נדרש חיבור Supabase עם משתמש admin כדי להעביר נתונים מקומיים.");
+      return;
+    }
+    if (isMigrating) return;
+
+    setIsMigrating(true);
+    setModalError("");
+    setSuccessMessage("");
+
+    try {
+      await onMigrateLocalToSupabase();
+      setIsMigrationOpen(false);
+      setSuccessMessage("הנתונים המקומיים הועברו ל-Supabase ללא מחיקת localStorage");
+    } catch (error) {
+      setModalError(error instanceof Error ? error.message : "העברת הנתונים ל-Supabase נכשלה.");
+    } finally {
+      setIsMigrating(false);
+    }
   };
 
   return (
@@ -87,11 +146,37 @@ export function ProjectManagementScreen({
           {canManageProjects && (
             <div className="management-title-actions">
               {successMessage && <span className="save-success">{successMessage}</span>}
+              <button className="gold-button gold-button--compact" onClick={onImportProject} type="button">
+                <FolderUp size={16} />
+                ייבוא מסמכים
+              </button>
+              <button
+                className="ghost-button ghost-button--compact"
+                onClick={() => {
+                  setModalError(
+                    canMigrateLocalToSupabase
+                      ? ""
+                      : "נדרש חיבור Supabase עם משתמש admin כדי להעביר נתונים מקומיים.",
+                  );
+                  setIsMigrationOpen(true);
+                }}
+                type="button"
+              >
+                <FolderUp size={16} />
+                העברה ל-Supabase
+              </button>
               <button className="ghost-button ghost-button--compact" onClick={onResetDemoData} type="button">
                 <RotateCcw size={16} />
                 איפוס נתוני דמו
               </button>
-              <button className="gold-button gold-button--compact" onClick={() => setIsAddOpen(true)} type="button">
+              <button
+                className="gold-button gold-button--compact"
+                onClick={() => {
+                  setModalError("");
+                  setIsAddOpen(true);
+                }}
+                type="button"
+              >
                 <Plus size={16} />
                 הוספת פרויקט
               </button>
@@ -147,8 +232,92 @@ export function ProjectManagementScreen({
           })}
         </section>
 
+        {isMigrationOpen && (
+          <div
+            className="material-modal-backdrop"
+            onClick={() => {
+              if (!isMigrating) setIsMigrationOpen(false);
+            }}
+          >
+            <section
+              className="material-modal project-crud-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="העברת נתונים מקומיים ל-Supabase"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header className="material-modal__header">
+                <div>
+                  <span className="eyebrow">Supabase</span>
+                  <h2>העברת נתונים מקומיים</h2>
+                </div>
+                <button
+                  className="ghost-button ghost-button--compact"
+                  disabled={isMigrating}
+                  onClick={() => setIsMigrationOpen(false)}
+                  type="button"
+                >
+                  ביטול
+                </button>
+              </header>
+              {modalError && (
+                <p className="material-modal__note material-modal__note--error" role="alert">
+                  {modalError}
+                </p>
+              )}
+              <div className="mock-field-grid">
+                <div className="mock-field">
+                  <span>פרויקטים מקומיים</span>
+                  <strong>{migrationProjectCount}</strong>
+                </div>
+                <div className="mock-field">
+                  <span>דירות</span>
+                  <strong>{migrationApartmentCount}</strong>
+                </div>
+                <div className="mock-field">
+                  <span>קבצים ברשימות</span>
+                  <strong>{migrationFileCount}</strong>
+                </div>
+                <div className="mock-field mock-field--wide">
+                  <span>זיהוי כפילויות</span>
+                  <strong>לפי id, ואם אין התאמה לפי שם פרויקט + כתובת</strong>
+                </div>
+              </div>
+              <p className="material-modal__note">
+                localStorage לא יימחק. קבצים שכבר נמצאים ב-Storage יישארו מקושרים; קבצי blob/data מקומיים לא יועלו כקבצים קבועים.
+              </p>
+              <p className="material-modal__note">
+                מקור Supabase פעיל כרגע: {isSupabaseSourceActive ? "כן" : "לא"}
+              </p>
+              <footer className="material-modal__footer">
+                <button
+                  className="ghost-button ghost-button--compact"
+                  disabled={isMigrating}
+                  onClick={() => setIsMigrationOpen(false)}
+                  type="button"
+                >
+                  ביטול
+                </button>
+                <button
+                  className="gold-button gold-button--compact"
+                  disabled={isMigrating || !canMigrateLocalToSupabase}
+                  onClick={handleMigrateLocalToSupabase}
+                  type="button"
+                >
+                  {isMigrating ? "מעבירה..." : "אישור העברה"}
+                </button>
+              </footer>
+            </section>
+          </div>
+        )}
+
         {isAddOpen && (
-          <div className="material-modal-backdrop" onClick={() => setIsAddOpen(false)}>
+          <div
+            className="material-modal-backdrop"
+            onClick={() => {
+              if (!isModalSaving) setIsAddOpen(false);
+            }}
+          >
             <section
               className="material-modal project-crud-modal"
               role="dialog"
@@ -165,6 +334,11 @@ export function ProjectManagementScreen({
                   ביטול
                 </button>
               </header>
+              {modalError && (
+                <p className="material-modal__note material-modal__note--error" role="alert">
+                  {modalError}
+                </p>
+              )}
               <form className="mock-field-grid" id="add-project-form" onSubmit={handleAddProject}>
                 <label className="mock-field">
                   <span>שם פרויקט</span>
@@ -203,8 +377,13 @@ export function ProjectManagementScreen({
                 <button className="ghost-button ghost-button--compact" onClick={() => setIsAddOpen(false)} type="button">
                   ביטול
                 </button>
-                <button className="gold-button gold-button--compact" form="add-project-form" type="submit">
-                  שמירה
+                <button
+                  className="gold-button gold-button--compact"
+                  disabled={isModalSaving}
+                  form="add-project-form"
+                  type="submit"
+                >
+                  {isModalSaving ? "שומר..." : "שמירה"}
                 </button>
               </footer>
             </section>
