@@ -18,7 +18,8 @@ interface SignInInput {
 
 export type AuthMode = "signed-out" | "supabase" | "demo";
 
-const authUnavailableMessage = "Supabase Auth אינו זמין כרגע. ניתן להמשיך במצב דמו מקומי.";
+const authNotConfiguredMessage = "Supabase אינו מוגדר. אפשר להיכנס רק למצב דמו מקומי.";
+const adminOnlyMessage = "הכניסה למערכת מותרת רק למשתמש admin פעיל.";
 
 function isUserRole(value: string | null | undefined): value is UserRole {
   return value === "admin" || value === "sales" || value === "viewer";
@@ -28,6 +29,24 @@ function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
 
   return "אירעה שגיאה בכניסה למערכת.";
+}
+
+function getSignInErrorMessage(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+
+  if (message.includes("invalid login credentials")) {
+    return "האימייל או הסיסמה אינם נכונים.";
+  }
+
+  if (message.includes("email not confirmed")) {
+    return "יש לאשר את כתובת האימייל לפני הכניסה.";
+  }
+
+  if (message.includes("supabase is not configured")) {
+    return authNotConfiguredMessage;
+  }
+
+  return getErrorMessage(error);
 }
 
 async function loadProfileForUser(user: User): Promise<CurrentUser> {
@@ -47,11 +66,15 @@ async function loadProfileForUser(user: User): Promise<CurrentUser> {
   const profile = data as ProfileRow;
 
   if (profile.is_active === false) {
-    throw new Error("This profile is inactive.");
+    throw new Error(adminOnlyMessage);
   }
 
   if (!isUserRole(profile.role)) {
-    throw new Error("The profile role is missing or invalid.");
+    throw new Error(adminOnlyMessage);
+  }
+
+  if (profile.role !== "admin") {
+    throw new Error(adminOnlyMessage);
   }
 
   return {
@@ -119,7 +142,8 @@ export function useAuthProfile() {
         if (isCancelled) return;
 
         console.warn("[GOLDLANDS] Supabase auth initialization failed. Staying signed out.", initialError);
-        resetToSignedOut(authUnavailableMessage);
+        void client.auth.signOut();
+        resetToSignedOut(getSignInErrorMessage(initialError));
       })
       .finally(() => {
         if (!isCancelled) setIsLoading(false);
@@ -142,7 +166,8 @@ export function useAuthProfile() {
           if (isCancelled) return;
 
           console.warn("[GOLDLANDS] Supabase profile load failed. Staying signed out.", profileError);
-          resetToSignedOut(authUnavailableMessage, Boolean(session?.user));
+          void client.auth.signOut();
+          resetToSignedOut(getSignInErrorMessage(profileError), false);
         })
         .finally(() => {
           if (!isCancelled) setIsLoading(false);
@@ -169,10 +194,11 @@ export function useAuthProfile() {
       setError(null);
 
       if (!isSupabaseConfigured || !supabase) {
-        setCurrentUser(demoCurrentUser);
-        setIsDemoMode(true);
+        setCurrentUser(null);
+        setIsDemoMode(false);
         setHasSupabaseSession(false);
-        return true;
+        setError(authNotConfiguredMessage);
+        return false;
       }
 
       setIsLoading(true);
@@ -184,7 +210,7 @@ export function useAuthProfile() {
         });
 
         if (signInError) {
-          setError(signInError.message);
+          setError(getSignInErrorMessage(signInError));
           return false;
         }
 
@@ -194,13 +220,14 @@ export function useAuthProfile() {
           await loadAuthenticatedUser(data.user);
         } catch (profileError: unknown) {
           console.warn("[GOLDLANDS] Supabase profile load failed after sign in.", profileError);
-          resetToSignedOut(authUnavailableMessage, Boolean(data.session ?? data.user));
+          await supabase.auth.signOut();
+          resetToSignedOut(getSignInErrorMessage(profileError), false);
           return false;
         }
 
         return true;
       } catch (signInError: unknown) {
-        setError(getErrorMessage(signInError));
+        setError(getSignInErrorMessage(signInError));
         return false;
       } finally {
         setIsLoading(false);

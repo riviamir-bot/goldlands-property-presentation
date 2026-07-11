@@ -1,12 +1,15 @@
+import { ImageOff } from "lucide-react";
 import { ProjectLogoSlot } from "../components/ProjectLogoSlot";
 import type { Project } from "../types";
+import { getValidProjectMainImage } from "../utils/projectImages";
 
 interface ProjectOpeningScreenProps {
   project: Project;
+  onClearMainImage?: () => void;
 }
 
-export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
-  const mainImage = project.mainImage || project.heroImage;
+export function ProjectOpeningScreen({ project, onClearMainImage }: ProjectOpeningScreenProps) {
+  const mainImage = getValidProjectMainImage(project);
   const overviewGroups = [
     {
       title: "פרטי מיקום",
@@ -50,7 +53,22 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
     <section className="panel project-overview-panel">
       <div className="project-overview-layout">
         <section className="project-overview-visual" aria-label="הדמיית הפרויקט">
-          <div className="project-overview-image" style={{ backgroundImage: `url(${mainImage})` }} />
+          <div
+            className={mainImage ? "project-overview-image" : "project-overview-image project-overview-image--empty"}
+            style={mainImage ? { backgroundImage: `url(${mainImage})` } : undefined}
+          >
+            {!mainImage && (
+              <div className="project-overview-image__placeholder">
+                <ImageOff size={28} />
+                <strong>לא הוגדרה תמונה ראשית</strong>
+              </div>
+            )}
+          </div>
+          {mainImage && onClearMainImage && (
+            <button className="ghost-button project-main-image-clear" type="button" onClick={onClearMainImage}>
+              הסר תמונה ראשית
+            </button>
+          )}
         </section>
 
         <section className="project-overview-copy">

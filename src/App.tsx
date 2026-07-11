@@ -22,9 +22,11 @@ import { PriceListScreen } from "./screens/PriceListScreen";
 import { ProjectOpeningScreen } from "./screens/ProjectOpeningScreen";
 import { ProjectManagementDetailScreen } from "./screens/ProjectManagementDetailScreen";
 import { ProjectManagementScreen } from "./screens/ProjectManagementScreen";
+import { ProjectImportScreen } from "./screens/ProjectImportScreen";
 import { ProjectReadinessScreen } from "./screens/ProjectReadinessScreen";
 import { TechnicalSpecScreen } from "./screens/TechnicalSpecScreen";
 import type { Apartment, ClientShareConfig, Screen } from "./types";
+import { getValidProjectMainImage } from "./utils/projectImages";
 
 const screenTitles: Record<Screen, string> = {
   login: "כניסה",
@@ -42,6 +44,7 @@ const screenTitles: Record<Screen, string> = {
   readiness: "חוסרים / מוכנות פרויקטים",
   admin: "ניהול פרויקטים",
   projectManagement: "ניהול פרויקט",
+  importProject: "ייבוא מסמכי פרויקט",
 };
 
 const flow: Screen[] = [
@@ -102,7 +105,12 @@ export default function App() {
     addProject,
     updateProject,
     deleteProject,
+    reorderProjects,
     updateApartment,
+    importProjectBundle,
+    updateProjectFileType,
+    deleteProjectFile,
+    migrateLocalStateToSupabase,
     resetDemoData,
     isSupabaseSourceActive,
   } = useProjectsStore({
@@ -239,6 +247,10 @@ export default function App() {
   const openAdmin = () => {
     if (userCanManageProjects) setScreen("admin");
   };
+  const openProjectImport = () => {
+    if (userCanManageProjects) setScreen("importProject");
+  };
+
   const openProjectManagement = (projectId: string) => {
     if (!userCanManageProjects) {
       selectProject(projectId);
@@ -272,6 +284,10 @@ export default function App() {
     }
   };
 
+  const handleReorderProjects = async (projectIds: string[]) => {
+    await reorderProjects(projectIds);
+  };
+
   const handleResetDemoData = () => {
     if (!userCanManageProjects) return;
 
@@ -291,6 +307,13 @@ export default function App() {
     setScreen("clientPreview");
   };
 
+  const clearSelectedProjectMainImage = () => {
+    updateProject(selectedProject.id, {
+      mainImage: "",
+      mainImagePath: undefined,
+    });
+  };
+
   const currentFlowIndex = flow.indexOf(screen);
   const nextScreen = currentFlowIndex >= 0 ? flow[currentFlowIndex + 1] : undefined;
   const previousScreen = currentFlowIndex > 0 ? flow[currentFlowIndex - 1] : "projects";
@@ -298,7 +321,7 @@ export default function App() {
   if (!currentUser || screen === "login") {
     return (
       <LoginScreen
-        backgroundImage={projects[0]?.mainImage || projects[0]?.heroImage}
+        backgroundImage={projects[0] ? getValidProjectMainImage(projects[0]) : ""}
         error={authError}
         isDemoOnly={!isSupabaseConfigured}
         isLoading={isAuthLoading}
@@ -314,6 +337,7 @@ export default function App() {
       <AllProjectsScreen
         projects={projects}
         onSelect={selectProject}
+        onReorderProjects={handleReorderProjects}
         onReadiness={openReadiness}
         onAdmin={openAdmin}
         canViewReadiness={userCanViewReadiness}
@@ -329,6 +353,7 @@ export default function App() {
       <AllProjectsScreen
         projects={projects}
         onSelect={selectProject}
+        onReorderProjects={handleReorderProjects}
         onReadiness={openReadiness}
         onAdmin={openAdmin}
         canViewReadiness={userCanViewReadiness}
@@ -360,6 +385,7 @@ export default function App() {
     return (
       <ProjectManagementScreen
         projects={projects}
+        apartments={apartments}
         readinessItems={readinessItems}
         onProjects={goToProjects}
         onReadiness={openReadiness}
@@ -368,6 +394,30 @@ export default function App() {
         onAddProject={addProject}
         onDeleteProject={handleDeleteProject}
         onResetDemoData={handleResetDemoData}
+        onImportProject={openProjectImport}
+        onMigrateLocalToSupabase={migrateLocalStateToSupabase}
+        canMigrateLocalToSupabase={userHasRealSupabaseAdmin}
+        isSupabaseSourceActive={isSupabaseSourceActive}
+        canViewReadiness={userCanViewReadiness}
+        canManageProjects={userCanManageProjects}
+        authModeLabel={authModeLabel}
+        onSignOut={handleSignOut}
+      />
+    );
+  }
+
+
+  if (screen === "importProject" && userCanManageProjects) {
+    return (
+      <ProjectImportScreen
+        projects={projects}
+        apartments={apartments}
+        readinessItems={readinessItems}
+        onProjects={goToProjects}
+        onReadiness={openReadiness}
+        onAdmin={openAdmin}
+        onImport={importProjectBundle}
+        onOpenProject={openProjectManagement}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
         authModeLabel={authModeLabel}
@@ -388,6 +438,8 @@ export default function App() {
         onOpenProject={selectProject}
         onUpdateProject={updateProject}
         onUpdateApartment={updateApartment}
+        onUpdateProjectFileType={updateProjectFileType}
+        onDeleteProjectFile={deleteProjectFile}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
         canUploadProjectFiles={userCanUploadProjectFiles}
@@ -432,14 +484,19 @@ export default function App() {
         {projectSectionScreens.includes(screen) && (
           <ProjectSectionNav active={screen} onNavigate={(target) => setScreen(target)} />
         )}
-        {screen === "opening" && <ProjectOpeningScreen project={selectedProject} />}
+        {screen === "opening" && (
+          <ProjectOpeningScreen
+            project={selectedProject}
+            onClearMainImage={clearSelectedProjectMainImage}
+          />
+        )}
         {screen === "apartments" && (
           <ApartmentsScreen apartments={clientFacingApartments} onOpenPlan={openPlan} />
         )}
         {screen === "prices" && <PriceListScreen apartments={projectApartments} />}
         {screen === "gallery" && <GalleryScreen project={selectedProject} />}
         {screen === "plans" && <PlanScreen apartment={selectedApartment} />}
-        {screen === "technical" && <TechnicalSpecScreen />}
+        {screen === "technical" && <TechnicalSpecScreen project={selectedProject} />}
         {screen === "location" && <LocationScreen project={selectedProject} />}
         {screen === "faq" && <FAQScreen />}
         {screen === "summary" && (

@@ -72,6 +72,20 @@ This adds nullable stable path columns to `projects`:
 
 The app does not store expiring signed URLs in these columns. It stores stable Storage object paths and requests fresh signed URLs at runtime.
 
+## Apply The Complete Project Mapping Migration
+
+Before using the full document import and project file management workflow, apply:
+
+```text
+supabase/migrations/20260711000000_complete_project_supabase_mapping.sql
+```
+
+This keeps existing data and adds missing nullable/metadata columns:
+
+- project planning fields such as block, parcel, licensing route, planning status, developer units, owner units, and imported technical notes
+- file association and target fields for `project_images`
+- file association and target fields for `project_documents`
+
 ## Create The First Admin User
 
 This milestone uses Supabase Auth email/password login and reads the matching row from `profiles`.
@@ -288,6 +302,8 @@ Uploads write the file into Storage and then insert metadata:
 
 - Images go to `project_images`.
 - Documents go to `project_documents`.
+- File association and target changes update metadata rows without uploading the file again.
+- File deletion removes the Storage object and its metadata row.
 - Project logo uploads also update `projects.project_logo_path`.
 - Main image uploads also update `projects.main_image_path`.
 - Apartment plan uploads also mark the apartment plan status as attached.
@@ -302,6 +318,18 @@ To verify an upload:
 4. Open Table Editor -> `project_images` or `project_documents`.
 5. Confirm the metadata row has the same `storage_bucket` and `storage_path`.
 6. For logo/main image uploads, open Table Editor -> `projects` and confirm `project_logo_path` or `main_image_path` was updated.
+
+## One-Time Local Data Migration
+
+Admin users can open the project management screen and use "העברה ל-Supabase".
+
+The migration:
+
+- keeps localStorage intact
+- upserts projects by UUID id when possible
+- falls back to matching by project name and address
+- upserts apartments by UUID id when possible, otherwise by project and apartment number
+- does not upload blob/data URLs as permanent files
 
 ## Current Runtime
 
