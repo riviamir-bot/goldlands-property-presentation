@@ -1,13 +1,40 @@
 import { FileDown, Printer, Share2 } from "lucide-react";
 import { formatPrice } from "../utils/format";
-import type { Apartment } from "../types";
+import type { Apartment, Project } from "../types";
 
 interface PlanScreenProps {
-  apartment: Apartment;
+  apartment?: Apartment;
+  project?: Project;
 }
 
-export function PlanScreen({ apartment }: PlanScreenProps) {
+const floorTargetOrder = [
+  "קומת קרקע",
+  "קומות 1-4",
+  "קומות 5-6",
+  "קומה 7",
+  "גג וגג עליון",
+  "תכנית מגרש",
+];
+
+export function PlanScreen({ apartment, project }: PlanScreenProps) {
+  if (!apartment) {
+    return (
+      <section className="empty-state compact-empty-state">
+        <h2>אין דירה להצגת תכנית</h2>
+        <p>לאחר הוספת דירה ושיוך תכנית, היא תופיע כאן.</p>
+      </section>
+    );
+  }
+
   const uploadedPlanUrl = apartment.planUrl?.trim();
+  const floorPlans = (project?.projectFiles ?? [])
+    .filter((file) => file.type === "תכנית קומה")
+    .sort((a, b) => {
+      const aIndex = floorTargetOrder.indexOf(a.target);
+      const bIndex = floorTargetOrder.indexOf(b.target);
+
+      return (aIndex < 0 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex < 0 ? Number.MAX_SAFE_INTEGER : bIndex);
+    });
 
   return (
     <section className="plan-layout">
@@ -104,6 +131,17 @@ export function PlanScreen({ apartment }: PlanScreenProps) {
             שיתוף
           </button>
         </div>
+        {floorPlans.length > 0 && (
+          <section className="floor-plan-list" aria-label="תכניות קומה">
+            <h3>תכניות קומה</h3>
+            {floorPlans.map((file) => (
+              <a href={file.url} key={file.id} rel="noreferrer" target="_blank">
+                <span>{file.target || "תכנית קומה"}</span>
+                <small>{file.name}</small>
+              </a>
+            ))}
+          </section>
+        )}
       </aside>
     </section>
   );

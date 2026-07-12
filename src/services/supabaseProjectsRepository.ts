@@ -1,9 +1,10 @@
 import { supabase } from "../lib/supabaseClient";
-import {
-  projectReadiness as mockReadiness,
-  projects as mockProjects,
-} from "../data/mockData";
-import type { Apartment, Project, ProjectReadiness } from "../types";
+import type {
+  Apartment,
+  Project,
+  ProjectReadiness,
+  TechnicalSpecSectionData,
+} from "../types";
 import type {
   AddProjectInput,
   ProjectSortOrderUpdate,
@@ -15,6 +16,7 @@ import {
   getProjectFileAssociation,
   listProjectFiles,
   updateStoredProjectFileAssociation,
+  updateStoredProjectFileTarget,
   type ProjectFileRecord,
 } from "./storageService";
 
@@ -75,6 +77,14 @@ interface ApartmentRow {
   notes: string;
 }
 
+interface TechnicalSpecificationRow {
+  project_id: string;
+  section_key: string;
+  title: string;
+  items: string[] | null;
+  display_order: number;
+}
+
 function assertSupabase() {
   if (!supabase) {
     throw new Error("Supabase is not configured. Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.");
@@ -125,14 +135,6 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }
 
-function getMockProject(slug: string) {
-  return mockProjects.find((project) => project.id === slug);
-}
-
-function getMockReadiness(slug: string) {
-  return mockReadiness.find((readiness) => readiness.projectId === slug);
-}
-
 function makeApartmentMix(value: Project["apartmentMix"] | null): Project["apartmentMix"] {
   return {
     threeRooms: value?.threeRooms ?? "0",
@@ -174,7 +176,6 @@ function getFirstFileUrl(files: ProjectFileRecord[], category: ProjectFileRecord
 function getGalleryImages(
   files: ProjectFileRecord[],
   category: keyof Project["gallery"],
-  fallback: string[],
 ) {
   const uploadedImages = files
     .filter((file) => file.category === category && file.publicUrl)
@@ -182,7 +183,7 @@ function getGalleryImages(
     .map((file) => file.publicUrl)
     .filter((url): url is string => Boolean(url));
 
-  return uploadedImages.length > 0 ? uploadedImages : fallback;
+  return uploadedImages;
 }
 
 function countFiles(files: ProjectFileRecord[], categories: ProjectFileRecord["category"][]) {
@@ -204,16 +205,13 @@ function mapProjectFileRecord(file: ProjectFileRecord) {
   };
 }
 
-function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
-  const mockProject = getMockProject(row.slug);
+function mapProject(
+  row: ProjectRow,
+  files: ProjectFileRecord[] = [],
+  technicalSpecSections: TechnicalSpecSectionData[] = [],
+): Project {
   const logoUrl = getFirstFileUrl(files, "logo");
-  const mainImage = getFirstFileUrl(files, "main") ?? mockProject?.mainImage ?? mockProject?.heroImage ?? "";
-  const fallbackGallery = mockProject?.gallery ?? {
-    exterior: [],
-    interior: [],
-    lobby: [],
-    surroundings: [],
-  };
+  const mainImage = getFirstFileUrl(files, "main") ?? "";
 
   return {
     id: row.id,
@@ -231,9 +229,9 @@ function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
     isSupabaseBacked: true,
     sortOrder: row.sort_order ?? undefined,
     sort_order: row.sort_order ?? undefined,
-    projectLogo: logoUrl ?? mockProject?.projectLogo ?? "",
+    projectLogo: logoUrl ?? "",
     projectLogoPath: row.project_logo_path ?? undefined,
-    heroImage: mainImage || mockProject?.heroImage || "",
+    heroImage: mainImage,
     mainImage,
     mainImagePath: row.main_image_path ?? undefined,
     block: row.block ?? undefined,
@@ -255,10 +253,10 @@ function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
     },
     apartmentMix: makeApartmentMix(row.apartment_mix),
     gallery: {
-      exterior: getGalleryImages(files, "exterior", fallbackGallery.exterior),
-      interior: getGalleryImages(files, "interior", fallbackGallery.interior),
-      lobby: getGalleryImages(files, "lobby", fallbackGallery.lobby),
-      surroundings: getGalleryImages(files, "surroundings", fallbackGallery.surroundings),
+      exterior: getGalleryImages(files, "exterior"),
+      interior: getGalleryImages(files, "interior"),
+      lobby: getGalleryImages(files, "lobby"),
+      surroundings: getGalleryImages(files, "surroundings"),
     },
     materialFileCounts: {
       logo: countFiles(files, ["logo"]),
@@ -273,6 +271,7 @@ function mapProject(row: ProjectRow, files: ProjectFileRecord[] = []): Project {
     },
     projectFiles: files.map(mapProjectFileRecord),
     technicalSpecNotes: row.technical_spec_notes ?? undefined,
+    technicalSpecSections,
   };
 }
 
@@ -304,15 +303,13 @@ function mapApartment(row: ApartmentRow, files: ProjectFileRecord[] = []): Apart
 }
 
 function makeReadiness(project: ProjectRow): ProjectReadiness {
-  const mockItem = getMockReadiness(project.slug);
-
   return {
     projectId: project.id,
     city: project.city,
     marketingStatus: project.marketing_status ?? "טיוטה",
     readinessPercentage: project.readiness_percentage ?? 0,
-    lastUpdated: mockItem?.lastUpdated ?? "",
-    missing: mockItem?.missing ?? {
+    lastUpdated: "",
+    missing: {
       critical: [],
       important: [],
       optional: [],
@@ -618,6 +615,62 @@ async function upsertMigratedApartments(
   }
 }
 
+async function upsertProjectApartments(projectId: string, apartments: Apartment[]) {
+  await upsertMigratedApartments(projectId, projectId, apartments);
+
+  return readSupabaseProjectsState();
+}
+
+async function saveTechnicalSpecifications(
+  projectId: string,
+  sections: TechnicalSpecSectionData[],
+) {
+  const client = assertSupabase();
+  const { data: existingRows, error: readError } = await client
+    .from("technical_specifications")
+    .select("section_key")
+    .eq("project_id", projectId);
+
+  if (readError) throw readError;
+
+  if (sections.length > 0) {
+    const { error: upsertError } = await client
+      .from("technical_specifications")
+      .upsert(
+        sections.map((section, index) => ({
+          project_id: projectId,
+          section_key: section.id,
+          title: section.title,
+          icon_key: section.id,
+          items: section.items,
+          display_order: index,
+          default_open: index === 0,
+          visible_to_client: true,
+        })),
+        { onConflict: "project_id,section_key" },
+      );
+
+    if (upsertError) throw upsertError;
+  }
+
+  const nextKeys = new Set(sections.map((section) => section.id));
+  const removedKeys = ((existingRows as Array<{ section_key: string }> | null) ?? [])
+    .map((row) => row.section_key)
+    .filter((key) => !nextKeys.has(key));
+
+  if (removedKeys.length > 0) {
+    const { error: deleteError } = await client
+      .from("technical_specifications")
+      .delete()
+      .eq("project_id", projectId)
+      .in("section_key", removedKeys);
+
+    if (deleteError) throw deleteError;
+  }
+
+  return readSupabaseProjectsState();
+}
+
 async function migrateStateToSupabase(state: ProjectsRepositoryState) {
   for (const project of state.projects) {
     const readiness = state.readinessItems.find((item) => item.projectId === project.id);
@@ -677,6 +730,27 @@ async function readSupabaseProjectsState(): Promise<ProjectsRepositoryState> {
 
   if (apartmentsError) throw apartmentsError;
 
+  const { data: technicalRows, error: technicalError } = await client
+    .from("technical_specifications")
+    .select("project_id, section_key, title, items, display_order")
+    .in("project_id", projectIds)
+    .eq("visible_to_client", true)
+    .order("display_order", { ascending: true });
+
+  if (technicalError) throw technicalError;
+
+  const technicalSectionsByProjectId = new Map<string, TechnicalSpecSectionData[]>();
+  ((technicalRows as TechnicalSpecificationRow[] | null) ?? []).forEach((row) => {
+    const sections = technicalSectionsByProjectId.get(row.project_id) ?? [];
+    sections.push({
+      id: row.section_key,
+      title: row.title,
+      items: Array.isArray(row.items) ? row.items.map(String) : [],
+      displayOrder: row.display_order,
+    });
+    technicalSectionsByProjectId.set(row.project_id, sections);
+  });
+
   const fileEntries = await Promise.all(
     projectIds.map(async (projectId) => {
       try {
@@ -693,7 +767,13 @@ async function readSupabaseProjectsState(): Promise<ProjectsRepositoryState> {
   const filesByProjectId = new Map(fileEntries);
 
   return {
-    projects: sortedProjectRows.map((project) => mapProject(project, filesByProjectId.get(project.id) ?? [])),
+    projects: sortedProjectRows.map((project) =>
+      mapProject(
+        project,
+        filesByProjectId.get(project.id) ?? [],
+        technicalSectionsByProjectId.get(project.id) ?? [],
+      ),
+    ),
     apartments: ((apartmentRows as ApartmentRow[] | null) ?? []).map((apartment) =>
       mapApartment(apartment, filesByProjectId.get(apartment.project_id) ?? []),
     ),
@@ -731,12 +811,6 @@ export const supabaseProjectsRepository: ProjectsRepository = {
 
     if (error) throw error;
     if (!projectRow) throw new Error("Supabase did not return the created project.");
-
-    const { error: apartmentError } = await client
-      .from("apartments")
-      .insert(makeDefaultApartmentInsertRow((projectRow as ProjectRow).id));
-
-    if (apartmentError) throw apartmentError;
 
     return readSupabaseProjectsState();
   },
@@ -790,12 +864,59 @@ export const supabaseProjectsRepository: ProjectsRepository = {
     return readSupabaseProjectsState();
   },
 
+  async addApartment(projectId, apartment) {
+    return upsertProjectApartments(projectId, [apartment]);
+  },
+
+  async deleteApartment(projectId, apartmentId) {
+    const client = assertSupabase();
+    const { error } = await client
+      .from("apartments")
+      .delete()
+      .eq("project_id", projectId)
+      .eq("id", apartmentId);
+
+    if (error) throw error;
+
+    return readSupabaseProjectsState();
+  },
+
+  async upsertApartments(projectId, apartments) {
+    return upsertProjectApartments(projectId, apartments);
+  },
+
+  async importProjectData(projectId, projectPatch, apartments) {
+    const client = assertSupabase();
+    const projectRow = makeProjectPatchRow(projectPatch);
+
+    if (Object.keys(projectRow).length > 0) {
+      const { error } = await client.from("projects").update(projectRow).eq("id", projectId);
+      if (error) throw error;
+    }
+
+    if (apartments.length > 0) {
+      await upsertMigratedApartments(projectId, projectId, apartments);
+    }
+
+    return readSupabaseProjectsState();
+  },
+
+  async updateTechnicalSpecifications(projectId, sections) {
+    return saveTechnicalSpecifications(projectId, sections);
+  },
+
   async reorderProjects(updates) {
     return updateProjectSortOrders(updates);
   },
 
   async updateProjectFileType(projectId, fileId, type) {
     await updateStoredProjectFileAssociation(projectId, fileId, type);
+
+    return readSupabaseProjectsState();
+  },
+
+  async updateProjectFileTarget(projectId, fileId, target) {
+    await updateStoredProjectFileTarget(projectId, fileId, target);
 
     return readSupabaseProjectsState();
   },

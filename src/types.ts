@@ -58,6 +58,7 @@ export type ReadinessPriority = "critical" | "important" | "optional";
 export type ProjectFileAssociation =
   | "מחירון"
   | "תכנית דירה"
+  | "תכנית קומה"
   | "מצגת"
   | "הדמיה"
   | "תמונת פרויקט"
@@ -76,6 +77,13 @@ export interface ProjectFile {
   mimeType?: string;
   storageBucket?: string;
   storagePath?: string;
+}
+
+export interface TechnicalSpecSectionData {
+  id: string;
+  title: string;
+  items: string[];
+  displayOrder: number;
 }
 
 export interface Project {
@@ -127,6 +135,7 @@ export interface Project {
   materialFileCounts?: Partial<Record<string, number>>;
   projectFiles?: ProjectFile[];
   technicalSpecNotes?: string[];
+  technicalSpecSections?: TechnicalSpecSectionData[];
 }
 
 export interface Apartment {

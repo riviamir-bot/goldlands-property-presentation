@@ -9,6 +9,7 @@ import {
   Shield,
   type LucideIcon,
 } from "lucide-react";
+import type { TechnicalSpecSectionData } from "../types";
 
 export interface TechnicalSpecSection {
   id: string;
@@ -85,15 +86,34 @@ export const technicalSpecSections: TechnicalSpecSection[] = [
 interface TechnicalSpecAccordionProps {
   defaultOpenIds?: string[];
   variant?: "overview" | "screen";
+  sections?: TechnicalSpecSectionData[];
 }
+
+const technicalIconMap: Record<string, LucideIcon> = {
+  structure: Layers3,
+  lobby: DoorOpen,
+  apartment: Shield,
+  kitchen: ChefHat,
+  climate: AirVent,
+  electric: Lightbulb,
+  bathrooms: Ruler,
+  balcony: Building2,
+  other: Building2,
+};
 
 export function TechnicalSpecAccordion({
   defaultOpenIds = defaultOverviewSpecIds,
   variant = "overview",
+  sections,
 }: TechnicalSpecAccordionProps) {
+  const visibleSections = sections?.map((section) => ({
+    ...section,
+    icon: technicalIconMap[section.id] ?? Building2,
+  })) ?? technicalSpecSections;
+
   return (
     <div className={`technical-accordion technical-accordion--${variant}`}>
-      {technicalSpecSections.map((section) => {
+      {visibleSections.map((section) => {
         const Icon = section.icon;
 
         return (

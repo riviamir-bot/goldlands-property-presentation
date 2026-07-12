@@ -11,6 +11,9 @@ import {
   PencilLine,
   Presentation,
   Ruler,
+  Plus,
+  ArrowDown,
+  ArrowUp,
   Trash2,
   UploadCloud,
   type LucideIcon,
@@ -21,11 +24,18 @@ import { SideNavigation } from "../components/SideNavigation";
 import { StatusBadge } from "../components/StatusBadge";
 import { useFileUploadInput, type UploadFileValidationKind } from "../hooks/useFileUploadInput";
 import {
+  formatSupabaseErrorDetails,
+  listProjectFiles,
   uploadProjectFile,
   type ProjectFileCategory,
   type ProjectFileRecord,
 } from "../services/storageService";
 import { formatPrice } from "../utils/format";
+import {
+  parseSpreadsheetImport,
+  type SpreadsheetImportKind,
+  type SpreadsheetPreview,
+} from "../utils/excelImport";
 import {
   canUseFileAsProjectMainImage,
   getValidProjectMainImage,
@@ -39,6 +49,7 @@ import type {
   ProjectFile,
   ProjectFileAssociation,
   ProjectReadiness,
+  TechnicalSpecSectionData,
 } from "../types";
 
 interface ProjectManagementDetailScreenProps {
@@ -58,11 +69,28 @@ interface ProjectManagementDetailScreenProps {
     projectId: string,
     apartmentId: string,
     patch: Partial<Apartment>,
-  ) => void;
+  ) => Promise<unknown> | void;
+  onAddApartment: (projectId: string, apartment: Apartment) => Promise<unknown> | void;
+  onDeleteApartment: (projectId: string, apartmentId: string) => Promise<unknown> | void;
+  onImportProjectData: (
+    projectId: string,
+    projectPatch: Partial<Project>,
+    apartments: Apartment[],
+  ) => Promise<unknown> | void;
+  onUpdateTechnicalSpecifications: (
+    projectId: string,
+    sections: TechnicalSpecSectionData[],
+  ) => Promise<unknown> | void;
   onUpdateProjectFileType?: (
     projectId: string,
     fileId: string,
     type: ProjectFileAssociation,
+    patch: Partial<Project>,
+  ) => Promise<void> | void;
+  onUpdateProjectFileTarget?: (
+    projectId: string,
+    fileId: string,
+    target: string,
     patch: Partial<Project>,
   ) => Promise<void> | void;
   onDeleteProjectFile?: (
@@ -173,6 +201,27 @@ const apartmentStatusOptions: Array<{ label: string; value: ApartmentStatus }> =
   { label: "לא לשיווק", value: "notMarketing" },
 ];
 
+const technicalSpecCategoryOptions = [
+  { id: "structure", title: "שלד ובנייה" },
+  { id: "lobby", title: "לובי וכניסה" },
+  { id: "apartment", title: "דירה" },
+  { id: "kitchen", title: "מטבח" },
+  { id: "climate", title: "מיזוג" },
+  { id: "electric", title: "חשמל ומים" },
+  { id: "bathrooms", title: "חדרי רחצה" },
+  { id: "balcony", title: "מרפסת" },
+  { id: "other", title: "אחר" },
+] as const;
+
+const floorPlanTargets = [
+  "קומת קרקע",
+  "קומות 1-4",
+  "קומות 5-6",
+  "קומה 7",
+  "גג וגג עליון",
+  "תכנית מגרש",
+];
+
 const projectTypeOptions: Project["projectType"][] = [
   "פרויקט חדש",
   "תמ״א 38/1",
@@ -183,13 +232,25 @@ const imageUploadAccept = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp
 const documentUploadAccept = ".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,text/csv";
 
 interface UploadSectionConfig {
-  category: ProjectFileCategory;
+  category?: ProjectFileCategory;
   accept: string;
   multiple: boolean;
   needsApartment?: boolean;
+  importKind?: SpreadsheetImportKind;
+}
+
+interface UploadResultItem {
+  fileName: string;
+  status: "success" | "error";
+  message: string;
 }
 
 const uploadSectionConfigs: Partial<Record<string, UploadSectionConfig>> = {
+  details: {
+    accept: ".xlsx,.xls,.csv,text/csv",
+    multiple: false,
+    importKind: "projectDetails",
+  },
   logo: {
     category: "logo",
     accept: imageUploadAccept,
@@ -210,6 +271,11 @@ const uploadSectionConfigs: Partial<Record<string, UploadSectionConfig>> = {
     accept: imageUploadAccept,
     multiple: true,
   },
+  inventory: {
+    accept: ".xlsx,.xls,.csv,text/csv",
+    multiple: false,
+    importKind: "apartments",
+  },
   plans: {
     category: "apartment_plan",
     accept: documentUploadAccept,
@@ -224,7 +290,8 @@ const uploadSectionConfigs: Partial<Record<string, UploadSectionConfig>> = {
   prices: {
     category: "price_list",
     accept: documentUploadAccept,
-    multiple: true,
+    multiple: false,
+    importKind: "priceList",
   },
   technical: {
     category: "technical_spec",
@@ -241,6 +308,7 @@ const uploadSectionConfigs: Partial<Record<string, UploadSectionConfig>> = {
 const projectFileAssociationOptions: ProjectFileAssociation[] = [
   "מחירון",
   "תכנית דירה",
+  "תכנית קומה",
   "מצגת",
   "הדמיה",
   "תמונת פרויקט",
@@ -257,7 +325,7 @@ const uploadCategoryFileTypes: Record<ProjectFileCategory, ProjectFileAssociatio
   lobby: "הדמיה",
   surroundings: "הדמיה",
   apartment_plan: "תכנית דירה",
-  floor_plan: "תכנית דירה",
+  floor_plan: "תכנית קומה",
   price_list: "מחירון",
   brochure: "מצגת",
   technical_spec: "מפרט",
@@ -395,7 +463,7 @@ const materialBlueprints = [
     icon: Presentation,
     kind: "file",
     status: "missing",
-    summary: "מקום שמור ללוגו הפרויקט, ללא קובץ אמיתי כרגע.",
+    summary: "לוגו הפרויקט שמופיע בכרטיסים ובתצוגות.",
     lastUpdated: "לא עודכן",
   },
   {
@@ -404,7 +472,7 @@ const materialBlueprints = [
     icon: FileImage,
     kind: "file",
     status: "complete",
-    summary: "הדמיה ראשית לדמו קיימת במערכת.",
+    summary: "התמונה הראשית של הפרויקט.",
     lastUpdated: "03/07/2026",
   },
   {
@@ -413,7 +481,7 @@ const materialBlueprints = [
     icon: Images,
     kind: "file",
     status: "partial",
-    summary: "3 הדמיות חוץ לדמו, נדרש סט סופי.",
+    summary: "גלריית הדמיות החוץ של הפרויקט.",
     lastUpdated: "02/07/2026",
   },
   {
@@ -422,7 +490,7 @@ const materialBlueprints = [
     icon: Images,
     kind: "file",
     status: "partial",
-    summary: "2 הדמיות פנים לדמו, חסרות הדמיות חדרים.",
+    summary: "גלריית הדמיות הפנים של הפרויקט.",
     lastUpdated: "01/07/2026",
   },
   {
@@ -458,7 +526,7 @@ const materialBlueprints = [
     icon: FileText,
     kind: "data",
     status: "partial",
-    summary: "מחירי דמו קיימים, תאריך עדכון ומחירים לעריכה.",
+    summary: "מחירים, מחירים מיוחדים וסטטוס לכל דירה.",
     lastUpdated: "03/07/2026",
   },
   {
@@ -467,7 +535,7 @@ const materialBlueprints = [
     icon: PencilLine,
     kind: "data",
     status: "partial",
-    summary: "סעיפי מפרט מרכזיים מוכנים כטקסט דמו.",
+    summary: "קטגוריות וסעיפי המפרט הטכני של הפרויקט.",
     lastUpdated: "01/07/2026",
   },
   {
@@ -515,7 +583,12 @@ export function ProjectManagementDetailScreen({
   onOpenProject,
   onUpdateProject,
   onUpdateApartment,
+  onAddApartment,
+  onDeleteApartment,
+  onImportProjectData,
+  onUpdateTechnicalSpecifications,
   onUpdateProjectFileType,
+  onUpdateProjectFileTarget,
   onDeleteProjectFile,
   canViewReadiness = true,
   canManageProjects = true,
@@ -542,6 +615,15 @@ export function ProjectManagementDetailScreen({
   const [uploadError, setUploadError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadApartmentId, setUploadApartmentId] = useState(apartments[0]?.id ?? "");
+  const [uploadTarget, setUploadTarget] = useState(floorPlanTargets[0]);
+  const [uploadResults, setUploadResults] = useState<UploadResultItem[]>([]);
+  const [spreadsheetPreview, setSpreadsheetPreview] = useState<SpreadsheetPreview | null>(null);
+  const [isParsingSpreadsheet, setIsParsingSpreadsheet] = useState(false);
+  const [isCreatingApartment, setIsCreatingApartment] = useState(false);
+  const [pendingApartmentDelete, setPendingApartmentDelete] = useState<Apartment | null>(null);
+  const [technicalSpecDraft, setTechnicalSpecDraft] = useState<TechnicalSpecSectionData[]>(
+    () => project.technicalSpecSections ?? [],
+  );
   const [uploadedSectionCounts, setUploadedSectionCounts] = useState<Record<string, number>>({});
 
   const materialSections = useMemo<MaterialSection[]>(() => {
@@ -670,6 +752,42 @@ export function ProjectManagementDetailScreen({
         };
       }
 
+      if (section.id === "inventory") {
+        return {
+          ...section,
+          status: apartments.length > 0 ? "complete" : "missing",
+          summary: apartments.length > 0
+            ? `${apartments.length} דירות משויכות לפרויקט.`
+            : "אין עדיין דירות בפרויקט.",
+          lastUpdated: readiness?.lastUpdated ?? "לא עודכן",
+          fields: manualFields[section.id] ?? fileMetadataFields,
+        };
+      }
+
+      if (section.id === "prices") {
+        const pricedApartments = apartments.filter((apartment) => apartment.price > 0).length;
+        return {
+          ...section,
+          status: pricedApartments > 0 ? "complete" : "missing",
+          summary: pricedApartments > 0
+            ? `${pricedApartments} דירות עם מחיר מעודכן.`
+            : "אין עדיין נתוני מחיר בפרויקט.",
+          lastUpdated: readiness?.lastUpdated ?? "לא עודכן",
+          fields: manualFields[section.id] ?? fileMetadataFields,
+        };
+      }
+
+      if (section.id === "technical") {
+        const specCount = project.technicalSpecSections?.length ?? project.technicalSpecNotes?.length ?? 0;
+        return {
+          ...section,
+          status: specCount > 0 ? "complete" : "missing",
+          summary: specCount > 0 ? `${specCount} קטגוריות או סעיפים נשמרו.` : "אין עדיין מפרט טכני בפרויקט.",
+          lastUpdated: readiness?.lastUpdated ?? "לא עודכן",
+          fields: manualFields[section.id] ?? fileMetadataFields,
+        };
+      }
+
       if (uploadedCount > 0) {
         return {
           ...section,
@@ -696,6 +814,8 @@ export function ProjectManagementDetailScreen({
       ? "project-details-form"
       : activePanel?.mode === "manual" && panelSection?.id === "inventory"
         ? "inventory-detail-form"
+        : activePanel?.mode === "manual" && panelSection?.id === "prices"
+          ? "inventory-detail-form"
         : activePanel?.mode === "manual" && panelSection?.id === "logo"
           ? "project-logo-form"
           : activePanel?.mode === "manual" && panelSection?.id === "main-image"
@@ -704,7 +824,7 @@ export function ProjectManagementDetailScreen({
   const activeUploadConfig = activePanel ? uploadSectionConfigs[activePanel.id] : undefined;
   const isUploadPanel = activePanel?.mode === "upload";
   const activeUploadKind: UploadFileValidationKind =
-    activeUploadConfig &&
+    activeUploadConfig?.category &&
     ["logo", "main", "exterior", "interior", "lobby", "surroundings"].includes(
       activeUploadConfig.category,
     )
@@ -768,10 +888,10 @@ export function ProjectManagementDetailScreen({
       dir: "ltr",
     },
   ];
-  const selectedInventoryApartment =
-    apartments.find((apartment) => apartment.id === selectedInventoryApartmentId) ?? apartments[0];
-  const selectedInventoryFields: ManualField[] = selectedInventoryApartment
-    ? [
+  const selectedInventoryApartment = isCreatingApartment
+    ? undefined
+    : apartments.find((apartment) => apartment.id === selectedInventoryApartmentId) ?? apartments[0];
+  const selectedInventoryFields: ManualField[] = [
         { label: "מספר דירה", name: "number", value: apartmentInventoryForm.number },
         { label: "קומה", name: "floor", value: apartmentInventoryForm.floor },
         { label: "חדרים", name: "rooms", value: apartmentInventoryForm.rooms },
@@ -799,14 +919,17 @@ export function ProjectManagementDetailScreen({
           ],
         },
         { label: "הערות", name: "notes", value: apartmentInventoryForm.notes, multiline: true },
-      ]
-    : [];
+      ];
   const validMainImage = getValidProjectMainImage(project);
   const eligibleMainImageFiles = (project.projectFiles ?? []).filter(canUseFileAsProjectMainImage);
 
   useEffect(() => {
     setApartmentInventoryForm(makeApartmentInventoryFormState(selectedInventoryApartment));
   }, [selectedInventoryApartment]);
+
+  useEffect(() => {
+    setTechnicalSpecDraft(project.technicalSpecSections ?? []);
+  }, [project.id, project.technicalSpecSections]);
 
   useEffect(() => {
     if (!apartments.length) {
@@ -849,10 +972,21 @@ export function ProjectManagementDetailScreen({
     }
     if (id === "inventory" && !selectedInventoryApartmentId) {
       setSelectedInventoryApartmentId(apartments[0]?.id ?? null);
+      setIsCreatingApartment(apartments.length === 0);
+    }
+    if (id === "prices" && mode === "manual" && !selectedInventoryApartmentId) {
+      setSelectedInventoryApartmentId(apartments[0]?.id ?? null);
+      setIsCreatingApartment(apartments.length === 0);
+    }
+    if (id === "technical" && mode === "manual") {
+      setTechnicalSpecDraft(project.technicalSpecSections ?? []);
     }
     if (mode === "upload") {
       resetUploadFileInput();
       setUploadError("");
+      setUploadResults([]);
+      setSpreadsheetPreview(null);
+      setIsParsingSpreadsheet(false);
       setIsUploading(false);
 
       if (uploadSectionConfigs[id]?.needsApartment) {
@@ -865,16 +999,19 @@ export function ProjectManagementDetailScreen({
   };
 
   const closeActivePanel = () => {
-    if (isSaving || isUploading) return;
+    if (isSaving || isUploading || isParsingSpreadsheet) return;
 
     resetUploadFileInput();
     setUploadError("");
+    setUploadResults([]);
+    setSpreadsheetPreview(null);
+    setPendingApartmentDelete(null);
     setSaveError("");
     setActivePanel(null);
   };
 
-  const runPanelSave = (
-    saveAction: () => void,
+  const runPanelSave = async (
+    saveAction: () => Promise<unknown> | void,
     successText: string,
     options: { closePanel?: boolean } = {},
   ) => {
@@ -885,7 +1022,7 @@ export function ProjectManagementDetailScreen({
     setSuccessMessage("");
 
     try {
-      saveAction();
+      await saveAction();
       setSuccessMessage(successText);
 
       if (options.closePanel !== false) {
@@ -1048,10 +1185,9 @@ export function ProjectManagementDetailScreen({
 
   const handleApartmentSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedInventoryApartment) return;
+    if (!selectedInventoryApartment && !isCreatingApartment) return;
 
-    runPanelSave(() => {
-      onUpdateApartment(project.id, selectedInventoryApartment.id, {
+    const apartmentPatch: Partial<Apartment> = {
         number: apartmentInventoryForm.number.trim(),
         floor: getNumberFromString(apartmentInventoryForm.floor),
         rooms: getNumberFromString(apartmentInventoryForm.rooms),
@@ -1066,14 +1202,88 @@ export function ProjectManagementDetailScreen({
         status: apartmentInventoryForm.status,
         planAttached: apartmentInventoryForm.planAttached === "yes",
         notes: apartmentInventoryForm.notes.trim(),
-      });
-    }, "נשמר בהצלחה");
+      };
+
+    if (!apartmentPatch.number) {
+      setSaveError("יש להזין מספר דירה.");
+      return;
+    }
+
+    void runPanelSave(async () => {
+      if (isCreatingApartment) {
+        const apartment: Apartment = {
+          id: typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `apartment-${Date.now()}`,
+          projectId: project.id,
+          number: apartmentPatch.number ?? "",
+          floor: apartmentPatch.floor ?? 0,
+          rooms: apartmentPatch.rooms ?? 0,
+          apartmentArea: apartmentPatch.apartmentArea ?? 0,
+          balconyArea: apartmentPatch.balconyArea ?? 0,
+          gardenArea: apartmentPatch.gardenArea ?? 0,
+          parking: apartmentPatch.parking ?? "",
+          storage: apartmentPatch.storage ?? "",
+          direction: apartmentPatch.direction ?? "",
+          price: apartmentPatch.price ?? 0,
+          specialPrice: apartmentPatch.specialPrice ?? 0,
+          status: apartmentPatch.status ?? "available",
+          planAttached: apartmentPatch.planAttached ?? false,
+          notes: apartmentPatch.notes ?? "",
+        };
+
+        await onAddApartment(project.id, apartment);
+        setSelectedInventoryApartmentId(apartment.id);
+        setIsCreatingApartment(false);
+        return;
+      }
+
+      await onUpdateApartment(project.id, selectedInventoryApartment!.id, apartmentPatch);
+    }, isCreatingApartment ? "הדירה נוספה בהצלחה" : "נשמר בהצלחה");
   };
 
-  const handleUploadFilesSelected = (files: File[]) => {
+  const startAddingApartment = () => {
+    setSelectedInventoryApartmentId(null);
+    setIsCreatingApartment(true);
+    setApartmentInventoryForm(makeApartmentInventoryFormState());
+    setSaveError("");
+  };
+
+  const confirmApartmentDelete = async () => {
+    if (!pendingApartmentDelete) return;
+
+    await runPanelSave(async () => {
+      await onDeleteApartment(project.id, pendingApartmentDelete.id);
+      const nextApartment = apartments.find((item) => item.id !== pendingApartmentDelete.id);
+      setSelectedInventoryApartmentId(nextApartment?.id ?? null);
+      setPendingApartmentDelete(null);
+    }, "הדירה נמחקה", { closePanel: false });
+  };
+
+  const handleUploadFilesSelected = async (files: File[]) => {
     selectUploadFiles(files);
     setUploadError("");
     setSuccessMessage("");
+    setUploadResults([]);
+    setSpreadsheetPreview(null);
+
+    const file = files[0];
+    const importKind = activeUploadConfig?.importKind;
+    const extension = file?.name.split(".").pop()?.toLowerCase();
+    const isSpreadsheet = extension === "xlsx" || extension === "xls" || extension === "csv";
+
+    if (!file || !importKind || !isSpreadsheet) return;
+
+    setIsParsingSpreadsheet(true);
+
+    try {
+      const preview = await parseSpreadsheetImport(file, importKind, project, apartments);
+      setSpreadsheetPreview(preview);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "קריאת קובץ ה-Excel נכשלה.");
+    } finally {
+      setIsParsingSpreadsheet(false);
+    }
   };
 
   const makeProjectFilesFromUploads = (
@@ -1086,7 +1296,9 @@ export function ProjectManagementDetailScreen({
       type: uploadCategoryFileTypes[category],
       target: category === "apartment_plan" && uploadApartmentId
         ? `דירה ${apartments.find((apartment) => apartment.id === uploadApartmentId)?.number ?? ""}`.trim()
-        : file.target ?? file.category,
+        : category === "floor_plan"
+          ? uploadTarget
+          : file.target ?? file.category,
       url: file.publicUrl ?? "",
       sizeBytes: file.sizeBytes ?? 0,
       uploadedAt: file.uploadedAt ?? new Date().toISOString(),
@@ -1178,6 +1390,31 @@ export function ProjectManagementDetailScreen({
     }
   };
 
+  const handleProjectFileTargetChange = async (fileId: string, target: string) => {
+    if (savingFileId) return;
+
+    const nextFiles = (project.projectFiles ?? []).map((file) =>
+      file.id === fileId ? { ...file, target } : file,
+    );
+    const patch: Partial<Project> = { projectFiles: nextFiles };
+
+    setSavingFileId(fileId);
+    setFileSaveError("");
+
+    try {
+      if (onUpdateProjectFileTarget) {
+        await onUpdateProjectFileTarget(project.id, fileId, target, patch);
+      } else {
+        onUpdateProject(project.id, patch);
+      }
+      setSuccessMessage("שיוך הקומה נשמר");
+    } catch (error) {
+      setFileSaveError(error instanceof Error ? error.message : "שמירת שיוך הקומה נכשלה.");
+    } finally {
+      setSavingFileId(null);
+    }
+  };
+
   const handleProjectFileDelete = async (fileId: string) => {
     if (savingFileId) return;
 
@@ -1210,11 +1447,63 @@ export function ProjectManagementDetailScreen({
     }
   };
 
+  const addTechnicalSpecSection = () => {
+    const nextOption = technicalSpecCategoryOptions.find(
+      (option) => !technicalSpecDraft.some((section) => section.id === option.id),
+    );
+    const id = nextOption?.id ?? `other-${Date.now()}`;
+
+    setTechnicalSpecDraft((current) => [
+      ...current,
+      {
+        id,
+        title: nextOption?.title ?? "אחר",
+        items: [""],
+        displayOrder: current.length,
+      },
+    ]);
+  };
+
+  const updateTechnicalSpecSection = (
+    sectionId: string,
+    patch: Partial<TechnicalSpecSectionData>,
+  ) => {
+    setTechnicalSpecDraft((current) =>
+      current.map((section) => (section.id === sectionId ? { ...section, ...patch } : section)),
+    );
+  };
+
+  const moveTechnicalSpecSection = (sectionId: string, direction: -1 | 1) => {
+    setTechnicalSpecDraft((current) => {
+      const index = current.findIndex((section) => section.id === sectionId);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= current.length) return current;
+
+      const next = [...current];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next.map((section, displayOrder) => ({ ...section, displayOrder }));
+    });
+  };
+
   const handleGenericPanelSave = () => {
-    runPanelSave(() => {
-      // Generic material sections currently edit local draft controls only.
-      // The modal still follows the shared save UX until these sections get persisted fields.
-    }, "נשמר בהצלחה");
+    if (panelSection?.id === "technical") {
+      const normalizedSections = technicalSpecDraft
+        .map((section, displayOrder) => ({
+          ...section,
+          title: section.title.trim(),
+          items: section.items.map((item) => item.trim()).filter(Boolean),
+          displayOrder,
+        }))
+        .filter((section) => section.title && section.items.length > 0);
+
+      void runPanelSave(
+        () => onUpdateTechnicalSpecifications(project.id, normalizedSections),
+        "המפרט נשמר בהצלחה",
+      );
+      return;
+    }
+
+    void runPanelSave(() => undefined, "נשמר בהצלחה");
   };
 
   const handleUploadSubmit = async () => {
@@ -1243,6 +1532,49 @@ export function ProjectManagementDetailScreen({
       return;
     }
 
+    const selectedExtension = selectedUploadFile.name.split(".").pop()?.toLowerCase();
+    const isSpreadsheetImport = Boolean(
+      uploadConfig.importKind &&
+      (selectedExtension === "xlsx" || selectedExtension === "xls" || selectedExtension === "csv"),
+    );
+
+    if (isSpreadsheetImport) {
+      if (!spreadsheetPreview) {
+        setUploadError("יש להמתין לסיום ניתוח הקובץ ולבדוק את התצוגה המקדימה לפני השמירה.");
+        return;
+      }
+
+      setIsUploading(true);
+      setUploadError("");
+      setSuccessMessage("");
+
+      try {
+        await onImportProjectData(
+          project.id,
+          spreadsheetPreview.projectPatch ?? {},
+          spreadsheetPreview.apartments,
+        );
+        resetUploadFileInput();
+        setSpreadsheetPreview(null);
+        setSuccessMessage("הייבוא נשמר בהצלחה");
+        setActivePanel(null);
+      } catch (error) {
+        setUploadError(
+          error instanceof Error
+            ? `שמירת הייבוא נכשלה: ${error.message}`
+            : "שמירת הייבוא נכשלה. הנתונים הקודמים נשארו ללא שינוי.",
+        );
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
+
+    if (!uploadConfig.category) {
+      setUploadError("לשורה זו ניתן לייבא קובץ XLSX או CSV בלבד.");
+      return;
+    }
+
     if (!canUploadProjectFiles) {
       setUploadError(uploadUnavailableMessage);
       return;
@@ -1255,17 +1587,54 @@ export function ProjectManagementDetailScreen({
     setSuccessMessage("");
 
     try {
-      const uploadedFiles = await Promise.all(
+      const uploadSettledResults = await Promise.allSettled(
         filesToUpload.map((file) =>
           uploadProjectFile(
             project.id,
             file,
-            uploadConfig.category,
+            uploadConfig.category!,
             uploadConfig.needsApartment ? uploadApartmentId : undefined,
+            uploadConfig.category === "floor_plan" ? uploadTarget : undefined,
           ),
         ),
       );
-      const projectFileRecords = makeProjectFilesFromUploads(uploadConfig.category, uploadedFiles);
+      const uploadedFiles = uploadSettledResults.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : [],
+      );
+      const results: UploadResultItem[] = uploadSettledResults.map((result, index) => ({
+        fileName: filesToUpload[index].name,
+        status: result.status === "fulfilled" ? "success" : "error",
+        message: result.status === "fulfilled"
+          ? "הועלה בהצלחה"
+          : result.reason instanceof Error
+            ? result.reason.message
+            : "ההעלאה נכשלה",
+      }));
+      const failedResults = results.filter((result) => result.status === "error");
+      setUploadResults(results);
+
+      if (uploadedFiles.length === 0) {
+        throw new Error(failedResults.map((result) => `${result.fileName}: ${result.message}`).join(" | "));
+      }
+
+      let refreshedFileRecords: ProjectFileRecord[];
+
+      try {
+        refreshedFileRecords = await listProjectFiles(project.id, uploadConfig.category);
+      } catch (refreshError) {
+        throw new Error(
+          `רענון קבצי הפרויקט נכשל לאחר ההעלאה: ${formatSupabaseErrorDetails(refreshError)}`,
+        );
+      }
+
+      const projectFileRecords = makeProjectFilesFromUploads(
+        uploadConfig.category,
+        refreshedFileRecords,
+      );
+      const projectFilesById = new Map(
+        (project.projectFiles ?? []).map((file) => [file.id, file]),
+      );
+      projectFileRecords.forEach((file) => projectFilesById.set(file.id, file));
 
       applyUploadedFilesToLocalState(uploadConfig.category, uploadedFiles);
       onUpdateProject(project.id, {
@@ -1273,7 +1642,7 @@ export function ProjectManagementDetailScreen({
           ...project.materialFileCounts,
           [activePanel.id]: (project.materialFileCounts?.[activePanel.id] ?? 0) + uploadedFiles.length,
         },
-        projectFiles: [...(project.projectFiles ?? []), ...projectFileRecords],
+        projectFiles: Array.from(projectFilesById.values()),
       });
       setUploadedSectionCounts((current) => ({
         ...current,
@@ -1281,18 +1650,22 @@ export function ProjectManagementDetailScreen({
       }));
       resetUploadFileInput();
       setSuccessMessage(`${uploadedFiles.length} קבצים הועלו בהצלחה`);
-      setActivePanel(null);
+
+      if (failedResults.length > 0) {
+        setUploadError(
+          `${uploadedFiles.length} קבצים הועלו, ${failedResults.length} נכשלו. ` +
+          failedResults.map((result) => `${result.fileName}: ${result.message}`).join(" | "),
+        );
+      } else {
+        setActivePanel(null);
+      }
     } catch (error) {
-      console.warn("[GOLDLANDS] Supabase Storage upload failed. Keeping the app on localStorage fallback.", error);
-      const errorMessage = error instanceof Error ? error.message : "";
-      setUploadError(
-        errorMessage === "יש לשמור את הפרויקט בענן לפני העלאת קבצים." ||
-        errorMessage === "Upload requires real Supabase admin login."
-          ? errorMessage
-          : errorMessage
-            ? `העלאה ל-Supabase Storage נכשלה: ${errorMessage}`
-            : "העלאה ל-Supabase Storage נכשלה. הנתונים המקומיים נשארו זמינים.",
-      );
+      const errorMessage = error instanceof Error
+        ? error.message
+        : formatSupabaseErrorDetails(error);
+
+      console.warn("[GOLDLANDS] Supabase upload pipeline failed", errorMessage);
+      setUploadError(errorMessage || "העלאת הקובץ נכשלה.");
     } finally {
       setIsUploading(false);
     }
@@ -1341,6 +1714,12 @@ export function ProjectManagementDetailScreen({
             </button>
           </div>
         </section>
+
+        {!activePanel && successMessage && (
+          <div className="save-success project-detail-toast" role="status">
+            {successMessage}
+          </div>
+        )}
 
         {panelSection && activePanel && (
           <div
@@ -1471,11 +1850,17 @@ export function ProjectManagementDetailScreen({
                         </p>
                       )}
                     </div>
-                  ) : panelSection.id === "inventory" ? (
+                  ) : panelSection.id === "inventory" || panelSection.id === "prices" ? (
                     <div className="inventory-editor">
                       <div className="inventory-editor__note">
-                        <strong>מקור נתוני הדירות</strong>
-                        <span>הטבלה הזו מזינה בעתיד את דירות פנויות, מחירון ותוכנית דירה.</span>
+                        <div>
+                          <strong>מקור נתוני הדירות</strong>
+                          <span>אותם נתונים מזינים את המלאי, המחירון ותצוגת הלקוח.</span>
+                        </div>
+                        <button className="mini-button mini-button--gold" onClick={startAddingApartment} type="button">
+                          <Plus size={15} />
+                          הוספת דירה
+                        </button>
                       </div>
                       <div className="table-wrap">
                         <table className="lux-table inventory-table">
@@ -1504,7 +1889,10 @@ export function ProjectManagementDetailScreen({
                                   selectedInventoryApartment?.id === apartment.id ? "inventory-row--active" : ""
                                 }
                                 key={apartment.id}
-                                onClick={() => setSelectedInventoryApartmentId(apartment.id)}
+                                onClick={() => {
+                                  setIsCreatingApartment(false);
+                                  setSelectedInventoryApartmentId(apartment.id);
+                                }}
                               >
                                 <td>{apartment.number}</td>
                                 <td>{apartment.floor}</td>
@@ -1526,11 +1914,23 @@ export function ProjectManagementDetailScreen({
                                     className="mini-button mini-button--gold"
                                     onClick={(event) => {
                                       event.stopPropagation();
+                                      setIsCreatingApartment(false);
                                       setSelectedInventoryApartmentId(apartment.id);
                                     }}
                                     type="button"
                                   >
                                     עריכה
+                                  </button>
+                                  <button
+                                    className="mini-button mini-button--danger"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setPendingApartmentDelete(apartment);
+                                    }}
+                                    type="button"
+                                  >
+                                    <Trash2 size={14} />
+                                    מחיקה
                                   </button>
                                 </td>
                               </tr>
@@ -1538,16 +1938,32 @@ export function ProjectManagementDetailScreen({
                           </tbody>
                         </table>
                       </div>
-                      {selectedInventoryApartment && (
+                      {pendingApartmentDelete && (
+                        <div className="inventory-delete-confirmation" role="alertdialog" aria-label={`אישור מחיקת דירה ${pendingApartmentDelete.number}`}>
+                          <div>
+                            <strong>למחוק את דירה {pendingApartmentDelete.number}?</strong>
+                            <span>הדירה תוסר מיד מהמלאי ומהמחירון.</span>
+                          </div>
+                          <div className="inventory-delete-confirmation__actions">
+                            <button className="ghost-button ghost-button--compact" onClick={() => setPendingApartmentDelete(null)} type="button">ביטול</button>
+                            <button className="mini-button mini-button--danger" onClick={() => void confirmApartmentDelete()} type="button"><Trash2 size={14} />אישור מחיקה</button>
+                          </div>
+                        </div>
+                      )}
+                      {(selectedInventoryApartment || isCreatingApartment) && (
                         <section className="inventory-detail-panel">
                           <header>
-                            <h3>עריכת דירה {selectedInventoryApartment.number}</h3>
+                            <h3>
+                              {isCreatingApartment
+                                ? "הוספת דירה"
+                                : `עריכת דירה ${selectedInventoryApartment?.number}`}
+                            </h3>
                           </header>
                           <form className="mock-field-grid" id="inventory-detail-form" onSubmit={handleApartmentSubmit}>
                             {selectedInventoryFields.map((field) => (
                               <label
                                 className={field.multiline ? "mock-field mock-field--wide" : "mock-field"}
-                                key={`${selectedInventoryApartment.id}-${field.label}`}
+                                key={`${selectedInventoryApartment?.id ?? "new"}-${field.label}`}
                               >
                                 <span>{field.label}</span>
                                 {field.options ? (
@@ -1582,6 +1998,46 @@ export function ProjectManagementDetailScreen({
                         </section>
                       )}
                     </div>
+                  ) : panelSection.id === "technical" ? (
+                    <div className="technical-spec-editor">
+                      <div className="technical-spec-editor__toolbar">
+                        <p>הסעיפים נשמרים בפרויקט ומוצגים בתצוגת הלקוח לפי הסדר הבא.</p>
+                        <button className="mini-button mini-button--gold" onClick={addTechnicalSpecSection} type="button">
+                          <Plus size={15} />
+                          הוספת קטגוריה
+                        </button>
+                      </div>
+                      {technicalSpecDraft.length > 0 ? technicalSpecDraft.map((section, index) => (
+                        <section className="technical-spec-editor__section" key={section.id}>
+                          <header>
+                            <select
+                              value={technicalSpecCategoryOptions.some((option) => option.title === section.title) ? section.title : "אחר"}
+                              onChange={(event) => updateTechnicalSpecSection(section.id, { title: event.currentTarget.value })}
+                            >
+                              {technicalSpecCategoryOptions.map((option) => (
+                                <option key={option.id} value={option.title}>{option.title}</option>
+                              ))}
+                            </select>
+                            <div className="technical-spec-editor__actions">
+                              <button disabled={index === 0} onClick={() => moveTechnicalSpecSection(section.id, -1)} title="העברה למעלה" type="button"><ArrowUp size={16} /></button>
+                              <button disabled={index === technicalSpecDraft.length - 1} onClick={() => moveTechnicalSpecSection(section.id, 1)} title="העברה למטה" type="button"><ArrowDown size={16} /></button>
+                              <button className="danger-icon-button" onClick={() => setTechnicalSpecDraft((current) => current.filter((item) => item.id !== section.id))} title="מחיקת קטגוריה" type="button"><Trash2 size={16} /></button>
+                            </div>
+                          </header>
+                          <textarea
+                            onChange={(event) => updateTechnicalSpecSection(section.id, { items: event.currentTarget.value.split("\n") })}
+                            placeholder="סעיף אחד בכל שורה"
+                            rows={5}
+                            value={section.items.join("\n")}
+                          />
+                        </section>
+                      )) : (
+                        <div className="empty-state compact-empty-state">
+                          <h3>אין עדיין מפרט לפרויקט</h3>
+                          <p>הוסיפי קטגוריה וסעיפים כדי להציג מפרט אמיתי.</p>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div className="mock-field-grid">
                       {panelSection.fields.map((field) => (
@@ -1599,11 +2055,11 @@ export function ProjectManagementDetailScreen({
                       ))}
                     </div>
                   )}
-                  <p className="material-modal__note">
-                    {panelSection.id === "logo"
-                      ? "בהמשך כאן יועלה לוגו הפרויקט שיופיע בכרטיס הפרויקט ובכל מסכי התצוגה."
-                      : "בשלב זה מדובר בהדמיה בלבד"}
-                  </p>
+                  {panelSection.id === "logo" && (
+                    <p className="material-modal__note">
+                      הלוגו יופיע בכרטיס הפרויקט ובכל מסכי התצוגה.
+                    </p>
+                  )}
                 </>
               ) : activePanel.mode === "preview" ? (
                 <div className="project-logo-editor project-logo-editor--preview">
@@ -1624,17 +2080,20 @@ export function ProjectManagementDetailScreen({
                     accept={activeUploadConfig?.accept ?? ""}
                     ariaLabel={`העלאת ${panelSection.title}`}
                     description={
-                      activeUploadKind === "image"
+                      activeUploadConfig?.importKind && !activeUploadConfig.category
+                        ? "קובצי XLSX או CSV. מספר הדירה נדרש בייבוא מלאי ומחירון."
+                        : activeUploadKind === "image"
                         ? "קבצי תמונה נתמכים: jpg, jpeg, png, webp. עד 25MB."
                         : "קבצים נתמכים: pdf, ppt, pptx, doc, docx, xls, xlsx, csv. עד 25MB."
                     }
-                    disabled={isUploading}
+                    disabled={isUploading || isParsingSpreadsheet}
                     error={uploadValidationError || uploadError}
                     files={selectedUploadFiles}
                     multiple={activeUploadConfig?.multiple}
                     notice={uploadSelectionNotice}
-                    onFilesSelected={handleUploadFilesSelected}
+                    onFilesSelected={(files) => void handleUploadFilesSelected(files)}
                   />
+                  {isParsingSpreadsheet && <p className="material-modal__note">קוראת את הקובץ ומכינה תצוגה מקדימה...</p>}
                   {activeUploadConfig?.needsApartment && (
                     <label className="mock-field mock-field--wide upload-apartment-field">
                       <span>שיוך לדירה</span>
@@ -1650,6 +2109,54 @@ export function ProjectManagementDetailScreen({
                       </select>
                     </label>
                   )}
+                  {activeUploadConfig?.category === "floor_plan" && (
+                    <label className="mock-field mock-field--wide upload-apartment-field">
+                      <span>שיוך תכנית הקומה</span>
+                      <select onChange={(event) => setUploadTarget(event.currentTarget.value)} value={uploadTarget}>
+                        {floorPlanTargets.map((target) => <option key={target} value={target}>{target}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  {spreadsheetPreview && (
+                    <section className="spreadsheet-preview" aria-label="תצוגה מקדימה לייבוא">
+                      <header>
+                        <div><strong>{spreadsheetPreview.fileName}</strong><span>{spreadsheetPreview.rowCount} שורות זוהו</span></div>
+                        <small>לא ייכתב דבר לפני לחיצה על אישור הייבוא.</small>
+                      </header>
+                      <div className="spreadsheet-preview__meta">
+                        <span>שדות: {spreadsheetPreview.recognizedFields.join(", ")}</span>
+                        <span>שורות שלא נקלטו: {spreadsheetPreview.skippedRows.length}</span>
+                        <span>סתירות: {spreadsheetPreview.conflicts.length}</span>
+                      </div>
+                      {spreadsheetPreview.conflicts.length > 0 && (
+                        <ul className="spreadsheet-preview__warnings">
+                          {spreadsheetPreview.conflicts.map((conflict) => <li key={conflict}>{conflict}</li>)}
+                        </ul>
+                      )}
+                      {spreadsheetPreview.skippedRows.length > 0 && (
+                        <ul className="spreadsheet-preview__warnings">
+                          {spreadsheetPreview.skippedRows.map((row) => <li key={`${row.rowNumber}-${row.reason}`}>שורה {row.rowNumber}: {row.reason}</li>)}
+                        </ul>
+                      )}
+                      <div className="table-wrap">
+                        <table className="lux-table spreadsheet-preview__table">
+                          <thead><tr>{Object.keys(spreadsheetPreview.previewRows[0] ?? {}).map((header) => <th key={header}>{header}</th>)}</tr></thead>
+                          <tbody>{spreadsheetPreview.previewRows.slice(0, 12).map((row, index) => (
+                            <tr key={index}>{Object.keys(spreadsheetPreview.previewRows[0] ?? {}).map((header) => <td key={header}>{row[header] ?? "-"}</td>)}</tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+                  {uploadResults.length > 0 && (
+                    <ul className="upload-result-list" aria-label="תוצאות העלאה">
+                      {uploadResults.map((result) => (
+                        <li className={`upload-result-list__item upload-result-list__item--${result.status}`} key={result.fileName}>
+                          <strong>{result.fileName}</strong><span>{result.message}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </>
               )}
 
@@ -1661,6 +2168,7 @@ export function ProjectManagementDetailScreen({
                   className="gold-button gold-button--compact"
                   disabled={
                     isSaving ||
+                    isParsingSpreadsheet ||
                     (isUploadPanel &&
                       (!selectedUploadFile || !isUploadFileValid || isUploading))
                   }
@@ -1674,7 +2182,7 @@ export function ProjectManagementDetailScreen({
                   }
                   type={activeSaveFormId ? "submit" : "button"}
                 >
-                  {isSaving || isUploading ? "שומר..." : isUploadPanel ? "העלאה" : "שמירה"}
+                  {isUploading ? "מעלה..." : isSaving ? "שומר..." : isUploadPanel && spreadsheetPreview ? "אישור וייבוא" : isUploadPanel ? "העלאה" : "שמירה"}
                 </button>
               </footer>
             </section>
@@ -1743,14 +2251,16 @@ export function ProjectManagementDetailScreen({
                               <PencilLine size={14} />
                               עריכה ידנית
                             </button>
-                            <button
-                              className={isFileFirst ? "mini-button mini-button--gold" : "mini-button mini-button--ghost"}
-                              onClick={() => openPanel(section.id, "upload")}
-                              type="button"
-                            >
-                              <UploadCloud size={14} />
-                              ייבוא / העלאה
-                            </button>
+                            {uploadSectionConfigs[section.id] && (
+                              <button
+                                className={isFileFirst ? "mini-button mini-button--gold" : "mini-button mini-button--ghost"}
+                                onClick={() => openPanel(section.id, "upload")}
+                                type="button"
+                              >
+                                <UploadCloud size={14} />
+                                ייבוא / העלאה
+                              </button>
+                            )}
                             <button
                               className="mini-button mini-button--ghost"
                               onClick={() => openPanel(section.id, "preview")}
@@ -1785,6 +2295,7 @@ export function ProjectManagementDetailScreen({
                       <th>גודל</th>
                       <th>תאריך</th>
                       <th>פתיחה</th>
+                      <th>יעד</th>
                       <th>שינוי שיוך</th>
                       <th>תמונה ראשית</th>
                       <th>מחיקה</th>
@@ -1807,6 +2318,20 @@ export function ProjectManagementDetailScreen({
                             </a>
                           ) : (
                             "-"
+                          )}
+                        </td>
+                        <td>
+                          {file.type === "תכנית קומה" ? (
+                            <select
+                              className="project-file-type-select"
+                              disabled={savingFileId === file.id}
+                              onChange={(event) => void handleProjectFileTargetChange(file.id, event.currentTarget.value)}
+                              value={file.target}
+                            >
+                              {floorPlanTargets.map((target) => <option key={target} value={target}>{target}</option>)}
+                            </select>
+                          ) : (
+                            file.target || "-"
                           )}
                         </td>
                         <td>

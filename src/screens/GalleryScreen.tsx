@@ -31,13 +31,20 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
         ))}
       </div>
 
-      <div className="gallery-frame">
-        <img src={activeImage} alt={`${project.name} - ${tabs.find((tab) => tab.id === active)?.label}`} />
-        <div className="gallery-caption">
-          <span className="eyebrow">{project.name}</span>
-          <h2>{tabs.find((tab) => tab.id === active)?.label}</h2>
+      {activeImage ? (
+        <div className="gallery-frame">
+          <img src={activeImage} alt={`${project.name} - ${tabs.find((tab) => tab.id === active)?.label}`} />
+          <div className="gallery-caption">
+            <span className="eyebrow">{project.name}</span>
+            <h2>{tabs.find((tab) => tab.id === active)?.label}</h2>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="empty-state gallery-empty-state">
+          <h2>אין עדיין תמונות בקטגוריה הזו</h2>
+          <p>התמונות שיועלו בניהול הפרויקט יופיעו כאן.</p>
+        </div>
+      )}
     </section>
   );
 }

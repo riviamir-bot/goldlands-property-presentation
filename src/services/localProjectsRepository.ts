@@ -285,6 +285,85 @@ export const localProjectsRepository: ProjectsRepository = {
     return nextState;
   },
 
+  addApartment(projectId, apartment) {
+    const current = readLocalProjectsState();
+    const nextState = {
+      ...current,
+      apartments: [
+        ...current.apartments.filter(
+          (item) => !(item.projectId === projectId && item.number === apartment.number),
+        ),
+        { ...apartment, projectId },
+      ],
+    };
+
+    persistLocalProjectsState(nextState);
+
+    return nextState;
+  },
+
+  deleteApartment(projectId, apartmentId) {
+    const current = readLocalProjectsState();
+    const nextState = {
+      ...current,
+      apartments: current.apartments.filter(
+        (apartment) => !(apartment.projectId === projectId && apartment.id === apartmentId),
+      ),
+    };
+
+    persistLocalProjectsState(nextState);
+
+    return nextState;
+  },
+
+  upsertApartments(projectId, apartments) {
+    const current = readLocalProjectsState();
+    const importedNumbers = new Set(apartments.map((apartment) => apartment.number.trim()));
+    const nextState = {
+      ...current,
+      apartments: [
+        ...current.apartments.filter(
+          (apartment) =>
+            apartment.projectId !== projectId || !importedNumbers.has(apartment.number.trim()),
+        ),
+        ...apartments.map((apartment) => ({ ...apartment, projectId })),
+      ],
+    };
+
+    persistLocalProjectsState(nextState);
+
+    return nextState;
+  },
+
+  importProjectData(projectId, projectPatch, apartments) {
+    const current = readLocalProjectsState();
+    const importedNumbers = new Set(apartments.map((apartment) => apartment.number.trim()));
+    const nextState = {
+      ...current,
+      projects: current.projects.map((project) =>
+        project.id === projectId ? { ...project, ...projectPatch } : project,
+      ),
+      apartments: [
+        ...current.apartments.filter(
+          (apartment) =>
+            apartment.projectId !== projectId || !importedNumbers.has(apartment.number.trim()),
+        ),
+        ...apartments.map((apartment) => ({ ...apartment, projectId })),
+      ],
+    };
+
+    persistLocalProjectsState(nextState);
+
+    return nextState;
+  },
+
+  updateTechnicalSpecifications(projectId, sections) {
+    return this.updateProject(projectId, {
+      technicalSpecSections: sections,
+      technicalSpecNotes: sections.flatMap((section) => section.items),
+    });
+  },
+
   reorderProjects(updates) {
     const current = readLocalProjectsState();
     const orderByProjectId = new Map(updates.map((update) => [update.projectId, update.sortOrder]));

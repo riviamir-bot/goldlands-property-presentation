@@ -8,7 +8,14 @@ import {
 } from "../services/localProjectsRepository";
 import type { AddProjectInput, ProjectsRepositoryState } from "../services/projectsRepository";
 import { supabaseProjectsRepository } from "../services/supabaseProjectsRepository";
-import type { Apartment, Project, ProjectFile, ProjectFileAssociation, ProjectReadiness } from "../types";
+import type {
+  Apartment,
+  Project,
+  ProjectFile,
+  ProjectFileAssociation,
+  ProjectReadiness,
+  TechnicalSpecSectionData,
+} from "../types";
 import type { ProjectImportBundle } from "../data/karlNetterImport";
 
 export type { AddProjectInput } from "../services/projectsRepository";
@@ -24,6 +31,7 @@ function hasUsableRemoteState(state: ProjectsRepositoryState) {
 
 function mergeProjectLocalOnlyFields(remoteProject: Project, localProject?: Project): Project {
   if (!localProject) return remoteProject;
+  if (remoteProject.isSupabaseBacked) return remoteProject;
 
   return {
     ...remoteProject,
@@ -88,6 +96,7 @@ export function useProjectsStore({
 }: UseProjectsStoreOptions = {}) {
   const [state, setState] = useState<ProjectsRepositoryState>(() => readLocalProjectsState());
   const [isSupabaseSourceActive, setIsSupabaseSourceActive] = useState(false);
+  const [isSupabaseLoading, setIsSupabaseLoading] = useState(false);
   const supabaseWritesEnabledRef = useRef(false);
 
   const commitState = useCallback((nextState: ProjectsRepositoryState) => {
@@ -129,14 +138,48 @@ export function useProjectsStore({
     [applyRemoteState],
   );
 
+  const runTransactionalWrite = useCallback(
+    async (
+      label: string,
+      localOperation: () => ProjectsRepositoryState,
+      remoteOperation: () => Promise<ProjectsRepositoryState>,
+    ) => {
+      const previousState = readLocalProjectsState();
+      const nextState = localOperation();
+
+      setState(nextState);
+
+      if (!isSupabaseConfigured || !supabaseWritesEnabledRef.current) return nextState;
+
+      try {
+        const remoteState = await remoteOperation();
+
+        if (hasUsableRemoteState(remoteState)) {
+          setIsSupabaseSourceActive(true);
+          applyRemoteState(remoteState);
+          return remoteState;
+        }
+
+        return nextState;
+      } catch (error) {
+        commitState(previousState);
+        warnAndContinue(`Supabase ${label} failed`, error);
+        throw error;
+      }
+    },
+    [applyRemoteState, commitState],
+  );
+
   useEffect(() => {
     if (!isSupabaseConfigured || !canUseSupabase) {
       supabaseWritesEnabledRef.current = false;
       setIsSupabaseSourceActive(false);
+      setIsSupabaseLoading(false);
       return undefined;
     }
 
     let isCancelled = false;
+    setIsSupabaseLoading(true);
 
     void Promise.resolve(supabaseProjectsRepository.getState())
       .then((remoteState: ProjectsRepositoryState) => {
@@ -146,6 +189,7 @@ export function useProjectsStore({
           supabaseWritesEnabledRef.current = false;
           setIsSupabaseSourceActive(false);
           console.warn("[GOLDLANDS] Supabase returned no active project data. Continuing with localStorage fallback.");
+          setIsSupabaseLoading(false);
           return;
         }
 
@@ -156,12 +200,14 @@ export function useProjectsStore({
           projectIds: remoteState.projects.map((project) => project.id),
         });
         applyRemoteState(remoteState);
+        setIsSupabaseLoading(false);
       })
       .catch((error: unknown) => {
         if (isCancelled) return;
 
         supabaseWritesEnabledRef.current = false;
         setIsSupabaseSourceActive(false);
+        setIsSupabaseLoading(false);
         warnAndContinue("Supabase read failed", error);
       });
 
@@ -253,46 +299,108 @@ export function useProjectsStore({
         }
       },
 
-      updateApartment(projectId: string, apartmentId: string, patch: Partial<Apartment>) {
-        const nextState = localProjectsRepository.updateApartment(
-          projectId,
-          apartmentId,
-          patch,
-        ) as ProjectsRepositoryState;
-
-        setState(nextState);
-        runSupabaseWrite("updateApartment", () =>
-          supabaseProjectsRepository.updateApartment(
-            projectId,
-            apartmentId,
-            patch,
-          ) as Promise<ProjectsRepositoryState>,
-          { applyReturnedState: true },
+      async updateApartment(projectId: string, apartmentId: string, patch: Partial<Apartment>) {
+        return runTransactionalWrite(
+          "updateApartment",
+          () =>
+            localProjectsRepository.updateApartment(
+              projectId,
+              apartmentId,
+              patch,
+            ) as ProjectsRepositoryState,
+          () =>
+            supabaseProjectsRepository.updateApartment(
+              projectId,
+              apartmentId,
+              patch,
+            ) as Promise<ProjectsRepositoryState>,
         );
       },
 
-      importProjectBundle(bundle: ProjectImportBundle) {
-        const current = readLocalProjectsState();
-        const nextState: ProjectsRepositoryState = {
-          projects: [
-            ...current.projects.filter((project) => project.id !== bundle.project.id),
-            bundle.project,
-          ],
-          apartments: [
-            ...current.apartments.filter((apartment) => apartment.projectId !== bundle.project.id),
-            ...bundle.apartments,
-          ],
-          readinessItems: [
-            ...current.readinessItems.filter((item) => item.projectId !== bundle.project.id),
-            bundle.readiness,
-          ],
-        };
+      async addApartment(projectId: string, apartment: Apartment) {
+        return runTransactionalWrite(
+          "addApartment",
+          () => localProjectsRepository.addApartment(projectId, apartment) as ProjectsRepositoryState,
+          () => supabaseProjectsRepository.addApartment(projectId, apartment) as Promise<ProjectsRepositoryState>,
+        );
+      },
 
-        commitState(nextState);
-        runSupabaseWrite(
+      async deleteApartment(projectId: string, apartmentId: string) {
+        return runTransactionalWrite(
+          "deleteApartment",
+          () => localProjectsRepository.deleteApartment(projectId, apartmentId) as ProjectsRepositoryState,
+          () => supabaseProjectsRepository.deleteApartment(projectId, apartmentId) as Promise<ProjectsRepositoryState>,
+        );
+      },
+
+      async importProjectData(
+        projectId: string,
+        projectPatch: Partial<Project>,
+        importedApartments: Apartment[],
+      ) {
+        return runTransactionalWrite(
+          "importProjectData",
+          () =>
+            localProjectsRepository.importProjectData(
+              projectId,
+              projectPatch,
+              importedApartments,
+            ) as ProjectsRepositoryState,
+          () =>
+            supabaseProjectsRepository.importProjectData(
+              projectId,
+              projectPatch,
+              importedApartments,
+            ) as Promise<ProjectsRepositoryState>,
+        );
+      },
+
+      async updateTechnicalSpecifications(
+        projectId: string,
+        sections: TechnicalSpecSectionData[],
+      ) {
+        return runTransactionalWrite(
+          "updateTechnicalSpecifications",
+          () =>
+            localProjectsRepository.updateTechnicalSpecifications(
+              projectId,
+              sections,
+            ) as ProjectsRepositoryState,
+          () =>
+            supabaseProjectsRepository.updateTechnicalSpecifications(
+              projectId,
+              sections,
+            ) as Promise<ProjectsRepositoryState>,
+        );
+      },
+
+      async importProjectBundle(bundle: ProjectImportBundle) {
+        return runTransactionalWrite(
           "importProjectBundle",
-          () => supabaseProjectsRepository.importProjectBundle?.(nextState) as Promise<ProjectsRepositoryState>,
-          { applyReturnedState: true },
+          () => {
+            const current = readLocalProjectsState();
+            const nextState: ProjectsRepositoryState = {
+              projects: [
+                ...current.projects.filter((project) => project.id !== bundle.project.id),
+                bundle.project,
+              ],
+              apartments: [
+                ...current.apartments.filter((apartment) => apartment.projectId !== bundle.project.id),
+                ...bundle.apartments,
+              ],
+              readinessItems: [
+                ...current.readinessItems.filter((item) => item.projectId !== bundle.project.id),
+                bundle.readiness,
+              ],
+            };
+
+            commitState(nextState);
+            return nextState;
+          },
+          () =>
+            supabaseProjectsRepository.importProjectBundle?.(
+              readLocalProjectsState(),
+            ) as Promise<ProjectsRepositoryState>,
         );
       },
 
@@ -323,6 +431,35 @@ export function useProjectsStore({
           supabaseWritesEnabledRef.current = false;
           setIsSupabaseSourceActive(false);
           warnAndContinue("Supabase updateProjectFileType failed", error);
+          throw error;
+        }
+      },
+
+      async updateProjectFileTarget(
+        projectId: string,
+        fileId: string,
+        target: string,
+        patch: Partial<Project>,
+      ) {
+        const nextState = localProjectsRepository.updateProject(projectId, patch) as ProjectsRepositoryState;
+
+        setState(nextState);
+
+        if (!isSupabaseConfigured || !supabaseWritesEnabledRef.current) return;
+
+        try {
+          const remoteState = await supabaseProjectsRepository.updateProjectFileTarget?.(
+            projectId,
+            fileId,
+            target,
+          );
+
+          if (remoteState && hasUsableRemoteState(remoteState)) {
+            setIsSupabaseSourceActive(true);
+            applyRemoteState(remoteState);
+          }
+        } catch (error) {
+          warnAndContinue("Supabase updateProjectFileTarget failed", error);
           throw error;
         }
       },
@@ -372,13 +509,14 @@ export function useProjectsStore({
         commitState(nextState);
       },
     }),
-    [applyRemoteState, commitState, runSupabaseWrite],
+    [applyRemoteState, commitState, runSupabaseWrite, runTransactionalWrite],
   );
 
   return {
     ...state,
     readinessChecklistCount: mockReadinessChecklist.length,
     isSupabaseSourceActive,
+    isSupabaseLoading,
     ...actions,
   };
 }

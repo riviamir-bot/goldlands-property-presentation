@@ -4,6 +4,7 @@ import { FileDropZone } from "../components/FileDropZone";
 import { SideNavigation } from "../components/SideNavigation";
 import { karlNetterImportBundle, type ProjectImportBundle } from "../data/karlNetterImport";
 import { formatPrice } from "../utils/format";
+import { parseSpreadsheetImport } from "../utils/excelImport";
 import type { Apartment, Project, ProjectFile, ProjectFileAssociation, ProjectReadiness } from "../types";
 
 interface ProjectImportScreenProps {
@@ -13,7 +14,7 @@ interface ProjectImportScreenProps {
   onProjects: () => void;
   onReadiness: () => void;
   onAdmin: () => void;
-  onImport: (bundle: ProjectImportBundle) => void;
+  onImport: (bundle: ProjectImportBundle) => Promise<unknown> | void;
   onOpenProject: (projectId: string) => void;
   canViewReadiness?: boolean;
   canManageProjects?: boolean;
@@ -88,7 +89,14 @@ interface ExtractedApartment {
   rooms: number;
   apartmentArea: number;
   balconyArea: number;
+  gardenArea: number;
+  parking: string;
+  storage: string;
   direction: string;
+  price: number;
+  specialPrice: number;
+  status: Apartment["status"];
+  notes: string;
   confidence: "high" | "medium" | "low";
   needsReview: boolean;
   source: string;
@@ -534,7 +542,14 @@ function extractApartmentsFromText(text: string, selectedItems: SelectedImportFi
       rooms,
       apartmentArea,
       balconyArea,
+      gardenArea: 0,
+      parking: "",
+      storage: "",
       direction,
+      price: 0,
+      specialPrice: 0,
+      status: "available",
+      notes: "",
       confidence,
       needsReview: confidence !== "high",
       source: "מצגת",
@@ -551,7 +566,14 @@ function extractApartmentsFromText(text: string, selectedItems: SelectedImportFi
       rooms: 0,
       apartmentArea: 0,
       balconyArea: 0,
+      gardenArea: 0,
+      parking: "",
+      storage: "",
       direction: "",
+      price: 0,
+      specialPrice: 0,
+      status: "available",
+      notes: "",
       confidence: "low",
       needsReview: true,
       source: item.file.name,
@@ -614,14 +636,72 @@ function buildReviewNotes(fields: ExtractedField[], apartments: ExtractedApartme
 async function analyzePresentationFiles(
   selectedItems: SelectedImportFile[],
   project: Project,
+  existingApartments: Apartment[],
 ): Promise<PresentationAnalysis> {
   const content = await extractImportContent(selectedItems);
   const rawText = content.text;
   const fields = extractProjectFields(rawText, project);
   const technicalSpec = extractTechnicalSpec(rawText);
   const extractedApartments = extractApartmentsFromText(rawText, selectedItems);
+  const spreadsheetErrors: string[] = [];
+
+  for (const item of selectedItems) {
+    const extension = getExtension(item.file.name);
+    if (extension !== "xlsx" && extension !== "csv" && extension !== "xls") continue;
+
+    try {
+      const preview = await parseSpreadsheetImport(item.file, "priceList", project, existingApartments);
+      preview.apartments.forEach((apartment) => {
+        const extracted: ExtractedApartment = {
+          number: apartment.number,
+          floor: apartment.floor,
+          rooms: apartment.rooms,
+          apartmentArea: apartment.apartmentArea,
+          balconyArea: apartment.balconyArea,
+          gardenArea: apartment.gardenArea,
+          parking: apartment.parking,
+          storage: apartment.storage,
+          direction: apartment.direction,
+          price: apartment.price,
+          specialPrice: apartment.specialPrice,
+          status: apartment.status,
+          notes: apartment.notes,
+          confidence: "high",
+          needsReview: false,
+          source: item.file.name,
+        };
+        const index = extractedApartments.findIndex((current) => current.number === apartment.number);
+        if (index >= 0) extractedApartments[index] = extracted;
+        else extractedApartments.push(extracted);
+      });
+    } catch (apartmentImportError) {
+      try {
+        const preview = await parseSpreadsheetImport(item.file, "projectDetails", project, existingApartments);
+        preview.projectFields.forEach((field) => {
+          const key = field.key as ExtractedFieldKey;
+          if (!extractedFieldLabels[key]) return;
+          const nextField: ExtractedField = {
+            key,
+            label: field.label,
+            value: field.newValue,
+            confidence: "high",
+            needsReview: false,
+          };
+          const index = fields.findIndex((current) => current.key === key);
+          if (index >= 0) fields[index] = nextField;
+          else fields.push(nextField);
+        });
+      } catch (projectImportError) {
+        const error = projectImportError instanceof Error ? projectImportError : apartmentImportError;
+        spreadsheetErrors.push(
+          `${item.file.name}: ${error instanceof Error ? error.message : "פורמט Excel לא נתמך"}`,
+        );
+      }
+    }
+  }
   const conflicts = findConflicts(project, fields);
   const reviewNotes = buildReviewNotes(fields, extractedApartments, technicalSpec);
+  reviewNotes.push(...spreadsheetErrors);
 
   return {
     rawText,
@@ -658,6 +738,7 @@ export function ProjectImportScreen({
   const [approvedMainImageUrl, setApprovedMainImageUrl] = useState("");
   const [manualProjectId, setManualProjectId] = useState(projects[0]?.id ?? "");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState("");
   const bundle = karlNetterImportBundle;
   const projectCandidates = useMemo(() => {
@@ -748,7 +829,11 @@ export function ProjectImportScreen({
     const onlyApartmentPlans = selectedFiles.every((item) => item.type === "תכנית דירה");
 
     if (identifiedProject) {
-      const analysis = await analyzePresentationFiles(selectedFiles, identifiedProject);
+      const analysis = await analyzePresentationFiles(
+        selectedFiles,
+        identifiedProject,
+        apartments.filter((apartment) => apartment.projectId === identifiedProject.id),
+      );
 
       setAnalysisResult({ mode: "identified", projectId: identifiedProject.id });
       setManualProjectId(identifiedProject.id);
@@ -765,7 +850,11 @@ export function ProjectImportScreen({
 
     if (onlyApartmentPlans) {
       const manualProject = projects.find((project) => project.id === manualProjectId) ?? projects[0] ?? bundle.project;
-      const analysis = await analyzePresentationFiles(selectedFiles, manualProject);
+      const analysis = await analyzePresentationFiles(
+        selectedFiles,
+        manualProject,
+        apartments.filter((apartment) => apartment.projectId === manualProject.id),
+      );
 
       setAnalysisResult({ mode: "manual", projectId: manualProjectId || projects[0]?.id || "" });
       setPresentationAnalysis(analysis);
@@ -878,8 +967,14 @@ export function ProjectImportScreen({
         rooms: apartment.rooms || existingApartment?.rooms || 0,
         apartmentArea: apartment.apartmentArea || existingApartment?.apartmentArea || 0,
         balconyArea: apartment.balconyArea || existingApartment?.balconyArea || 0,
+        gardenArea: apartment.gardenArea || existingApartment?.gardenArea || 0,
+        parking: apartment.parking || existingApartment?.parking || "",
+        storage: apartment.storage || existingApartment?.storage || "",
         direction: apartment.direction || existingApartment?.direction || "",
-        notes: existingApartment?.notes || `זוהתה מתוך מצגת (${apartment.source})`,
+        price: apartment.price || existingApartment?.price || 0,
+        specialPrice: apartment.specialPrice || existingApartment?.specialPrice || 0,
+        status: apartment.status || existingApartment?.status || "available",
+        notes: apartment.notes || existingApartment?.notes || `זוהתה מתוך מצגת (${apartment.source})`,
       };
 
       byNumber.set(apartment.number, existingApartment
@@ -888,12 +983,6 @@ export function ProjectImportScreen({
             id: `${projectId}-apt-${apartment.number}`,
             projectId,
             number: apartment.number,
-            gardenArea: 0,
-            parking: "",
-            storage: "",
-            price: 0,
-            specialPrice: 0,
-            status: "available",
             planAttached: false,
             ...patch,
           });
@@ -921,7 +1010,7 @@ export function ProjectImportScreen({
         name: file.name,
         type: presentationFile ? "מצגת" : item.type,
         target: presentationFile ? "מצגת מקור וניתוח פרויקט" : item.target,
-        url: item.url,
+        url: "",
         sizeBytes: file.size,
         uploadedAt: new Date(file.lastModified || Date.now()).toISOString(),
         mimeType: file.type,
@@ -931,19 +1020,7 @@ export function ProjectImportScreen({
     const approvedFileItems = approvedSections.files
       ? filesForImport
       : filesForImport.filter((file) => file.type === "מצגת");
-    const imageProjectFiles: ProjectFile[] =
-      approvedSections.images && presentationAnalysis
-        ? presentationAnalysis.images.map((image) => ({
-            id: image.id,
-            name: image.name,
-            type: "הדמיה",
-            target: "גלריית הדמיות",
-            url: image.url,
-            sizeBytes: image.sizeBytes,
-            uploadedAt: new Date().toISOString(),
-            mimeType: "image/*",
-          }))
-        : [];
+    const imageProjectFiles: ProjectFile[] = [];
     const incomingFileKeys = new Set(
       [...approvedFileItems, ...imageProjectFiles].map((file) => `${file.name}-${file.sizeBytes}`),
     );
@@ -983,30 +1060,6 @@ export function ProjectImportScreen({
 
     if (approvedSections.apartments && presentationAnalysis?.apartments.length) {
       nextApartments = mergeExtractedApartments(baseProject.id, existingProjectApartments, presentationAnalysis.apartments);
-    }
-
-    if (approvedSections.images && presentationAnalysis?.images.length) {
-      const imageUrls = presentationAnalysis.images.map((image) => image.url);
-
-      nextProject = {
-        ...nextProject,
-        gallery: {
-          ...nextProject.gallery,
-          exterior: Array.from(new Set([...(nextProject.gallery.exterior ?? []), ...imageUrls])),
-        },
-        materialFileCounts: {
-          ...nextProject.materialFileCounts,
-          exterior: (nextProject.materialFileCounts?.exterior ?? 0) + imageUrls.length,
-        },
-      };
-    }
-
-    if (approvedSections.images && approvedMainImageUrl) {
-      nextProject = {
-        ...nextProject,
-        mainImage: approvedMainImageUrl,
-        heroImage: approvedMainImageUrl,
-      };
     }
 
     return {
@@ -1058,14 +1111,29 @@ export function ProjectImportScreen({
     [importedBundle.apartments],
   );
 
-  const confirmImport = () => {
+  const confirmImport = async () => {
     if (analysisResult?.mode === "manual" && !manualProjectId) {
       setError("יש לבחור פרויקט לשיוך הקבצים.");
       return;
     }
 
-    onImport(importedBundle);
-    setStage("done");
+    if (isImporting) return;
+
+    setIsImporting(true);
+    setError("");
+
+    try {
+      await onImport(importedBundle);
+      setStage("done");
+    } catch (importError) {
+      setError(
+        importError instanceof Error
+          ? `הייבוא נכשל: ${importError.message}`
+          : "הייבוא נכשל. הנתונים הקודמים נשארו ללא שינוי.",
+      );
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   return (
@@ -1346,11 +1414,11 @@ export function ProjectImportScreen({
                 </label>
                 <span>{pricedApartments.length} דירות עם מחיר</span>
               </div>
-              <div className="import-table-wrap"><table className="import-table"><thead><tr><th>דירה</th><th>קומה</th><th>חדרים</th><th>שטח</th><th>מרפסת</th><th>מחיר</th><th>מחיר מיוחד</th></tr></thead><tbody>
+              <div className="import-table-wrap"><table className="import-table"><thead><tr><th>דירה</th><th>קומה</th><th>חדרים</th><th>שטח</th><th>מרפסת</th><th>מחיר</th><th>מחיר מיוחד</th><th>סטטוס</th></tr></thead><tbody>
                 {(presentationAnalysis?.apartments.length ? presentationAnalysis.apartments : importedBundle.apartments).map((apartment) => (
                   "source" in apartment
-                    ? <tr key={apartment.number}><td>{apartment.number}</td><td>{apartment.floor || "דורש בדיקה"}</td><td>{apartment.rooms || "דורש בדיקה"}</td><td>{apartment.apartmentArea ? `${apartment.apartmentArea} מ״ר` : "דורש בדיקה"}</td><td>{apartment.balconyArea ? `${apartment.balconyArea} מ״ר` : "דורש בדיקה"}</td><td colSpan={2}>{apartment.needsReview ? "דורש בדיקה" : "מוכן לשמירה"}</td></tr>
-                    : <tr key={apartment.id}><td>{apartment.number}</td><td>{apartment.floor}</td><td>{apartment.rooms}</td><td>{apartment.apartmentArea} מ״ר</td><td>{apartment.balconyArea} מ״ר</td><td>{apartment.price ? formatPrice(apartment.price) : "חסר"}</td><td>{apartment.specialPrice ? formatPrice(apartment.specialPrice) : "חסר"}</td></tr>
+                    ? <tr key={apartment.number}><td>{apartment.number}</td><td>{apartment.floor || "דורש בדיקה"}</td><td>{apartment.rooms || "דורש בדיקה"}</td><td>{apartment.apartmentArea ? `${apartment.apartmentArea} מ״ר` : "דורש בדיקה"}</td><td>{apartment.balconyArea ? `${apartment.balconyArea} מ״ר` : "דורש בדיקה"}</td><td>{apartment.price ? formatPrice(apartment.price) : "חסר"}</td><td>{apartment.specialPrice ? formatPrice(apartment.specialPrice) : "חסר"}</td><td>{apartment.needsReview ? "דורש בדיקה" : apartment.status}</td></tr>
+                    : <tr key={apartment.id}><td>{apartment.number}</td><td>{apartment.floor}</td><td>{apartment.rooms}</td><td>{apartment.apartmentArea} מ״ר</td><td>{apartment.balconyArea} מ״ר</td><td>{apartment.price ? formatPrice(apartment.price) : "חסר"}</td><td>{apartment.specialPrice ? formatPrice(apartment.specialPrice) : "חסר"}</td><td>{apartment.status}</td></tr>
                 ))}
               </tbody></table></div>
             </section>
@@ -1408,7 +1476,7 @@ export function ProjectImportScreen({
             )}
 
             {error && <div className="import-error"><AlertTriangle size={18} />{error}</div>}
-            <div className="import-actions"><button className="ghost-button" type="button" onClick={() => setStage("ready")}>חזרה</button><button className="gold-button" type="button" onClick={confirmImport} disabled={importedBundle.sourceFiles.length === 0 || (analysisResult?.mode === "manual" && !manualProjectId)}><CheckCircle2 size={18} />אישור וייבוא לפרויקט</button></div>
+            <div className="import-actions"><button className="ghost-button" type="button" onClick={() => setStage("ready")} disabled={isImporting}>חזרה</button><button className="gold-button" type="button" onClick={() => void confirmImport()} disabled={isImporting || importedBundle.sourceFiles.length === 0 || (analysisResult?.mode === "manual" && !manualProjectId)}><CheckCircle2 size={18} />{isImporting ? "שומרת..." : "אישור וייבוא לפרויקט"}</button></div>
           </>
         )}
 
