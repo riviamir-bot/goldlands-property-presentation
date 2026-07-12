@@ -76,10 +76,14 @@ interface ProjectImageRow {
   display_order: number;
   metadata: {
     file_name?: string;
+    original_name?: string;
     mime_type?: string;
     size_bytes?: number;
   } | null;
-  association?: ProjectFileAssociation | null;
+  original_name?: string | null;
+  mime_type?: string | null;
+  size_bytes?: number | null;
+  association?: string | null;
   target?: string | null;
   created_at?: string;
 }
@@ -220,13 +224,60 @@ const categoryAssociations: Record<ProjectFileCategory, ProjectFileAssociation> 
   lobby: "הדמיה",
   surroundings: "הדמיה",
   apartment_plan: "תכנית דירה",
-  floor_plan: "תכנית דירה",
+  floor_plan: "תכנית קומה",
   price_list: "מחירון",
   brochure: "מצגת",
   technical_spec: "מפרט",
   sales_deck: "מצגת",
   other: "אחר",
 };
+
+type SupabaseErrorLike = {
+  message?: unknown;
+  statusCode?: unknown;
+  status?: unknown;
+  name?: unknown;
+  code?: unknown;
+};
+
+export function formatSupabaseErrorDetails(error: unknown) {
+  const details = (typeof error === "object" && error !== null ? error : {}) as SupabaseErrorLike;
+  const message = typeof details.message === "string"
+    ? details.message
+    : error instanceof Error
+      ? error.message
+      : String(error || "Unknown Supabase error");
+  const statusCode = details.statusCode ?? details.status;
+  const name = typeof details.name === "string"
+    ? details.name
+    : error instanceof Error
+      ? error.name
+      : undefined;
+  const code = details.code;
+
+  return [
+    `message: ${message}`,
+    statusCode === undefined || statusCode === null ? "" : `statusCode: ${String(statusCode)}`,
+    name ? `name: ${name}` : "",
+    code === undefined || code === null ? "" : `code: ${String(code)}`,
+  ].filter(Boolean).join(" | ");
+}
+
+function makeUploadStageError(
+  stage: "session" | "preflight" | "storage.upload" | "metadata",
+  error: unknown,
+) {
+  const stageLabels = {
+    session: "בדיקת Supabase Auth session נכשלה",
+    preflight: "בדיקת הרשאות ההעלאה נכשלה",
+    "storage.upload": "העלאת הקובץ ל-Supabase Storage נכשלה",
+    metadata: "הקובץ הועלה, אך שמירת metadata נכשלה",
+  };
+  const result = new Error(`${stageLabels[stage]}: ${formatSupabaseErrorDetails(error)}`);
+
+  result.name = "SupabaseStoragePipelineError";
+  return result;
+}
 
 function assertStorageClient() {
   if (!supabase) {
@@ -338,9 +389,10 @@ async function runStorageUploadPreflight(
   const projectIdLooksLikeUuid = isUuid(projectId);
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
 
-  if (sessionError) throw sessionError;
+  if (sessionError) throw makeUploadStageError("session", sessionError);
 
   const userId = sessionData.session?.user.id ?? null;
+  let profileId: string | null = null;
   let profileRole: string | null = null;
   let profileIsActive: boolean | null = null;
   let projectExists = false;
@@ -349,12 +401,13 @@ async function runStorageUploadPreflight(
   if (userId) {
     const { data: profileRow, error: profileError } = await client
       .from("profiles")
-      .select("role, is_active")
+      .select("id, role, is_active")
       .eq("id", userId)
       .maybeSingle();
 
-    if (profileError) throw profileError;
+    if (profileError) throw makeUploadStageError("preflight", profileError);
 
+    profileId = (profileRow as { id?: string | null } | null)?.id ?? null;
     profileRole = (profileRow as { role?: string | null } | null)?.role ?? null;
     profileIsActive = (profileRow as { is_active?: boolean | null } | null)?.is_active ?? null;
   }
@@ -366,34 +419,17 @@ async function runStorageUploadPreflight(
       .eq("id", projectId)
       .maybeSingle();
 
-    if (projectError) throw projectError;
+    if (projectError) throw makeUploadStageError("preflight", projectError);
 
     projectExists = Boolean(projectRow);
     projectIsActive = (projectRow as { is_active?: boolean | null } | null)?.is_active ?? null;
   }
 
-  console.info("[GOLDLANDS] Storage upload preflight", {
-    storageBucket,
-    storagePath,
-    category,
-    projectId,
-    pathFolder1: folderSegments[0] ?? null,
-    pathFolder2: folderProjectId || null,
-    pathStartsWithProjects: folderSegments[0] === "projects",
-    pathProjectIdMatches: folderProjectId === projectId,
-    projectIdLooksLikeUuid,
-    projectExists,
-    projectIsActive,
-    profileRole,
-    profileIsActive,
-    hasSupabaseSession: Boolean(sessionData.session),
-  });
-
   if (!sessionData.session) {
-    throw new Error("Upload requires real Supabase admin login.");
+    throw new Error("אין חיבור פעיל ל-Supabase. יש להתחבר מחדש.");
   }
 
-  if (profileRole !== "admin" || profileIsActive === false) {
+  if (profileId !== userId || profileRole !== "admin" || profileIsActive !== true) {
     throw new Error("Upload requires real Supabase admin login.");
   }
 
@@ -405,7 +441,7 @@ async function runStorageUploadPreflight(
     throw new Error("יש לשמור את הפרויקט בענן לפני העלאת קבצים.");
   }
 
-  return userId;
+  return sessionData.session.user.id;
 }
 
 async function safelyCreateSignedUrl(record: Omit<ProjectFileRecord, "publicUrl">) {
@@ -418,6 +454,10 @@ async function safelyCreateSignedUrl(record: Omit<ProjectFileRecord, "publicUrl"
 }
 
 function mapImageRow(row: ProjectImageRow): Omit<ProjectFileRecord, "publicUrl"> {
+  const mappedAssociation = (Object.values(categoryAssociations) as string[]).includes(row.association ?? "")
+    ? row.association as ProjectFileAssociation
+    : categoryAssociations[row.category];
+
   return {
     id: row.id,
     projectId: row.project_id,
@@ -425,13 +465,13 @@ function mapImageRow(row: ProjectImageRow): Omit<ProjectFileRecord, "publicUrl">
     kind: "image",
     storageBucket: row.storage_bucket,
     storagePath: row.storage_path,
-    fileName: row.metadata?.file_name ?? row.storage_path.split("/").pop() ?? "",
-    mimeType: row.metadata?.mime_type ?? "",
-    sizeBytes: row.metadata?.size_bytes ?? 0,
+    fileName: row.original_name ?? row.metadata?.original_name ?? row.metadata?.file_name ?? row.storage_path.split("/").pop() ?? "",
+    mimeType: row.mime_type ?? row.metadata?.mime_type ?? "",
+    sizeBytes: Number(row.size_bytes ?? row.metadata?.size_bytes) || 0,
     isPrimary: row.is_primary,
     displayOrder: row.display_order,
     title: row.caption || row.alt_text,
-    association: row.association ?? categoryAssociations[row.category],
+    association: mappedAssociation,
     target: row.target ?? (row.category === "main" ? "תמונה ראשית" : "גלריית הפרויקט"),
     uploadedAt: row.created_at,
   };
@@ -548,6 +588,7 @@ export async function uploadProjectFile(
   file: File,
   category: ProjectFileCategory,
   apartmentId?: string,
+  target?: string,
 ) {
   const client = assertStorageClient();
   const config = categoryConfigs[category];
@@ -567,6 +608,21 @@ export async function uploadProjectFile(
     storagePath,
     category,
   );
+
+  const { data: { session }, error: sessionError } = await client.auth.getSession();
+
+  if (sessionError) {
+    throw makeUploadStageError("session", sessionError);
+  }
+
+  if (!session) {
+    throw new Error("אין חיבור פעיל ל-Supabase. יש להתחבר מחדש.");
+  }
+
+  if (session.user.id !== uploadedBy) {
+    throw new Error("חיבור ה-Supabase השתנה בזמן ההעלאה. יש להתחבר מחדש.");
+  }
+
   const { error: uploadError } = await client.storage
     .from(config.bucket)
     .upload(storagePath, file, {
@@ -575,10 +631,26 @@ export async function uploadProjectFile(
       upsert: false,
     });
 
-  if (uploadError) throw uploadError;
+  if (uploadError) throw makeUploadStageError("storage.upload", uploadError);
 
   try {
     if (config.kind === "image") {
+      let displayOrder = 0;
+
+      if (!config.isPrimary) {
+        const { data: lastImage, error: displayOrderError } = await client
+          .from("project_images")
+          .select("display_order")
+          .eq("project_id", projectId)
+          .eq("category", category)
+          .order("display_order", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (displayOrderError) throw displayOrderError;
+        displayOrder = Math.max(0, Number(lastImage?.display_order) || 0) + 1;
+      }
+
       if (config.isPrimary) {
         const { error: primaryResetError } = await client
           .from("project_images")
@@ -599,14 +671,18 @@ export async function uploadProjectFile(
           alt_text: file.name,
           caption: file.name,
           is_primary: Boolean(config.isPrimary),
-          display_order: config.isPrimary ? 0 : Date.now(),
+          display_order: displayOrder,
           metadata: {
             file_name: file.name,
+            original_name: file.name,
             mime_type: file.type,
             size_bytes: file.size,
           },
-          association: categoryAssociations[category],
-          target: category === "main" ? "תמונה ראשית" : "גלריית הפרויקט",
+          original_name: file.name,
+          mime_type: file.type,
+          size_bytes: file.size,
+          association: category,
+          target: target ?? (category === "main" ? "תמונה ראשית" : "גלריית הפרויקט"),
           uploaded_by: uploadedBy,
         })
         .select("*")
@@ -648,7 +724,7 @@ export async function uploadProjectFile(
         version: 1,
         status: "active",
         association: categoryAssociations[category],
-        target: makeDocumentTitle(category, file),
+        target: target ?? makeDocumentTitle(category, file),
         uploaded_by: uploadedBy,
       })
       .select("*")
@@ -675,8 +751,16 @@ export async function uploadProjectFile(
       publicUrl: await safelyCreateSignedUrl(record),
     };
   } catch (error) {
-    await client.storage.from(config.bucket).remove([storagePath]);
-    throw error;
+    const { error: cleanupError } = await client.storage.from(config.bucket).remove([storagePath]);
+
+    if (cleanupError) {
+      console.warn(
+        "[GOLDLANDS] Storage cleanup after metadata failure failed",
+        formatSupabaseErrorDetails(cleanupError),
+      );
+    }
+
+    throw makeUploadStageError("metadata", error);
   }
 }
 
@@ -731,6 +815,32 @@ export async function updateStoredProjectFileAssociation(
   const documentUpdate = await client
     .from("project_documents")
     .update({ association })
+    .eq("project_id", projectId)
+    .eq("id", fileId)
+    .select("id");
+
+  if (documentUpdate.error) throw documentUpdate.error;
+}
+
+export async function updateStoredProjectFileTarget(
+  projectId: string,
+  fileId: string,
+  target: string,
+) {
+  const client = assertStorageClient();
+  const imageUpdate = await client
+    .from("project_images")
+    .update({ target })
+    .eq("project_id", projectId)
+    .eq("id", fileId)
+    .select("id");
+
+  if (imageUpdate.error) throw imageUpdate.error;
+  if ((imageUpdate.data ?? []).length > 0) return;
+
+  const documentUpdate = await client
+    .from("project_documents")
+    .update({ target })
     .eq("project_id", projectId)
     .eq("id", fileId)
     .select("id");

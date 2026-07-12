@@ -10,6 +10,13 @@ interface TechnicalSpecScreenProps {
 
 export function TechnicalSpecScreen({ project }: TechnicalSpecScreenProps) {
   const importedSpecItems = project?.technicalSpecNotes ?? [];
+  const structuredSections = project?.technicalSpecSections ?? [];
+  const sections = structuredSections.length > 0
+    ? structuredSections
+    : importedSpecItems.length > 0
+      ? [{ id: "other", title: "מפרט טכני", items: importedSpecItems, displayOrder: 0 }]
+      : undefined;
+  const shouldShowDemoSpec = !project?.isSupabaseBacked && !sections;
 
   return (
     <section className="panel technical-spec-panel">
@@ -20,17 +27,20 @@ export function TechnicalSpecScreen({ project }: TechnicalSpecScreenProps) {
         </div>
         <p>תצוגת מפרט נקייה לפגישת לקוח, באותו מבנה אקורדיון שמופיע בסקירת הפרויקט.</p>
       </header>
-      {importedSpecItems.length > 0 && (
-        <section className="technical-imported-spec" aria-label="מפרט שחולץ ממצגת">
-          <h3>מפרט שחולץ מהמצגת</h3>
-          <ul>
-            {importedSpecItems.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </section>
+      {sections ? (
+        <TechnicalSpecAccordion
+          defaultOpenIds={sections.map((section) => section.id)}
+          sections={sections}
+          variant="screen"
+        />
+      ) : shouldShowDemoSpec ? (
+        <TechnicalSpecAccordion defaultOpenIds={defaultOverviewSpecIds} variant="screen" />
+      ) : (
+        <div className="empty-state compact-empty-state">
+          <h3>עדיין לא הוזן מפרט טכני</h3>
+          <p>ניתן להוסיף ולערוך סעיפים במסך ניהול הפרויקט.</p>
+        </div>
       )}
-      <TechnicalSpecAccordion defaultOpenIds={defaultOverviewSpecIds} variant="screen" />
     </section>
   );
 }

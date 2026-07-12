@@ -1,4 +1,11 @@
-import type { Apartment, Project, ProjectFile, ProjectFileAssociation, ProjectReadiness } from "../types";
+import type {
+  Apartment,
+  Project,
+  ProjectFile,
+  ProjectFileAssociation,
+  ProjectReadiness,
+  TechnicalSpecSectionData,
+} from "../types";
 
 export interface ProjectsRepositoryState {
   projects: Project[];
@@ -36,6 +43,27 @@ export interface ProjectsRepository {
     apartmentId: string,
     patch: Partial<Apartment>,
   ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  addApartment(
+    projectId: string,
+    apartment: Apartment,
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  deleteApartment(
+    projectId: string,
+    apartmentId: string,
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  upsertApartments(
+    projectId: string,
+    apartments: Apartment[],
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  importProjectData(
+    projectId: string,
+    projectPatch: Partial<Project>,
+    apartments: Apartment[],
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  updateTechnicalSpecifications(
+    projectId: string,
+    sections: TechnicalSpecSectionData[],
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
   reorderProjects(
     updates: ProjectSortOrderUpdate[],
   ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
@@ -44,6 +72,11 @@ export interface ProjectsRepository {
     projectId: string,
     fileId: string,
     type: ProjectFileAssociation,
+  ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
+  updateProjectFileTarget?(
+    projectId: string,
+    fileId: string,
+    target: string,
   ): Promise<ProjectsRepositoryState> | ProjectsRepositoryState;
   deleteProjectFile?(
     projectId: string,

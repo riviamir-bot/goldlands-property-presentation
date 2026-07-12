@@ -52,6 +52,11 @@ export function ClientPreviewScreen({
     })),
   );
   const heroImage = project.mainImage || project.heroImage;
+  const technicalSections = project.technicalSpecSections?.length
+    ? project.technicalSpecSections
+    : project.technicalSpecNotes?.length
+      ? [{ id: "other", title: "מפרט טכני", items: project.technicalSpecNotes, displayOrder: 0 }]
+      : undefined;
 
   return (
     <main className="client-preview-screen">
@@ -267,7 +272,11 @@ export function ClientPreviewScreen({
                 <h2>עיקרי המפרט</h2>
               </div>
             </div>
-            <TechnicalSpecAccordion variant="screen" />
+            {technicalSections || !project.isSupabaseBacked ? (
+              <TechnicalSpecAccordion sections={technicalSections} variant="screen" />
+            ) : (
+              <p>לא הוזן מפרט טכני לפרויקט.</p>
+            )}
           </section>
         )}
 

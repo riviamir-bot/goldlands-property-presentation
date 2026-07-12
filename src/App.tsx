@@ -107,12 +107,18 @@ export default function App() {
     deleteProject,
     reorderProjects,
     updateApartment,
+    addApartment,
+    deleteApartment,
+    importProjectData,
+    updateTechnicalSpecifications,
     importProjectBundle,
     updateProjectFileType,
+    updateProjectFileTarget,
     deleteProjectFile,
     migrateLocalStateToSupabase,
     resetDemoData,
     isSupabaseSourceActive,
+    isSupabaseLoading,
   } = useProjectsStore({
     canUseSupabase: Boolean(currentUser && authMode === "supabase" && hasSupabaseSession),
     supabaseRetryKey: currentUser?.id ?? "anonymous",
@@ -332,6 +338,15 @@ export default function App() {
     );
   }
 
+  if (authMode === "supabase" && isSupabaseLoading) {
+    return (
+      <main className="app-loading-screen" dir="rtl">
+        <strong>GOLDLANDS</strong>
+        <span>טוען נתוני פרויקטים מ-Supabase...</span>
+      </main>
+    );
+  }
+
   if (!canAccessScreen(currentUser, screen)) {
     return (
       <AllProjectsScreen
@@ -438,7 +453,12 @@ export default function App() {
         onOpenProject={selectProject}
         onUpdateProject={updateProject}
         onUpdateApartment={updateApartment}
+        onAddApartment={addApartment}
+        onDeleteApartment={deleteApartment}
+        onImportProjectData={importProjectData}
+        onUpdateTechnicalSpecifications={updateTechnicalSpecifications}
         onUpdateProjectFileType={updateProjectFileType}
+        onUpdateProjectFileTarget={updateProjectFileTarget}
         onDeleteProjectFile={deleteProjectFile}
         canViewReadiness={userCanViewReadiness}
         canManageProjects={userCanManageProjects}
@@ -495,7 +515,7 @@ export default function App() {
         )}
         {screen === "prices" && <PriceListScreen apartments={projectApartments} />}
         {screen === "gallery" && <GalleryScreen project={selectedProject} />}
-        {screen === "plans" && <PlanScreen apartment={selectedApartment} />}
+        {screen === "plans" && <PlanScreen apartment={selectedApartment} project={selectedProject} />}
         {screen === "technical" && <TechnicalSpecScreen project={selectedProject} />}
         {screen === "location" && <LocationScreen project={selectedProject} />}
         {screen === "faq" && <FAQScreen />}

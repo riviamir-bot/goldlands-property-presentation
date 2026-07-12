@@ -19,7 +19,7 @@ export function ApartmentsScreen({ apartments, onOpenPlan }: ApartmentsScreenPro
         <span className="count-pill">{apartments.length} דירות</span>
       </div>
 
-      <div className="table-wrap">
+      {apartments.length > 0 ? <div className="table-wrap">
         <table className="lux-table">
           <thead>
             <tr>
@@ -61,7 +61,12 @@ export function ApartmentsScreen({ apartments, onOpenPlan }: ApartmentsScreenPro
             ))}
           </tbody>
         </table>
-      </div>
+      </div> : (
+        <div className="empty-state compact-empty-state">
+          <h3>אין כרגע דירות להצגה</h3>
+          <p>המלאי יתעדכן לאחר הוספה או ייבוא במסך ניהול הפרויקט.</p>
+        </div>
+      )}
     </section>
   );
 }
