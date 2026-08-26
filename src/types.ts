@@ -88,6 +88,7 @@ export interface TechnicalSpecSectionData {
 
 export interface Project {
   id: string;
+  projectCode?: string;
   name: string;
   location: string;
   city: string;
@@ -111,6 +112,18 @@ export interface Project {
   parcel?: string;
   licensingRoute?: string;
   planningStatus?: string;
+  constructionStage?: string;
+  developerCompany?: string;
+  companyRegistrationNumber?: string;
+  financingBank?: string;
+  projectMarketer?: string;
+  groundBreakingDate?: string;
+  constructionCompletionDate?: string;
+  campaignLaunchDate?: string;
+  websiteUrl?: string;
+  registrationFormUrl?: string;
+  soldUnits?: number;
+  remainingUnits?: number;
   developerUnits?: string;
   ownerUnits?: string;
   keyFacts: string[];

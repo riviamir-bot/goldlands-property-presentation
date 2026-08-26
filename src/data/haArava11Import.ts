@@ -1,0 +1,107 @@
+import type { Project, ProjectFile, ProjectReadiness } from "../types";
+
+export const haArava11ProjectId = "ha-arava-11-holon";
+
+export const haArava11ProjectFiles: ProjectFile[] = [
+  {
+    id: "ha-arava-11-price-list",
+    name: "מחירון הערבה 11",
+    type: "מחירון",
+    target: "מחירון הפרויקט",
+    url: "https://gmfgroups.sharepoint.com/:i:/s/data/IQDJ3ZUXVnhaSJbK45JbC_0OAboAlwCeHRWhU2NBgFgd_Vk?e=t22eyp",
+    sizeBytes: 0,
+    uploadedAt: "2026-08-26T00:00:00.000Z",
+  },
+  {
+    id: "ha-arava-11-sales-deck",
+    name: "מצגת הערבה 11",
+    type: "מצגת",
+    target: "מצגת הפרויקט",
+    url: "https://www.canva.com/design/DAGdZGmTXYw/tx4ijUPdEckISCvmPWJwIA/view?utm_content=DAGdZGmTXYw&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h65a7ef5867",
+    sizeBytes: 0,
+    uploadedAt: "2026-08-26T00:00:00.000Z",
+  },
+  {
+    id: "ha-arava-11-registration-form",
+    name: "טופס רישום הערבה 11",
+    type: "אחר",
+    target: "טופס רישום",
+    url: "https://gmfgroups.sharepoint.com/:b:/s/data/Eb-mstpYAgRGsLt72XFClC8Bindy-YlxMeMerRpD2y1D1w?e=euumuU",
+    sizeBytes: 0,
+    uploadedAt: "2026-08-26T00:00:00.000Z",
+  },
+];
+
+export const haArava11Project: Project = {
+  id: haArava11ProjectId,
+  projectCode: "ARV",
+  name: "הערבה 11",
+  location: "הערבה 11, חולון",
+  city: "חולון",
+  neighborhood: "",
+  address: "הערבה 11, חולון",
+  googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=%D7%94%D7%A2%D7%A8%D7%91%D7%94+11+%D7%97%D7%95%D7%9C%D7%95%D7%9F",
+  googleMapsEmbedUrl: "https://www.google.com/maps?q=%D7%94%D7%A2%D7%A8%D7%91%D7%94+11+%D7%97%D7%95%D7%9C%D7%95%D7%9F&output=embed",
+  projectType: "תמ״א 38/1",
+  tagline: "",
+  description: "",
+  logoMark: "ARV",
+  projectLogo: "",
+  heroImage: "",
+  mainImage: "",
+  block: "7127",
+  parcel: "134",
+  planningStatus: "בבנייה",
+  constructionStage: "בבנייה",
+  developerCompany: "פנינת הערבה 11 בע״מ",
+  companyRegistrationNumber: "515560969",
+  financingBank: "אמפא קפיטל",
+  projectMarketer: "דניאל גולדשטיין",
+  constructionCompletionDate: "2027-04-01",
+  websiteUrl: "https://www.goldlands.co.il/ha-arava-11-holon/",
+  registrationFormUrl: "https://gmfgroups.sharepoint.com/:b:/s/data/Eb-mstpYAgRGsLt72XFClC8Bindy-YlxMeMerRpD2y1D1w?e=euumuU",
+  soldUnits: 7,
+  remainingUnits: 5,
+  keyFacts: ["גוש 7127", "חלקה 134", "12 יחידות למלאי", "7 נמכרו", "5 נותרו"],
+  stats: {
+    floors: "",
+    units: "12",
+    occupancy: "01.04.2027",
+    parking: "",
+    buildings: "1",
+    existingApartments: "16",
+    newApartments: "12",
+    storage: "",
+  },
+  apartmentMix: {
+    threeRooms: "0",
+    fourRooms: "0",
+    fiveRooms: "0",
+    gardenApartments: "0",
+    penthouses: "0",
+  },
+  gallery: {
+    exterior: [],
+    interior: [],
+    lobby: [],
+    surroundings: [],
+  },
+  materialFileCounts: {
+    prices: 1,
+    documents: 2,
+  },
+  projectFiles: haArava11ProjectFiles,
+};
+
+export const haArava11Readiness: ProjectReadiness = {
+  projectId: haArava11ProjectId,
+  city: "חולון",
+  marketingStatus: "בשיווק",
+  readinessPercentage: 0,
+  lastUpdated: "26/08/2026",
+  missing: {
+    critical: [],
+    important: ["הדמיות", "מועד עלייה לקרקע", "מועד עליית קמפיין"],
+    optional: [],
+  },
+};

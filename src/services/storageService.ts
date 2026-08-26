@@ -59,6 +59,7 @@ export interface ProjectFileRecord {
   target?: string;
   uploadedAt?: string;
   publicUrl?: string;
+  externalUrl?: string;
 }
 
 interface ProjectImageRow {
@@ -107,6 +108,7 @@ interface ProjectDocumentRow {
   association?: ProjectFileAssociation | null;
   target?: string | null;
   created_at?: string;
+  external_url?: string | null;
 }
 
 interface CategoryConfig {
@@ -495,6 +497,7 @@ function mapDocumentRow(row: ProjectDocumentRow): Omit<ProjectFileRecord, "publi
     association: row.association ?? categoryAssociations[row.document_type],
     target: row.target ?? row.title,
     uploadedAt: row.created_at,
+    externalUrl: row.external_url ?? undefined,
   };
 }
 
@@ -524,6 +527,8 @@ export function getProjectFileAssociation(category: ProjectFileCategory) {
 }
 
 export async function getPublicOrSignedUrl(fileRecord: Omit<ProjectFileRecord, "publicUrl">) {
+  if (fileRecord.externalUrl) return fileRecord.externalUrl;
+
   const client = assertStorageClient();
   const { data, error } = await client.storage
     .from(fileRecord.storageBucket)
@@ -766,11 +771,13 @@ export async function uploadProjectFile(
 
 export async function deleteProjectFile(fileRecord: ProjectFileRecord) {
   const client = assertStorageClient();
-  const { error: storageError } = await client.storage
-    .from(fileRecord.storageBucket)
-    .remove([fileRecord.storagePath]);
+  if (!fileRecord.externalUrl) {
+    const { error: storageError } = await client.storage
+      .from(fileRecord.storageBucket)
+      .remove([fileRecord.storagePath]);
 
-  if (storageError) throw storageError;
+    if (storageError) throw storageError;
+  }
 
   if (fileRecord.kind === "image") {
     const { error } = await client.from("project_images").delete().eq("id", fileRecord.id);
