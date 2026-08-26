@@ -131,17 +131,26 @@ interface MaterialSection {
 
 interface ProjectDetailsFormState {
   name: string;
+  projectCode: string;
   city: string;
   address: string;
   neighborhood: string;
   marketingStatus: string;
   projectType: string;
+  constructionStage: string;
+  developerCompany: string;
+  companyRegistrationNumber: string;
+  financingBank: string;
+  projectMarketer: string;
   projectLogo: string;
   mainImage: string;
   tagline: string;
   description: string;
   existingApartments: string;
   newApartments: string;
+  units: string;
+  soldUnits: string;
+  remainingUnits: string;
   buildings: string;
   floors: string;
   threeRooms: string;
@@ -152,6 +161,11 @@ interface ProjectDetailsFormState {
   parking: string;
   storage: string;
   occupancy: string;
+  groundBreakingDate: string;
+  constructionCompletionDate: string;
+  campaignLaunchDate: string;
+  websiteUrl: string;
+  registrationFormUrl: string;
   googleMapsUrl: string;
 }
 
@@ -403,17 +417,26 @@ function makeProjectDetailsFormState(
 
   return {
     name: project.name,
+    projectCode: project.projectCode ?? "",
     city: readiness?.city ?? project.city,
     address: project.address,
     neighborhood: project.neighborhood,
     marketingStatus: readiness?.marketingStatus ?? "טיוטה",
     projectType: project.projectType,
+    constructionStage: project.constructionStage ?? "",
+    developerCompany: project.developerCompany ?? "",
+    companyRegistrationNumber: project.companyRegistrationNumber ?? "",
+    financingBank: project.financingBank ?? "",
+    projectMarketer: project.projectMarketer ?? "",
     projectLogo: project.projectLogo ?? "",
     mainImage,
     tagline: project.tagline,
     description: project.description,
     existingApartments: project.stats.existingApartments,
     newApartments: project.stats.newApartments,
+    units: project.stats.units,
+    soldUnits: project.soldUnits === undefined ? "" : String(project.soldUnits),
+    remainingUnits: project.remainingUnits === undefined ? "" : String(project.remainingUnits),
     buildings: project.stats.buildings,
     floors: project.stats.floors,
     threeRooms: project.apartmentMix.threeRooms,
@@ -424,6 +447,11 @@ function makeProjectDetailsFormState(
     parking: project.stats.parking,
     storage: project.stats.storage,
     occupancy: project.stats.occupancy,
+    groundBreakingDate: project.groundBreakingDate ?? "",
+    constructionCompletionDate: project.constructionCompletionDate ?? "",
+    campaignLaunchDate: project.campaignLaunchDate ?? "",
+    websiteUrl: project.websiteUrl ?? "",
+    registrationFormUrl: project.registrationFormUrl ?? "",
     googleMapsUrl: project.googleMapsUrl,
   };
 }
@@ -633,6 +661,7 @@ export function ProjectManagementDetailScreen({
     const manualFields: Record<string, ManualField[]> = {
       details: [
         { label: "שם פרויקט", value: project.name },
+        { label: "קוד פרויקט", value: project.projectCode ?? "טרם הוגדר" },
         { label: "עיר", value: city },
         { label: "כתובת", value: project.address },
         { label: "שכונה", value: project.neighborhood },
@@ -640,6 +669,11 @@ export function ProjectManagementDetailScreen({
         { label: "לוגו פרויקט", value: project.projectLogo || "טרם הוגדר" },
         { label: "תמונה ראשית", value: getValidProjectMainImage(project) || "טרם הוגדרה" },
         { label: "סטטוס שיווקי", value: readiness?.marketingStatus ?? "פעיל" },
+        { label: "שלב בנייה", value: project.constructionStage ?? "טרם הוגדר" },
+        { label: "יזם / חברת הפרויקט", value: project.developerCompany ?? "טרם הוגדר" },
+        { label: "ח.פ.", value: project.companyRegistrationNumber ?? "טרם הוגדר" },
+        { label: "בנק מלווה", value: project.financingBank ?? "טרם הוגדר" },
+        { label: "משווק הפרויקט", value: project.projectMarketer ?? "טרם הוגדר" },
         { label: "משפט שיווקי קצר", value: project.tagline },
         {
           label: "תיאור פרויקט",
@@ -650,6 +684,14 @@ export function ProjectManagementDetailScreen({
         { label: "מספר קומות", value: project.stats.floors },
         { label: "דירות קיימות", value: project.stats.existingApartments },
         { label: "דירות חדשות", value: project.stats.newApartments },
+        { label: "סה״כ יחידות למלאי", value: project.stats.units },
+        { label: "נמכרו", value: project.soldUnits === undefined ? "טרם הוגדר" : String(project.soldUnits) },
+        { label: "נותרו", value: project.remainingUnits === undefined ? "טרם הוגדר" : String(project.remainingUnits) },
+        { label: "מועד עלייה לקרקע", value: project.groundBreakingDate ?? "לא הוגדר" },
+        { label: "מועד השלמת בנייה", value: project.constructionCompletionDate ?? "לא הוגדר" },
+        { label: "מועד עליית קמפיין", value: project.campaignLaunchDate ?? "לא הוגדר" },
+        { label: "אתר הפרויקט", value: project.websiteUrl ?? "טרם הוגדר" },
+        { label: "טופס רישום", value: project.registrationFormUrl ?? "טרם הוגדר" },
         { label: "צפי אכלוס", value: project.stats.occupancy },
       ],
       logo: [
@@ -766,11 +808,14 @@ export function ProjectManagementDetailScreen({
 
       if (section.id === "prices") {
         const pricedApartments = apartments.filter((apartment) => apartment.price > 0).length;
+        const hasPriceListFile = uploadedCount > 0;
         return {
           ...section,
-          status: pricedApartments > 0 ? "complete" : "missing",
+          status: pricedApartments > 0 || hasPriceListFile ? "complete" : "missing",
           summary: pricedApartments > 0
             ? `${pricedApartments} דירות עם מחיר מעודכן.`
+            : hasPriceListFile
+              ? "קישור למחירון הפרויקט זמין בקבצי הפרויקט; לא יובאו מחירי דירות."
             : "אין עדיין נתוני מחיר בפרויקט.",
           lastUpdated: readiness?.lastUpdated ?? "לא עודכן",
           fields: manualFields[section.id] ?? fileMetadataFields,
@@ -844,6 +889,7 @@ export function ProjectManagementDetailScreen({
   });
   const projectDetailFields: ProjectDetailField[] = [
     { label: "שם פרויקט", name: "name", value: projectDetailsForm.name },
+    { label: "קוד פרויקט", name: "projectCode", value: projectDetailsForm.projectCode, dir: "ltr" },
     { label: "עיר", name: "city", value: projectDetailsForm.city },
     { label: "כתובת", name: "address", value: projectDetailsForm.address },
     { label: "שכונה", name: "neighborhood", value: projectDetailsForm.neighborhood },
@@ -858,6 +904,11 @@ export function ProjectManagementDetailScreen({
       value: projectDetailsForm.projectType,
       options: projectTypeOptions.map((value) => ({ label: value, value })),
     },
+    { label: "שלב בנייה", name: "constructionStage", value: projectDetailsForm.constructionStage },
+    { label: "יזם / חברת הפרויקט", name: "developerCompany", value: projectDetailsForm.developerCompany },
+    { label: "ח.פ.", name: "companyRegistrationNumber", value: projectDetailsForm.companyRegistrationNumber, dir: "ltr" },
+    { label: "בנק מלווה", name: "financingBank", value: projectDetailsForm.financingBank },
+    { label: "משווק הפרויקט", name: "projectMarketer", value: projectDetailsForm.projectMarketer },
     {
       label: "projectLogo URL / path",
       name: "projectLogo",
@@ -870,6 +921,9 @@ export function ProjectManagementDetailScreen({
     { label: "תיאור פרויקט", name: "description", value: projectDetailsForm.description, multiline: true },
     { label: "דירות קיימות", name: "existingApartments", value: projectDetailsForm.existingApartments },
     { label: "דירות חדשות", name: "newApartments", value: projectDetailsForm.newApartments },
+    { label: "סה״כ יחידות למלאי", name: "units", value: projectDetailsForm.units },
+    { label: "נמכרו", name: "soldUnits", value: projectDetailsForm.soldUnits },
+    { label: "נותרו", name: "remainingUnits", value: projectDetailsForm.remainingUnits },
     { label: "מספר בניינים", name: "buildings", value: projectDetailsForm.buildings },
     { label: "מספר קומות", name: "floors", value: projectDetailsForm.floors },
     { label: "3 חדרים", name: "threeRooms", value: projectDetailsForm.threeRooms },
@@ -880,6 +934,11 @@ export function ProjectManagementDetailScreen({
     { label: "חניה", name: "parking", value: projectDetailsForm.parking },
     { label: "מחסן", name: "storage", value: projectDetailsForm.storage },
     { label: "צפי אכלוס", name: "occupancy", value: projectDetailsForm.occupancy },
+    { label: "מועד עלייה לקרקע", name: "groundBreakingDate", value: projectDetailsForm.groundBreakingDate, dir: "ltr", placeholder: "YYYY-MM-DD" },
+    { label: "מועד השלמת בנייה", name: "constructionCompletionDate", value: projectDetailsForm.constructionCompletionDate, dir: "ltr", placeholder: "YYYY-MM-DD" },
+    { label: "מועד עליית קמפיין", name: "campaignLaunchDate", value: projectDetailsForm.campaignLaunchDate, dir: "ltr", placeholder: "YYYY-MM-DD" },
+    { label: "אתר הפרויקט", name: "websiteUrl", value: projectDetailsForm.websiteUrl, wide: true, dir: "ltr" },
+    { label: "טופס רישום", name: "registrationFormUrl", value: projectDetailsForm.registrationFormUrl, wide: true, dir: "ltr" },
     {
       label: "Google Maps URL",
       name: "googleMapsUrl",
@@ -1041,17 +1100,26 @@ export function ProjectManagementDetailScreen({
     event.preventDefault();
     const values: ProjectDetailsFormState = {
       name: projectDetailsForm.name.trim(),
+      projectCode: projectDetailsForm.projectCode.trim(),
       city: projectDetailsForm.city.trim(),
       address: projectDetailsForm.address.trim(),
       neighborhood: projectDetailsForm.neighborhood.trim(),
       marketingStatus: projectDetailsForm.marketingStatus.trim(),
       projectType: projectDetailsForm.projectType.trim(),
+      constructionStage: projectDetailsForm.constructionStage.trim(),
+      developerCompany: projectDetailsForm.developerCompany.trim(),
+      companyRegistrationNumber: projectDetailsForm.companyRegistrationNumber.trim(),
+      financingBank: projectDetailsForm.financingBank.trim(),
+      projectMarketer: projectDetailsForm.projectMarketer.trim(),
       projectLogo: projectDetailsForm.projectLogo.trim(),
       mainImage: projectDetailsForm.mainImage.trim(),
       tagline: projectDetailsForm.tagline.trim(),
       description: projectDetailsForm.description.trim(),
       existingApartments: projectDetailsForm.existingApartments.trim(),
       newApartments: projectDetailsForm.newApartments.trim(),
+      units: projectDetailsForm.units.trim(),
+      soldUnits: projectDetailsForm.soldUnits.trim(),
+      remainingUnits: projectDetailsForm.remainingUnits.trim(),
       buildings: projectDetailsForm.buildings.trim(),
       floors: projectDetailsForm.floors.trim(),
       threeRooms: projectDetailsForm.threeRooms.trim(),
@@ -1062,6 +1130,11 @@ export function ProjectManagementDetailScreen({
       parking: projectDetailsForm.parking.trim(),
       storage: projectDetailsForm.storage.trim(),
       occupancy: projectDetailsForm.occupancy.trim(),
+      groundBreakingDate: projectDetailsForm.groundBreakingDate.trim(),
+      constructionCompletionDate: projectDetailsForm.constructionCompletionDate.trim(),
+      campaignLaunchDate: projectDetailsForm.campaignLaunchDate.trim(),
+      websiteUrl: projectDetailsForm.websiteUrl.trim(),
+      registrationFormUrl: projectDetailsForm.registrationFormUrl.trim(),
       googleMapsUrl: projectDetailsForm.googleMapsUrl.trim(),
     };
     const googleMapsUrl = values.googleMapsUrl || makeMapsUrl(values.address, values.city);
@@ -1080,12 +1153,25 @@ export function ProjectManagementDetailScreen({
         project.id,
         {
           name: values.name,
+          projectCode: values.projectCode,
           city: values.city,
           address: values.address,
           neighborhood: values.neighborhood,
           googleMapsUrl,
           googleMapsEmbedUrl,
           projectType,
+          constructionStage: values.constructionStage,
+          developerCompany: values.developerCompany,
+          companyRegistrationNumber: values.companyRegistrationNumber,
+          financingBank: values.financingBank,
+          projectMarketer: values.projectMarketer,
+          groundBreakingDate: values.groundBreakingDate || undefined,
+          constructionCompletionDate: values.constructionCompletionDate || undefined,
+          campaignLaunchDate: values.campaignLaunchDate || undefined,
+          websiteUrl: values.websiteUrl,
+          registrationFormUrl: values.registrationFormUrl,
+          soldUnits: values.soldUnits === "" ? undefined : getNumberFromString(values.soldUnits),
+          remainingUnits: values.remainingUnits === "" ? undefined : getNumberFromString(values.remainingUnits),
           projectLogo: values.projectLogo,
           mainImage: values.mainImage,
           tagline: values.tagline,
@@ -1097,7 +1183,7 @@ export function ProjectManagementDetailScreen({
             ...project.stats,
             existingApartments: values.existingApartments,
             newApartments: values.newApartments,
-            units: values.newApartments,
+            units: values.units,
             buildings: values.buildings,
             floors: values.floors,
             parking: values.parking,

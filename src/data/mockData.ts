@@ -3,6 +3,7 @@ import interiorLiving from "../assets/renderings/interior-living.png";
 import lobby from "../assets/renderings/lobby.png";
 import surroundings from "../assets/renderings/surroundings.png";
 import type { Apartment, ApartmentStatus, Project, ProjectReadiness } from "../types";
+import { haArava11Project, haArava11ProjectId, haArava11Readiness } from "./haArava11Import";
 
 const gallery = {
   exterior: [exteriorNight],
@@ -12,6 +13,7 @@ const gallery = {
 };
 
 export const projects: Project[] = [
+  haArava11Project,
   {
     id: "gold-tower",
     name: "GOLD TOWER",
@@ -261,7 +263,7 @@ const makeApartments = (projectId: string, offset: number): Apartment[] =>
   });
 
 export const apartments: Apartment[] = projects.flatMap((project, index) =>
-  makeApartments(project.id, index * 2),
+  project.id === haArava11ProjectId ? [] : makeApartments(project.id, index * 2),
 );
 
 export const readinessChecklist = [
@@ -282,6 +284,7 @@ export const readinessChecklist = [
 ];
 
 export const projectReadiness: ProjectReadiness[] = [
+  haArava11Readiness,
   {
     projectId: "gold-tower",
     city: "תל אביב",

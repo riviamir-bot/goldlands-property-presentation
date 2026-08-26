@@ -23,6 +23,7 @@ import {
 interface ProjectRow {
   id: string;
   slug: string;
+  project_code: string | null;
   name: string;
   location: string | null;
   city: string;
@@ -41,6 +42,18 @@ interface ProjectRow {
   parcel: string | null;
   licensing_route: string | null;
   planning_status: string | null;
+  construction_stage: string | null;
+  developer_company: string | null;
+  company_registration_number: string | null;
+  financing_bank: string | null;
+  project_marketer: string | null;
+  ground_breaking_date: string | null;
+  construction_completion_date: string | null;
+  campaign_launch_date: string | null;
+  website_url: string | null;
+  registration_form_url: string | null;
+  sold_units: number | null;
+  remaining_units: number | null;
   developer_units: string | null;
   owner_units: string | null;
   technical_spec_notes: string[] | null;
@@ -215,6 +228,7 @@ function mapProject(
 
   return {
     id: row.id,
+    projectCode: row.project_code ?? undefined,
     name: row.name,
     location: row.location ?? `${row.neighborhood}, ${row.city}`,
     city: row.city,
@@ -238,6 +252,18 @@ function mapProject(
     parcel: row.parcel ?? undefined,
     licensingRoute: row.licensing_route ?? undefined,
     planningStatus: row.planning_status ?? undefined,
+    constructionStage: row.construction_stage ?? undefined,
+    developerCompany: row.developer_company ?? undefined,
+    companyRegistrationNumber: row.company_registration_number ?? undefined,
+    financingBank: row.financing_bank ?? undefined,
+    projectMarketer: row.project_marketer ?? undefined,
+    groundBreakingDate: row.ground_breaking_date ?? undefined,
+    constructionCompletionDate: row.construction_completion_date ?? undefined,
+    campaignLaunchDate: row.campaign_launch_date ?? undefined,
+    websiteUrl: row.website_url ?? undefined,
+    registrationFormUrl: row.registration_form_url ?? undefined,
+    soldUnits: row.sold_units ?? undefined,
+    remainingUnits: row.remaining_units ?? undefined,
     developerUnits: row.developer_units ?? undefined,
     ownerUnits: row.owner_units ?? undefined,
     keyFacts: row.key_facts ?? [],
@@ -320,6 +346,7 @@ function makeReadiness(project: ProjectRow): ProjectReadiness {
 function makeProjectInsertRow(input: AddProjectInput, slug: string): Record<string, unknown> {
   return {
     slug,
+    project_code: "",
     name: input.name,
     location: `${input.neighborhood}, ${input.city}`,
     city: input.city,
@@ -345,6 +372,18 @@ function makeProjectInsertRow(input: AddProjectInput, slug: string): Record<stri
     parcel: "",
     licensing_route: "",
     planning_status: "",
+    construction_stage: "",
+    developer_company: "",
+    company_registration_number: "",
+    financing_bank: "",
+    project_marketer: "",
+    ground_breaking_date: null,
+    construction_completion_date: null,
+    campaign_launch_date: null,
+    website_url: "",
+    registration_form_url: "",
+    sold_units: null,
+    remaining_units: null,
     developer_units: "",
     owner_units: "",
     technical_spec_notes: [],
@@ -388,6 +427,7 @@ function makeProjectPatchRow(
   const row: Record<string, unknown> = {};
 
   if (patch.name !== undefined) row.name = patch.name;
+  if (patch.projectCode !== undefined) row.project_code = patch.projectCode;
   if (patch.location !== undefined) row.location = patch.location;
   if (patch.city !== undefined) row.city = patch.city;
   if (patch.neighborhood !== undefined) row.neighborhood = patch.neighborhood;
@@ -406,6 +446,22 @@ function makeProjectPatchRow(
   if (patch.parcel !== undefined) row.parcel = patch.parcel;
   if (patch.licensingRoute !== undefined) row.licensing_route = patch.licensingRoute;
   if (patch.planningStatus !== undefined) row.planning_status = patch.planningStatus;
+  if (patch.constructionStage !== undefined) row.construction_stage = patch.constructionStage;
+  if (patch.developerCompany !== undefined) row.developer_company = patch.developerCompany;
+  if (patch.companyRegistrationNumber !== undefined) {
+    row.company_registration_number = patch.companyRegistrationNumber;
+  }
+  if (patch.financingBank !== undefined) row.financing_bank = patch.financingBank;
+  if (patch.projectMarketer !== undefined) row.project_marketer = patch.projectMarketer;
+  if ("groundBreakingDate" in patch) row.ground_breaking_date = patch.groundBreakingDate ?? null;
+  if ("constructionCompletionDate" in patch) {
+    row.construction_completion_date = patch.constructionCompletionDate ?? null;
+  }
+  if ("campaignLaunchDate" in patch) row.campaign_launch_date = patch.campaignLaunchDate ?? null;
+  if (patch.websiteUrl !== undefined) row.website_url = patch.websiteUrl;
+  if (patch.registrationFormUrl !== undefined) row.registration_form_url = patch.registrationFormUrl;
+  if ("soldUnits" in patch) row.sold_units = patch.soldUnits ?? null;
+  if ("remainingUnits" in patch) row.remaining_units = patch.remainingUnits ?? null;
   if (patch.developerUnits !== undefined) row.developer_units = patch.developerUnits;
   if (patch.ownerUnits !== undefined) row.owner_units = patch.ownerUnits;
   if (patch.technicalSpecNotes !== undefined) row.technical_spec_notes = patch.technicalSpecNotes;
@@ -437,6 +493,7 @@ function makeProjectRowFromProject(project: Project, readiness?: ProjectReadines
 
   return {
     slug: makeSlug(project.name || project.id),
+    project_code: project.projectCode ?? "",
     name: project.name,
     location: project.location,
     city: project.city,
@@ -455,6 +512,18 @@ function makeProjectRowFromProject(project: Project, readiness?: ProjectReadines
     parcel: project.parcel ?? "",
     licensing_route: project.licensingRoute ?? "",
     planning_status: project.planningStatus ?? "",
+    construction_stage: project.constructionStage ?? "",
+    developer_company: project.developerCompany ?? "",
+    company_registration_number: project.companyRegistrationNumber ?? "",
+    financing_bank: project.financingBank ?? "",
+    project_marketer: project.projectMarketer ?? "",
+    ground_breaking_date: project.groundBreakingDate ?? null,
+    construction_completion_date: project.constructionCompletionDate ?? null,
+    campaign_launch_date: project.campaignLaunchDate ?? null,
+    website_url: project.websiteUrl ?? "",
+    registration_form_url: project.registrationFormUrl ?? "",
+    sold_units: project.soldUnits ?? null,
+    remaining_units: project.remainingUnits ?? null,
     developer_units: project.developerUnits ?? "",
     owner_units: project.ownerUnits ?? "",
     technical_spec_notes: project.technicalSpecNotes ?? [],

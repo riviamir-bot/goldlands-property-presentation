@@ -57,6 +57,22 @@ The seed is idempotent. It upserts the current demo rows in:
 
 It does not seed storage, uploads, documents, images, auth users, or profile roles.
 
+## Import Ha-Arava 11, Holon
+
+The project-specific import is stored in:
+
+```text
+supabase/import_ha_arava_11.sql
+```
+
+Apply all migrations first, then run this file through the Supabase SQL Editor. The import:
+
+- adds only project data and three external project-material links
+- adds no apartments, leads, meetings, tasks, customers, or client data
+- keeps the inventory total at 12 while storing 16 existing and 12 new apartments separately
+- is idempotent for the canonical `ha-arava-11-holon` / `ARV` record
+- aborts instead of overwriting when a possible duplicate name, address, or project code is found
+
 ## Apply The Storage Path Migration
 
 Before using project logo or main image uploads, apply:
