@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { MarketingData, StorageObjectRef } from "./loadPresentation.js";
+import { cleanSecret } from "./safety.js";
 import type {
   MarketingApartmentRow,
   MarketingDocumentRow,
@@ -26,8 +27,8 @@ let cachedClient: SupabaseClient | null = null;
 function getClient() {
   if (cachedClient) return cachedClient;
 
-  const url = process.env.MARKETING_SUPABASE_URL?.trim();
-  const serviceRoleKey = process.env.MARKETING_SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const url = cleanSecret(process.env.MARKETING_SUPABASE_URL);
+  const serviceRoleKey = cleanSecret(process.env.MARKETING_SUPABASE_SERVICE_ROLE_KEY);
   if (!url || !serviceRoleKey) throw new MarketingConfigurationError();
 
   cachedClient = createClient(url, serviceRoleKey, {
