@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveUser, type MarketingReader } from "./access";
 
-const u = { id: "u1", email: "user@example.com", full_name: "דנה לוי", role: "marketer", active: true, deleted_at: null };
+const u = { id: "u1", email: "user@example.com", full_name: "דנה לוי", role: "marketer", active: true, deleted_at: null as string | null };
 
 function reader(options: {
   user?: typeof u | null;

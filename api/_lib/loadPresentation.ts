@@ -1,0 +1,133 @@
+import type { Apartment, Project } from "../../src/types";
+import { resolveUser, type MarketingReader, type PresentationUser, type ProjectScope } from "./access.js";
+import { EXCLUDED_PROJECT_IDS, mapApartment, mapProject } from "./mapping.js";
+import type {
+  MarketingApartmentRow,
+  MarketingDocumentRow,
+  MarketingProjectRow,
+  MarketingRenderRow,
+} from "./types";
+
+export const SIGNED_URL_TTL_SECONDS = 21600;
+
+export interface StorageObjectRef {
+  bucket: string;
+  path: string;
+}
+
+export interface MarketingData extends MarketingReader {
+  /** Returns the auth user id for a valid access token, otherwise null. */
+  verifyToken(token: string): Promise<string | null>;
+  listProjects(scope: ProjectScope): Promise<MarketingProjectRow[]>;
+  listApartments(projectIds: string[]): Promise<MarketingApartmentRow[]>;
+  listRenders(projectIds: string[]): Promise<MarketingRenderRow[]>;
+  listDocuments(projectIds: string[]): Promise<MarketingDocumentRow[]>;
+  /** Result is keyed by `${bucket}/${path}`. */
+  signUrls(items: StorageObjectRef[], ttlSeconds: number): Promise<Map<string, string>>;
+}
+
+export interface PresentationPayload {
+  user: PresentationUser;
+  projects: Project[];
+  apartments: Apartment[];
+  generatedAt: string;
+}
+
+export type PresentationResult =
+  | { status: 200; body: PresentationPayload }
+  | { status: 401 | 403; body: { error: string } };
+
+function readBearer(header: string | undefined) {
+  const match = /^Bearer\s+(.+)$/i.exec(header?.trim() ?? "");
+  return match ? match[1].trim() : null;
+}
+
+function byKey<T>(rows: T[], keyOf: (row: T) => string) {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    const group = groups.get(key);
+    if (group) group.push(row);
+    else groups.set(key, [row]);
+  }
+  return groups;
+}
+
+function compareProjects(a: MarketingProjectRow, b: MarketingProjectRow) {
+  const aOrder = a.sort_order ?? Number.MAX_SAFE_INTEGER;
+  const bOrder = b.sort_order ?? Number.MAX_SAFE_INTEGER;
+  if (aOrder !== bOrder) return aOrder - bOrder;
+  return a.name.localeCompare(b.name, "he");
+}
+
+function compareApartments(a: MarketingApartmentRow, b: MarketingApartmentRow) {
+  const floorDelta = (a.floor ?? 0) - (b.floor ?? 0);
+  if (floorDelta !== 0) return floorDelta;
+  return (a.apartment_number ?? "").localeCompare(b.apartment_number ?? "", "he", { numeric: true });
+}
+
+export async function loadPresentation(data: MarketingData, bearer: string | undefined): Promise<PresentationResult> {
+  const token = readBearer(bearer);
+  if (!token) return { status: 401, body: { error: "נדרשת התחברות." } };
+
+  const authUserId = await data.verifyToken(token);
+  if (!authUserId) return { status: 401, body: { error: "נדרשת התחברות." } };
+
+  const resolved = await resolveUser(data, authUserId);
+  if (!resolved) return { status: 403, body: { error: "אין הרשאה למערכת המצגות." } };
+
+  const { user, scope } = resolved;
+  const generatedAt = new Date().toISOString();
+  if (scope !== null && scope.length === 0) {
+    return { status: 200, body: { user, projects: [], apartments: [], generatedAt } };
+  }
+
+  const projectRows = (await data.listProjects(scope))
+    .filter((row) => !row.deleted_at && !EXCLUDED_PROJECT_IDS.includes(row.id))
+    .filter((row) => scope === null || scope.includes(row.id))
+    .sort(compareProjects);
+  const projectIds = projectRows.map((row) => row.id);
+  if (projectIds.length === 0) {
+    return { status: 200, body: { user, projects: [], apartments: [], generatedAt } };
+  }
+
+  const [apartmentRowsRaw, renderRows, documentRows] = await Promise.all([
+    data.listApartments(projectIds),
+    data.listRenders(projectIds),
+    data.listDocuments(projectIds),
+  ]);
+  const inScope = new Set(projectIds);
+  const apartmentRows = apartmentRowsRaw
+    .filter((row) => !row.deleted_at && inScope.has(row.project_id))
+    .sort(compareApartments);
+
+  const storageObjects = [...renderRows, ...documentRows]
+    .filter((row) => inScope.has(row.project_id))
+    .map((row) => ({ bucket: row.storage_bucket, path: row.storage_path }));
+  const signedUrls = storageObjects.length
+    ? await data.signUrls(storageObjects, SIGNED_URL_TTL_SECONDS)
+    : new Map<string, string>();
+  const urlFor = (bucket: string, path: string) => signedUrls.get(`${bucket}/${path}`);
+
+  const apartmentsByProject = byKey(apartmentRows, (row) => row.project_id);
+  const rendersByProject = byKey(renderRows, (row) => row.project_id);
+  const documentsByProject = byKey(documentRows, (row) => row.project_id);
+
+  return {
+    status: 200,
+    body: {
+      user,
+      projects: projectRows.map((row) =>
+        mapProject(
+          row,
+          rendersByProject.get(row.id) ?? [],
+          documentsByProject.get(row.id) ?? [],
+          apartmentsByProject.get(row.id) ?? [],
+          urlFor,
+        ),
+      ),
+      apartments: apartmentRows.map(mapApartment),
+      generatedAt,
+    },
+  };
+}
