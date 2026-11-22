@@ -137,6 +137,8 @@ export interface Project {
     penthouses: string;
   };
   gallery: Record<GalleryCategory, string[]>;
+  /** Short caption per gallery image url ("דירה 26 · מטבח"); "" or missing when the file name says nothing. */
+  galleryCaptions?: Record<string, string>;
   materialFileCounts?: Partial<Record<string, number>>;
   projectFiles?: ProjectFile[];
   technicalSpecNotes?: string[];

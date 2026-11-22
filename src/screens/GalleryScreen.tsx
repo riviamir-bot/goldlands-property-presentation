@@ -44,13 +44,20 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
     );
   }
 
+  const caption = project.galleryCaptions?.[images[current]] || t("gallery.projectRender");
+
   const PrevIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
   const NextIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
 
   return (
     <section className={isFullscreen ? "gallery-screen gallery-screen--fullscreen" : "gallery-screen"}>
       <div className="gallery-frame">
-        <ZoomableImage key={images[current]} src={images[current]} alt={`${project.name} - ${t("gallery.image", { n: current + 1 })}`} />
+        <ZoomableImage key={images[current]} src={images[current]} alt={`${project.name} - ${caption}`} />
+
+        <div className="gallery-caption" aria-live="polite">
+          <span className="gallery-caption__title" dir="auto">{caption}</span>
+          <span className="gallery-caption__note">{t("gallery.illustrative")}</span>
+        </div>
 
         {images.length > 1 && (
           <>
@@ -88,7 +95,8 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
               key={image}
               className={imageIndex === current ? "gallery-thumb active" : "gallery-thumb"}
               onClick={() => setIndex(imageIndex)}
-              aria-label={t("gallery.image", { n: imageIndex + 1 })}
+              aria-label={project.galleryCaptions?.[image] || t("gallery.image", { n: imageIndex + 1 })}
+              title={project.galleryCaptions?.[image] || undefined}
               aria-current={imageIndex === current}
             >
               <img src={image} alt="" loading="lazy" />

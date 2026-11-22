@@ -1,3 +1,4 @@
+import { renderCaption } from "./renderCaption.js";
 import type { Apartment, ApartmentStatus, Project, ProjectFile, ProjectFileAssociation } from "../../src/types";
 import type {
   MarketingApartmentRow,
@@ -172,9 +173,15 @@ export function mapProject(
   const name = row.name.trim();
   const city = (row.city ?? "").trim();
   const address = (row.address ?? "").trim();
-  const imageUrls = sortRenders(renders)
-    .map((render) => urlFor(render.storage_bucket, render.storage_path))
-    .filter((url): url is string => Boolean(url));
+  const galleryCaptions: Record<string, string> = {};
+  const apartmentNumbers = new Set(apartments.map((item) => String(item.apartment_number ?? "").trim()).filter(Boolean));
+  const imageUrls: string[] = [];
+  for (const render of sortRenders(renders)) {
+    const url = urlFor(render.storage_bucket, render.storage_path);
+    if (!url) continue;
+    imageUrls.push(url);
+    galleryCaptions[url] = renderCaption(render.filename, name, apartmentNumbers.size ? apartmentNumbers : undefined);
+  }
   const heroImage = imageUrls[0] ?? "";
   const unitCount = numberOrZero(row.new_units) || numberOrZero(row.units);
   const countRooms = (rooms: number) => String(apartments.filter((item) => numberOrZero(item.rooms) === rooms).length);
@@ -218,6 +225,7 @@ export function mapProject(
       penthouses: "",
     },
     gallery: { exterior: imageUrls, interior: [], lobby: [], surroundings: [] },
+    galleryCaptions,
     projectFiles: mapDocuments(documents, urlFor),
     technicalSpecNotes: [],
     technicalSpecSections: [],

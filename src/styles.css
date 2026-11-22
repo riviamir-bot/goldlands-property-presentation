@@ -5589,6 +5589,47 @@ a.gold-button {
   direction: ltr;
 }
 
+.gallery-caption {
+  position: absolute;
+  inset-block-start: 14px;
+  inset-inline-start: 14px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: min(70%, 420px);
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(5, 5, 5, 0.62);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.gallery-caption__title {
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.gallery-caption__note {
+  color: var(--gold-light);
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+@media (max-width: 760px) {
+  .gallery-caption {
+    inset-block-start: 8px;
+    inset-inline-start: 8px;
+    padding: 5px 10px;
+  }
+
+  .gallery-caption__title {
+    font-size: 0.85rem;
+  }
+}
+
 .gallery-thumbs {
   display: flex;
   gap: 10px;

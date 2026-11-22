@@ -84,6 +84,12 @@ describe("mapping", () => {
     expect(none.gallery.exterior).toEqual([]);
   });
 
+  it("captions each render from its file name, keyed by its signed url", () => {
+    const named = { ...r2, filename: "בן יהודה 59 -דירה 26- מטבח.jpg" };
+    const project = mapProject({ ...projectRow, name: "בן יהודה 59 תל אביב" }, [named], [], [], urlFor);
+    expect(project.galleryCaptions).toEqual({ [urlFor(named.storage_bucket, named.storage_path)]: "דירה 26 · מטבח" });
+  });
+
   it("skips renders whose url could not be signed", () => {
     const partial = (bucket: string, path: string) => (path.includes("r2") ? undefined : urlFor(bucket, path));
     expect(mapProject(projectRow, [r2, r3], [], [], partial).gallery.exterior).toEqual([
