@@ -182,7 +182,10 @@ export function mapProject(
     imageUrls.push(url);
     galleryCaptions[url] = renderCaption(render.filename, name, apartmentNumbers.size ? apartmentNumbers : undefined);
   }
-  const heroImage = imageUrls[0] ?? "";
+  // Hero: a render marked featured, else one that shows the building, else an exterior, else the first.
+  const featured = renders.some((render) => render.is_featured);
+  const captionHas = (term: string) => imageUrls.find((url) => galleryCaptions[url]?.includes(term));
+  const heroImage = (featured ? imageUrls[0] : captionHas("הבניין") ?? captionHas("הדמיית חוץ") ?? imageUrls[0]) ?? "";
   const unitCount = numberOrZero(row.new_units) || numberOrZero(row.units);
   const countRooms = (rooms: number) => String(apartments.filter((item) => numberOrZero(item.rooms) === rooms).length);
 

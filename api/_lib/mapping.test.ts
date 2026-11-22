@@ -90,6 +90,18 @@ describe("mapping", () => {
     expect(project.galleryCaptions).toEqual({ [urlFor(named.storage_bucket, named.storage_path)]: "דירה 26 · מטבח" });
   });
 
+  it("uses a building render as hero ahead of other renders, an exterior one next", () => {
+    const interior = { ...r2, filename: "פרויקט - דירה 26 - מטבח.jpg" };
+    const exterior = { ...r3, filename: "פרויקט - חוץ 02.jpg" };
+    const building = { ...render("r4", 9), filename: "פרויקט - בניין 03.jpg" };
+    const hero = (rows: typeof r2[]) => mapProject(projectRow, rows, [], [], urlFor).heroImage;
+    const urlOf = (row: typeof r2) => urlFor(row.storage_bucket, row.storage_path);
+    expect(hero([interior, exterior, building])).toBe(urlOf(building));
+    expect(hero([interior, exterior])).toBe(urlOf(exterior));
+    expect(hero([interior])).toBe(urlOf(interior));
+    expect(hero([interior, building, r1Featured])).toBe(urlOf(r1Featured));
+  });
+
   it("skips renders whose url could not be signed", () => {
     const partial = (bucket: string, path: string) => (path.includes("r2") ? undefined : urlFor(bucket, path));
     expect(mapProject(projectRow, [r2, r3], [], [], partial).gallery.exterior).toEqual([
