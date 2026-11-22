@@ -54,9 +54,9 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
       <div className="gallery-frame">
         <ZoomableImage key={images[current]} src={images[current]} alt={`${project.name} - ${caption}`} />
 
-        <div className="gallery-caption" aria-live="polite">
-          <span className="gallery-caption__title" dir="auto">{caption}</span>
-          <span className="gallery-caption__note">{t("gallery.illustrative")}</span>
+        <div className="render-caption" aria-live="polite">
+          <span className="render-caption__title" dir="auto">{caption}</span>
+          <span className="render-caption__note">{t("gallery.illustrative")}</span>
         </div>
 
         {images.length > 1 && (
