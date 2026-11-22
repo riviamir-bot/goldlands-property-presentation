@@ -16,7 +16,7 @@
 - Never read `leads`, `clients`, budget, campaign or Meta tables. Never return `projects.notes`, `projects.next_milestone`, `project_apartments.notes`, media-budget columns, or any marketer contact detail.
 - The service-role key exists only in server env `MARKETING_SUPABASE_SERVICE_ROLE_KEY`. Nothing prefixed `VITE_` may hold it. The repository is public: no key, token or email address is committed.
 - Env names: server `MARKETING_SUPABASE_URL`, `MARKETING_SUPABASE_SERVICE_ROLE_KEY`; browser `VITE_MARKETING_SUPABASE_URL`, `VITE_MARKETING_SUPABASE_ANON_KEY`.
-- Excluded projects: rows with `deleted_at` set, and rows whose `lifecycle_status`/`status` mark them as not marketed are still returned if in scope; the two test projects are excluded by id list `EXCLUDED_PROJECT_IDS` in `api/_lib/mapping.ts` (`1d02af7d-d119-47ac-bec8-2f11149f848e`, `71e9deae-2d8b-4776-822c-3788e8a38c99`).
+- Excluded projects: rows with `deleted_at` set, and the two test projects by id list `EXCLUDED_PROJECT_IDS` in `api/_lib/mapping.ts` (`1d02af7d-d119-47ac-bec8-2f11149f848e`, `71e9deae-2d8b-4776-822c-3788e8a38c99`). Every other in-scope project is returned whatever its status.
 - Status mapping: `available` -> `available`, `negotiation` -> `reserved`, `sold` -> `sold`, anything else -> `notMarketing`. A `sold` apartment is returned with `price: 0` and `specialPrice: 0`.
 - Project type mapping (normalise quotes and slashes first): contains `38/2` -> `תמ״א 38/2 / פינוי בינוי`; contains `38/1` -> `תמ״א 38/1`; otherwise `פרויקט חדש`.
 - Role mapping: marketing `admin` -> app `admin`; `team` -> `sales` with all projects; `marketer` -> `sales` with assigned projects only.
@@ -123,7 +123,7 @@ it("scopes a marketer to assigned projects", async () => {
 it("gives a marketer with no marketer row an empty scope, not everything", async () => {
   expect((await resolveUser(reader({ user: { ...u, role: "marketer" }, marketerId: null }), "a"))?.scope).toEqual([]);
 });
-it("treats an unknown role as team is NOT allowed: unknown role -> marketer rules", async () => {
+it("applies marketer rules to an unknown role", async () => {
   expect((await resolveUser(reader({ user: { ...u, role: "something" }, marketerId: null }), "a"))?.scope).toEqual([]);
 });
 ```
