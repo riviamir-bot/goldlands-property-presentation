@@ -12,6 +12,7 @@ import {
   type PlaceCategory,
 } from "../services/geo";
 import type { Project } from "../types";
+import { escapeHtml } from "../utils/html";
 
 const CATEGORY_STYLE: Record<PlaceCategory, { color: string; icon: typeof Star }> = {
   education: { color: "#8ca8d8", icon: GraduationCap },
@@ -84,7 +85,7 @@ export function LocationScreen({ project }: { project: Project }) {
     }).addTo(map);
     L.marker([point.value.lat, point.value.lon], { icon: projectIcon, zIndexOffset: 1000 })
       .addTo(map)
-      .bindTooltip(project.name, { permanent: true, direction: "top", offset: [0, -16], className: "map-project-label" });
+      .bindTooltip(escapeHtml(project.name), { permanent: true, direction: "top", offset: [0, -16], className: "map-project-label" });
     L.circle([point.value.lat, point.value.lon], { radius: 1000, color: "#d6b25e", weight: 1, opacity: 0.5, fillOpacity: 0.03 }).addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
@@ -228,6 +229,3 @@ export function LocationScreen({ project }: { project: Project }) {
   );
 }
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
-}
