@@ -6216,3 +6216,205 @@ body.has-fullscreen-layer {
   direction: ltr;
   text-align: left;
 }
+
+/* Client summary dialog */
+.drawer-backdrop--center {
+  justify-content: center !important;
+  align-items: center;
+}
+
+.share-dialog {
+  width: min(520px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--charcoal);
+  box-shadow: var(--shadow-premium);
+}
+
+.share-dialog__body {
+  display: grid;
+  gap: 16px;
+  padding: 18px 22px 22px;
+}
+
+.share-dialog__intro {
+  margin: 0;
+  color: var(--muted);
+}
+
+.share-dialog__apartments {
+  margin: 6px 0 0;
+  padding-inline-start: 18px;
+  line-height: 1.8;
+}
+
+.share-dialog__check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.share-dialog__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--gold);
+}
+
+.share-dialog__field {
+  display: grid;
+  gap: 6px;
+}
+
+.share-dialog__field span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.share-dialog__field input,
+.share-dialog__field select {
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.share-dialog__error {
+  margin: 0;
+  color: var(--red);
+}
+
+.share-dialog__ready {
+  display: grid;
+  gap: 12px;
+}
+
+.share-dialog__ready strong {
+  color: var(--green);
+}
+
+.share-dialog__link {
+  padding: 10px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
+.share-dialog__ready .action-row a,
+.share-dialog__ready .action-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.share-dialog__ready small {
+  color: var(--muted);
+}
+
+/* Client summary page */
+.client-share {
+  min-height: 100vh;
+  background: var(--black);
+}
+
+.client-share__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+}
+
+.client-share__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.client-share__header-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.client-share__agent {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.client-share__main {
+  display: grid;
+  gap: 36px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.client-share__section > h2 {
+  margin: 0 0 14px;
+  color: var(--gold-light);
+}
+
+.client-share__apartments {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px;
+}
+
+.client-apartment {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.client-apartment header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.client-apartment h3 {
+  margin: 0;
+  color: var(--gold-light);
+}
+
+.client-apartment dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.client-apartment dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.client-apartment dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .client-share__header {
+    flex-wrap: wrap;
+    padding: 10px 14px;
+  }
+
+  .client-share__main {
+    padding: 14px;
+  }
+
+  .client-share__agent {
+    display: none;
+  }
+}

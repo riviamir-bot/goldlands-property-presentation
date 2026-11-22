@@ -36,6 +36,9 @@ export interface MarketingApartmentRow {
   price: number | null;
   status: string | null;
   deleted_at: string | null;
+  plan_storage_path?: string | null;
+  plan_filename?: string | null;
+  plan_content_type?: string | null;
 }
 
 export interface MarketingRenderRow {
@@ -60,3 +63,18 @@ export interface MarketingDocumentRow {
 }
 
 export type SignedUrlLookup = (bucket: string, path: string) => string | undefined;
+
+export interface ShareLinkRow {
+  id: string;
+  project_id: string;
+  created_by: string | null;
+  apartment_ids: string[];
+  show_prices: boolean;
+  language: string;
+  expires_at: string;
+  revoked_at: string | null;
+  view_count: number;
+  last_viewed_at: string | null;
+}
+
+export type UsageEventType = "project_opened" | "share_link_created" | "share_link_viewed";

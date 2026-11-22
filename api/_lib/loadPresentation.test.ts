@@ -70,6 +70,12 @@ function fake(options: {
       calls.listDocuments += 1;
       return [documentRow("d1", "p1")].filter((row) => ids.includes(row.project_id));
     },
+    insertUsageEvent: async () => undefined,
+    hasRecentUsageEvent: async () => false,
+    insertShareLink: async () => ({ id: "l" }),
+    findShareLink: async () => null,
+    markShareLinkViewed: async () => undefined,
+    getAgentContact: async () => null,
     signUrls: async (items, ttlSeconds) => {
       calls.signUrls.push({ count: items.length, ttlSeconds });
       return new Map(items.map((item) => [`${item.bucket}/${item.path}`, `https://signed/${item.path}`]));

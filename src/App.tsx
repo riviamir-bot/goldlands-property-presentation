@@ -4,6 +4,7 @@ import { ApartmentDrawer } from "./components/ApartmentDrawer";
 import { AppShell } from "./components/AppShell";
 import { CompareDialog } from "./components/CompareDialog";
 import { ProjectSectionNav } from "./components/ProjectSectionNav";
+import { ShareDialog } from "./components/ShareDialog";
 import { usePresentationSession, signInMessages } from "./hooks/usePresentationSession";
 import { usePresentationState } from "./hooks/usePresentationState";
 import { useI18n } from "./i18n/LanguageContext";
@@ -21,16 +22,9 @@ import { visibleSections } from "./utils/sections";
 
 type ProjectScreen = Exclude<Screen, "login" | "projects">;
 
-export interface AppExtensions {
-  /** Rendered in the project header when apartments are selected for the client. */
-  renderShare?: (props: { projectId: string; apartmentIds: string[]; showPrices: boolean; onClose: () => void }) => React.ReactNode;
-  onProjectOpened?: (projectId: string) => void;
-  isHandoff?: boolean;
-}
-
-export default function App({ renderShare, onProjectOpened, isHandoff = false }: AppExtensions = {}) {
+export default function App() {
   const { t } = useI18n();
-  const { state, isConfigured, signIn, signOut } = usePresentationSession();
+  const { state, isConfigured, signIn, signOut, withToken, recordProjectOpened } = usePresentationSession();
   const [screen, setScreen] = useState<Screen>("projects");
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [planApartmentId, setPlanApartmentId] = useState<string | null>(null);
@@ -90,7 +84,7 @@ export default function App({ renderShare, onProjectOpened, isHandoff = false }:
       : state.phase === "forbidden"
         ? signInMessages.forbidden
         : (signInError ?? state.error);
-    return <LoginScreen error={error} isConfigured={isConfigured} isLoading={isSigningIn} isHandoff={isHandoff} onLogin={handleLogin} />;
+    return <LoginScreen error={error} isConfigured={isConfigured} isLoading={isSigningIn} onLogin={handleLogin} />;
   }
 
   const notice = state.needsReconnect ? (
@@ -111,7 +105,7 @@ export default function App({ renderShare, onProjectOpened, isHandoff = false }:
     setPlanApartmentId(null);
     setOpenApartmentId(null);
     setScreen("opening");
-    onProjectOpened?.(projectId);
+    recordProjectOpened(projectId);
   };
 
   if (screen === "projects" || !selectedProject) {
@@ -153,7 +147,7 @@ export default function App({ renderShare, onProjectOpened, isHandoff = false }:
           {t("compare.button", { count: comparedApartments.length })}
         </button>
       )}
-      {renderShare && selectedIds.length > 0 && (
+      {selectedIds.length > 0 && (
         <button className="gold-button gold-button--compact" type="button" onClick={() => setIsShareOpen(true)} title={t("selection.count", { count: selectedIds.length })}>
           <Send size={16} />
           {t("selection.summary")} ({selectedIds.length})
@@ -222,13 +216,15 @@ export default function App({ renderShare, onProjectOpened, isHandoff = false }:
         />
       )}
 
-      {isShareOpen &&
-        renderShare?.({
-          projectId: selectedProject.id,
-          apartmentIds: selectedIds,
-          showPrices: meeting.showPrices,
-          onClose: () => setIsShareOpen(false),
-        })}
+      {isShareOpen && selectedIds.length > 0 && (
+        <ShareDialog
+          project={selectedProject}
+          apartments={openApartments.filter((apartment) => meeting.selection.has(apartment.id))}
+          defaultShowPrices={meeting.showPrices}
+          withToken={withToken}
+          onClose={() => setIsShareOpen(false)}
+        />
+      )}
     </>
   );
 }

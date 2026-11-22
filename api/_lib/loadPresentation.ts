@@ -1,11 +1,13 @@
 import type { Apartment, Project } from "../../src/types";
 import { resolveUser, type MarketingReader, type PresentationUser, type ProjectScope } from "./access.js";
-import { EXCLUDED_PROJECT_IDS, mapApartment, mapProject } from "./mapping.js";
+import { EXCLUDED_PROJECT_IDS, mapApartment, mapProject, PLAN_BUCKET } from "./mapping.js";
 import type {
   MarketingApartmentRow,
   MarketingDocumentRow,
   MarketingProjectRow,
   MarketingRenderRow,
+  ShareLinkRow,
+  UsageEventType,
 } from "./types";
 
 export const SIGNED_URL_TTL_SECONDS = 21600;
@@ -24,6 +26,39 @@ export interface MarketingData extends MarketingReader {
   listDocuments(projectIds: string[]): Promise<MarketingDocumentRow[]>;
   /** Result is keyed by `${bucket}/${path}`. */
   signUrls(items: StorageObjectRef[], ttlSeconds: number): Promise<Map<string, string>>;
+  /** The only writes: presentation usage events and client summary links. */
+  insertUsageEvent(event: { projectId: string; userId: string | null; eventType: UsageEventType; shareLinkId?: string | null }): Promise<void>;
+  hasRecentUsageEvent(input: { userId: string; projectId: string; eventType: UsageEventType; since: string }): Promise<boolean>;
+  insertShareLink(row: {
+    token_hash: string;
+    project_id: string;
+    created_by: string;
+    apartment_ids: string[];
+    show_prices: boolean;
+    language: string;
+    expires_at: string;
+  }): Promise<{ id: string }>;
+  findShareLink(tokenHash: string): Promise<(ShareLinkRow & { token_hash: string }) | null>;
+  markShareLinkViewed(id: string, viewCount: number, at: string): Promise<void>;
+  getAgentContact(userId: string): Promise<{ name: string; phone: string } | null>;
+}
+
+export type AuthenticationResult =
+  | { ok: true; user: PresentationUser; scope: ProjectScope }
+  | { ok: false; status: 401 | 403; body: { error: string } };
+
+/** Verifies the bearer token and resolves the marketing user and their project scope. */
+export async function authenticate(data: MarketingData, bearer: string | undefined): Promise<AuthenticationResult> {
+  const token = readBearer(bearer);
+  if (!token) return { ok: false, status: 401, body: { error: "נדרשת התחברות." } };
+
+  const authUserId = await data.verifyToken(token);
+  if (!authUserId) return { ok: false, status: 401, body: { error: "נדרשת התחברות." } };
+
+  const resolved = await resolveUser(data, authUserId);
+  if (!resolved) return { ok: false, status: 403, body: { error: "אין הרשאה למערכת המצגות." } };
+
+  return { ok: true, ...resolved };
 }
 
 export interface PresentationPayload {
@@ -67,16 +102,10 @@ function compareApartments(a: MarketingApartmentRow, b: MarketingApartmentRow) {
 }
 
 export async function loadPresentation(data: MarketingData, bearer: string | undefined): Promise<PresentationResult> {
-  const token = readBearer(bearer);
-  if (!token) return { status: 401, body: { error: "נדרשת התחברות." } };
+  const auth = await authenticate(data, bearer);
+  if (!auth.ok) return { status: auth.status, body: auth.body };
 
-  const authUserId = await data.verifyToken(token);
-  if (!authUserId) return { status: 401, body: { error: "נדרשת התחברות." } };
-
-  const resolved = await resolveUser(data, authUserId);
-  if (!resolved) return { status: 403, body: { error: "אין הרשאה למערכת המצגות." } };
-
-  const { user, scope } = resolved;
+  const { user, scope } = auth;
   const generatedAt = new Date().toISOString();
   if (scope !== null && scope.length === 0) {
     return { status: 200, body: { user, projects: [], apartments: [], generatedAt } };
@@ -101,9 +130,14 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
     .filter((row) => !row.deleted_at && inScope.has(row.project_id))
     .sort(compareApartments);
 
-  const storageObjects = [...renderRows, ...documentRows]
-    .filter((row) => inScope.has(row.project_id))
-    .map((row) => ({ bucket: row.storage_bucket, path: row.storage_path }));
+  const storageObjects = [
+    ...[...renderRows, ...documentRows]
+      .filter((row) => inScope.has(row.project_id))
+      .map((row) => ({ bucket: row.storage_bucket, path: row.storage_path })),
+    ...apartmentRows
+      .filter((row) => row.plan_storage_path)
+      .map((row) => ({ bucket: PLAN_BUCKET, path: row.plan_storage_path as string })),
+  ];
   const signedUrls = storageObjects.length
     ? await data.signUrls(storageObjects, SIGNED_URL_TTL_SECONDS)
     : new Map<string, string>();
@@ -126,7 +160,7 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
           urlFor,
         ),
       ),
-      apartments: apartmentRows.map(mapApartment),
+      apartments: apartmentRows.map((row) => mapApartment(row, urlFor)),
       generatedAt,
     },
   };

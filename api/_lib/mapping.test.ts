@@ -167,4 +167,19 @@ describe("mapping", () => {
     expect(mapProject({ ...projectRow, additional_links: [{ label: "תלת מימד", url: "http://insecure.example" }] }, [], [], [], urlFor).model3dUrl).toBe("");
     expect(mapProject({ ...projectRow, additional_links: "garbage" }, [], [], [], urlFor).model3dUrl).toBe("");
   });
+
+  it("attaches a signed plan to an apartment that has one", () => {
+    const withPlan = mapApartment(
+      { ...aptRow, plan_storage_path: "p1/apartment-plans/a1/x.pdf", plan_filename: "דירה 7.pdf", plan_content_type: "application/pdf" },
+      (bucket, path) => `https://signed/${bucket}/${path}`,
+    );
+    expect(withPlan).toMatchObject({
+      planAttached: true,
+      planUrl: "https://signed/project-materials/p1/apartment-plans/a1/x.pdf",
+      planFileName: "דירה 7.pdf",
+      planContentType: "application/pdf",
+    });
+    expect(mapApartment({ ...aptRow, plan_storage_path: "p1/x.pdf" }, () => undefined).planAttached).toBe(false);
+    expect(mapApartment(aptRow).planAttached).toBe(false);
+  });
 });

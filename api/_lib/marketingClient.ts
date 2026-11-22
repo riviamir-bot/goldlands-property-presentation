@@ -6,12 +6,13 @@ import type {
   MarketingDocumentRow,
   MarketingProjectRow,
   MarketingRenderRow,
+  ShareLinkRow,
 } from "./types";
 
 const PROJECT_COLUMNS =
   "id, slug, name, address, city, status, units, new_units, existing_units, building_count, description, project_type, construction_stage, block, parcel, sort_order, deleted_at, developer_company, financing_bank, construction_start_date, construction_completion_date, project_website_url, additional_links";
 const APARTMENT_COLUMNS =
-  "id, project_id, apartment_number, building, floor, rooms, area, balcony_area, price, status, deleted_at";
+  "id, project_id, apartment_number, building, floor, rooms, area, balcony_area, price, status, deleted_at, plan_storage_path, plan_filename, plan_content_type";
 const RENDER_COLUMNS = "id, project_id, filename, storage_bucket, storage_path, sort_order, is_featured, modified_at";
 const DOCUMENT_COLUMNS = "id, project_id, document_type, filename, storage_bucket, storage_path, created_at";
 
@@ -108,6 +109,57 @@ export function createMarketingData(): MarketingData {
         .in("project_id", projectIds)
         .in("document_type", ["price_list", "presentation"]);
       return unwrap(result, []) as MarketingDocumentRow[];
+    },
+
+    async insertUsageEvent(event) {
+      const { error } = await client.from("presentation_usage_events").insert({
+        project_id: event.projectId,
+        user_id: event.userId,
+        event_type: event.eventType,
+        share_link_id: event.shareLinkId ?? null,
+      });
+      if (error) throw new Error(error.message);
+    },
+
+    async hasRecentUsageEvent({ userId, projectId, eventType, since }) {
+      const { count, error } = await client
+        .from("presentation_usage_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("project_id", projectId)
+        .eq("event_type", eventType)
+        .gte("created_at", since);
+      if (error) throw new Error(error.message);
+      return (count ?? 0) > 0;
+    },
+
+    async insertShareLink(row) {
+      const result = await client.from("presentation_share_links").insert(row).select("id").single();
+      return unwrap(result, { id: "" }) as { id: string };
+    },
+
+    async findShareLink(tokenHash) {
+      const result = await client
+        .from("presentation_share_links")
+        .select("id, project_id, created_by, apartment_ids, show_prices, language, expires_at, revoked_at, view_count, last_viewed_at, token_hash")
+        .eq("token_hash", tokenHash)
+        .maybeSingle();
+      return unwrap(result, null) as (ShareLinkRow & { token_hash: string }) | null;
+    },
+
+    async markShareLinkViewed(id, viewCount, at) {
+      const { error } = await client.from("presentation_share_links").update({ view_count: viewCount, last_viewed_at: at }).eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+
+    async getAgentContact(userId) {
+      const [{ data: user }, { data: marketer }] = await Promise.all([
+        client.from("users").select("full_name, active, deleted_at").eq("id", userId).maybeSingle(),
+        client.from("marketers").select("whatsapp_phone, phone").eq("user_id", userId).eq("is_active", true).maybeSingle(),
+      ]);
+      if (!user || !user.active || user.deleted_at) return null;
+      const phone = ((marketer?.whatsapp_phone as string | null) || (marketer?.phone as string | null) || "").trim();
+      return { name: ((user.full_name as string) || "").trim(), phone };
     },
 
     async signUrls(items: StorageObjectRef[], ttlSeconds: number) {

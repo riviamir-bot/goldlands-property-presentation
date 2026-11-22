@@ -86,9 +86,14 @@ export function mapProjectType(value: string | null): Project["projectType"] {
   return "פרויקט חדש";
 }
 
-export function mapApartment(row: MarketingApartmentRow): Apartment {
+/** Bucket that holds apartment plans in the marketing system. */
+export const PLAN_BUCKET = "project-materials";
+
+export function mapApartment(row: MarketingApartmentRow, urlFor?: SignedUrlLookup): Apartment {
   const status = mapApartmentStatus(row.status);
   const price = status === "sold" ? 0 : numberOrZero(row.price);
+
+  const planUrl = row.plan_storage_path && urlFor ? urlFor(PLAN_BUCKET, row.plan_storage_path) : undefined;
 
   return {
     id: row.id,
@@ -105,7 +110,10 @@ export function mapApartment(row: MarketingApartmentRow): Apartment {
     price,
     specialPrice: 0,
     status,
-    planAttached: false,
+    planAttached: Boolean(planUrl),
+    ...(planUrl
+      ? { planUrl, planFileName: row.plan_filename ?? "", planContentType: row.plan_content_type ?? "" }
+      : {}),
     notes: "",
   };
 }
