@@ -11,16 +11,6 @@ import {
 import { SectionButton } from "./SectionButton";
 import type { Screen } from "../types";
 
-export const projectSectionScreens: Screen[] = [
-  "opening",
-  "apartments",
-  "prices",
-  "gallery",
-  "plans",
-  "technical",
-  "location",
-];
-
 const sections = [
   { title: "תצוגת פרויקט", screen: "opening", icon: Landmark },
   { title: "דירות פנויות", screen: "apartments", icon: Home },
@@ -37,12 +27,15 @@ const sections = [
 
 interface ProjectSectionNavProps {
   active: Screen;
+  /** Sections that have content for this project, in display order. */
+  visible: Screen[];
   onNavigate: (screen: Screen) => void;
   variant?: "grid" | "tabs";
 }
 
 export function ProjectSectionNav({
   active,
+  visible,
   onNavigate,
   variant = "tabs",
 }: ProjectSectionNavProps) {
@@ -51,7 +44,7 @@ export function ProjectSectionNav({
       className={`project-section-nav project-section-nav--${variant}`}
       aria-label="ניווט פרקי פרויקט"
     >
-      {sections.map((section) => {
+      {sections.filter((section) => visible.includes(section.screen)).map((section) => {
         if (variant === "grid") {
           return (
             <SectionButton

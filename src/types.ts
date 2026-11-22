@@ -7,14 +7,7 @@ export type Screen =
   | "gallery"
   | "plans"
   | "technical"
-  | "location"
-  | "faq"
-  | "summary"
-  | "clientPreview"
-  | "readiness"
-  | "admin"
-  | "projectManagement"
-  | "importProject";
+  | "location";
 
 export type UserRole = "admin" | "sales" | "viewer";
 

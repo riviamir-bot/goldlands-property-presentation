@@ -1,16 +1,18 @@
-import { ImageOff } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { ProjectLogoSlot } from "../components/ProjectLogoSlot";
 import type { Project } from "../types";
-import { getValidProjectMainImage } from "../utils/projectImages";
 
 interface ProjectOpeningScreenProps {
   project: Project;
-  onClearMainImage?: () => void;
 }
 
-export function ProjectOpeningScreen({ project, onClearMainImage }: ProjectOpeningScreenProps) {
-  const mainImage = getValidProjectMainImage(project);
-  const overviewGroups = [
+type Row = [label: string, value: string];
+
+const hasValue = (value: string) => value.trim() !== "" && value.trim() !== "0";
+
+export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
+  const mainImage = project.heroImage;
+  const groups: Array<{ title: string; rows: Row[] }> = [
     {
       title: "פרטי מיקום",
       rows: [
@@ -48,6 +50,18 @@ export function ProjectOpeningScreen({ project, onClearMainImage }: ProjectOpeni
       ],
     },
   ];
+  const visibleGroups = groups
+    .map((group) => ({ ...group, rows: group.rows.filter(([, value]) => hasValue(value)) }))
+    .filter((group) => group.rows.length > 0);
+  const headlineStats: Row[] = (
+    [
+      ["קומות", project.stats.floors],
+      ["דירות", project.stats.units],
+      ["אכלוס", project.stats.occupancy],
+    ] as Row[]
+  ).filter(([, value]) => hasValue(value));
+  // The unit count already has its own tile; do not repeat it as a chip.
+  const facts = project.keyFacts.filter((fact) => fact !== `${project.stats.units} דירות`);
 
   return (
     <section className="panel project-overview-panel">
@@ -55,20 +69,15 @@ export function ProjectOpeningScreen({ project, onClearMainImage }: ProjectOpeni
         <section className="project-overview-visual" aria-label="הדמיית הפרויקט">
           <div
             className={mainImage ? "project-overview-image" : "project-overview-image project-overview-image--empty"}
-            style={mainImage ? { backgroundImage: `url(${mainImage})` } : undefined}
+            style={mainImage ? { backgroundImage: `url("${mainImage}")` } : undefined}
           >
             {!mainImage && (
               <div className="project-overview-image__placeholder">
-                <ImageOff size={28} />
-                <strong>לא הוגדרה תמונה ראשית</strong>
+                <Building2 size={34} strokeWidth={1.3} />
+                <strong>{project.name}</strong>
               </div>
             )}
           </div>
-          {mainImage && onClearMainImage && (
-            <button className="ghost-button project-main-image-clear" type="button" onClick={onClearMainImage}>
-              הסר תמונה ראשית
-            </button>
-          )}
         </section>
 
         <section className="project-overview-copy">
@@ -80,34 +89,32 @@ export function ProjectOpeningScreen({ project, onClearMainImage }: ProjectOpeni
                 <h2>{project.name}</h2>
               </div>
             </div>
-            <p>{project.tagline}</p>
-            <p className="project-overview-description">{project.description}</p>
+            {project.tagline && <p>{project.tagline}</p>}
+            {project.description && <p className="project-overview-description">{project.description}</p>}
           </div>
 
-          <div className="overview-stat-grid" aria-label="נתוני פרויקט מרכזיים">
-            <article>
-              <span>קומות</span>
-              <strong>{project.stats.floors}</strong>
-            </article>
-            <article>
-              <span>דירות</span>
-              <strong>{project.stats.units}</strong>
-            </article>
-            <article>
-              <span>אכלוס</span>
-              <strong>{project.stats.occupancy}</strong>
-            </article>
-          </div>
+          {headlineStats.length > 0 && (
+            <div className="overview-stat-grid" aria-label="נתוני פרויקט מרכזיים">
+              {headlineStats.map(([label, value]) => (
+                <article key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </article>
+              ))}
+            </div>
+          )}
 
-          <div className="overview-facts" aria-label="דגשי פרויקט">
-            {project.keyFacts.map((fact) => (
-              <span key={fact}>{fact}</span>
-            ))}
-          </div>
+          {facts.length > 0 && (
+            <div className="overview-facts" aria-label="דגשי פרויקט">
+              {facts.map((fact) => (
+                <span key={fact}>{fact}</span>
+              ))}
+            </div>
+          )}
 
           <div className="overview-fact-groups" aria-label="סקירת פרויקט">
-            {overviewGroups.map((group, index) => (
-              <details className="overview-fact-group" key={group.title} open={index < 3}>
+            {visibleGroups.map((group) => (
+              <details className="overview-fact-group" key={group.title} open>
                 <summary>{group.title}</summary>
                 <dl>
                   {group.rows.map(([label, value]) => (

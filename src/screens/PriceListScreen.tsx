@@ -1,6 +1,5 @@
-import { ShieldCheck } from "lucide-react";
 import { StatusBadge } from "../components/StatusBadge";
-import { formatPrice } from "../utils/format";
+import { formatNumber, formatPrice } from "../utils/format";
 import type { Apartment } from "../types";
 
 interface PriceListScreenProps {
@@ -13,43 +12,34 @@ export function PriceListScreen({ apartments }: PriceListScreenProps) {
       <div className="panel__header">
         <div>
           <span className="eyebrow">מחירון</span>
-          <h2>מחירון לקוח</h2>
+          <h2>מחירון הפרויקט</h2>
         </div>
+        <span className="count-pill">{apartments.length} דירות</span>
       </div>
 
-      <div className="pricing-layout">
-        {apartments.length > 0 ? <div className="table-wrap">
+      {apartments.length > 0 ? (
+        <div className="table-wrap">
           <table className="lux-table">
             <thead>
               <tr>
                 <th>דירה</th>
                 <th>חדרים</th>
                 <th>קומה</th>
-                <th>שטח כולל</th>
+                <th>שטח דירה</th>
                 <th>מרפסת</th>
-                <th>גינה</th>
-                <th>חניה</th>
-                <th>מחסן</th>
-                <th>כיוון</th>
                 <th>מחיר</th>
-                <th>מחיר מיוחד</th>
                 <th>סטטוס</th>
               </tr>
             </thead>
             <tbody>
               {apartments.map((apartment) => (
-                <tr key={apartment.id}>
-                  <td>{apartment.number}</td>
-                  <td>{apartment.rooms}</td>
+                <tr key={apartment.id} className={apartment.status === "sold" ? "lux-table__row--sold" : undefined}>
+                  <td>{apartment.number || "—"}</td>
+                  <td>{formatNumber(apartment.rooms)}</td>
                   <td>{apartment.floor}</td>
-                  <td>{apartment.apartmentArea + apartment.balconyArea} מ&quot;ר</td>
-                  <td>{apartment.balconyArea} מ&quot;ר</td>
-                  <td>{apartment.gardenArea ? `${apartment.gardenArea} מ"ר` : "-"}</td>
-                  <td>{apartment.parking || "-"}</td>
-                  <td>{apartment.storage || "-"}</td>
-                  <td>{apartment.direction || "-"}</td>
-                  <td>{formatPrice(apartment.price)}</td>
-                  <td className="gold-cell">{formatPrice(apartment.specialPrice)}</td>
+                  <td>{formatNumber(apartment.apartmentArea, "מ״ר")}</td>
+                  <td>{formatNumber(apartment.balconyArea, "מ״ר")}</td>
+                  <td>{apartment.status === "sold" ? "—" : formatPrice(apartment.price)}</td>
                   <td>
                     <StatusBadge status={apartment.status} />
                   </td>
@@ -57,19 +47,12 @@ export function PriceListScreen({ apartments }: PriceListScreenProps) {
               ))}
             </tbody>
           </table>
-        </div> : (
-          <div className="empty-state compact-empty-state">
-            <h3>אין עדיין דירות במחירון</h3>
-            <p>דירות שיוזנו או ייובאו בפרויקט יופיעו כאן.</p>
-          </div>
-        )}
-
-        <aside className="gold-note">
-          <ShieldCheck size={26} />
-          <strong>מחירון נקי להצגה</strong>
-          <span>מציג מחיר רשמי ומחיר מיוחד בלבד, בתצוגה ברורה לפגישת לקוח.</span>
-        </aside>
-      </div>
+        </div>
+      ) : (
+        <div className="empty-state compact-empty-state">
+          <h3>אין עדיין דירות במחירון</h3>
+        </div>
+      )}
     </section>
   );
 }
