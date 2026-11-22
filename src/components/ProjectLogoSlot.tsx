@@ -25,8 +25,8 @@ export function ProjectLogoSlot({ project, compact = false, markOnly = false }: 
       </strong>
       {!markOnly && (
         <span>
-          <b>{project?.name ?? "לוגו פרויקט"}</b>
-          {project?.location && <small>{project.location}</small>}
+          <b dir="auto">{project?.name ?? "לוגו פרויקט"}</b>
+          {project?.location && <small dir="auto">{project.location}</small>}
         </span>
       )}
     </div>

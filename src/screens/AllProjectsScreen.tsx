@@ -1,6 +1,7 @@
 import { Building2, MapPin } from "lucide-react";
 import { ProjectLogoSlot } from "../components/ProjectLogoSlot";
 import { SideNavigation } from "../components/SideNavigation";
+import { useI18n } from "../i18n/LanguageContext";
 import type { Project } from "../types";
 
 interface AllProjectsScreenProps {
@@ -12,6 +13,7 @@ interface AllProjectsScreenProps {
 }
 
 export function AllProjectsScreen({ projects, userName, notice, onSelect, onSignOut }: AllProjectsScreenProps) {
+  const { t } = useI18n();
   return (
     <div className="management-layout">
       <SideNavigation userName={userName} onProjects={() => undefined} onSignOut={onSignOut} />
@@ -20,19 +22,19 @@ export function AllProjectsScreen({ projects, userName, notice, onSelect, onSign
         {notice}
         <section className="screen-heading screen-heading--wide management-heading">
           <span className="eyebrow">GOLDLANDS</span>
-          <h1>בחרו פרויקט להצגה</h1>
+          <h1>{t("projects.title")}</h1>
         </section>
 
         {projects.length > 0 ? (
-          <section className="projects-grid" aria-label="פרויקטים">
+          <section className="projects-grid" aria-label={t("nav.allProjects")}>
             {projects.map((project) => (
               <ProjectCard key={project.id} project={project} onSelect={onSelect} />
             ))}
           </section>
         ) : (
           <div className="empty-state compact-empty-state">
-            <h2>לא שויכו אליך פרויקטים</h2>
-            <p>שיוך משווקים לפרויקטים נעשה במערכת השיווק.</p>
+            <h2>{t("projects.none")}</h2>
+            <p>{t("projects.noneHint")}</p>
           </div>
         )}
       </main>
@@ -67,7 +69,7 @@ function ProjectCard({ project, onSelect }: { project: Project; onSelect: (proje
           </span>
           <span className="project-card__type">{project.projectType}</span>
         </div>
-        <h2>{project.name}</h2>
+        <h2 dir="auto">{project.name}</h2>
         {project.tagline && <p>{project.tagline}</p>}
         <div className="project-card__facts">
           {project.keyFacts.slice(0, 3).map((fact) => (

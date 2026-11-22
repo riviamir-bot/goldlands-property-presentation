@@ -7,6 +7,7 @@ export type Screen =
   | "gallery"
   | "plans"
   | "technical"
+  | "model3d"
   | "location";
 
 export type UserRole = "admin" | "sales" | "viewer";
@@ -79,6 +80,17 @@ export interface TechnicalSpecSectionData {
   displayOrder: number;
 }
 
+export interface ProjectDetails {
+  developerCompany: string;
+  financingBank: string;
+  constructionStage: string;
+  /** ISO date (YYYY-MM-DD) or empty. */
+  constructionStartDate: string;
+  /** ISO date (YYYY-MM-DD) or empty. */
+  constructionCompletionDate: string;
+  websiteUrl: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -129,6 +141,9 @@ export interface Project {
   projectFiles?: ProjectFile[];
   technicalSpecNotes?: string[];
   technicalSpecSections?: TechnicalSpecSectionData[];
+  details?: ProjectDetails;
+  /** Embeddable interactive 3D model, https only; empty when the project has none. */
+  model3dUrl?: string;
 }
 
 export interface Apartment {
@@ -149,6 +164,7 @@ export interface Apartment {
   planAttached: boolean;
   planUrl?: string;
   planFileName?: string;
+  planContentType?: string;
   notes: string;
 }
 

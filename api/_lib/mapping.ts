@@ -31,9 +31,52 @@ function countOrEmpty(value: number | null | undefined) {
 
 export function mapApartmentStatus(status: string | null): ApartmentStatus {
   if (status === "available") return "available";
-  if (status === "negotiation") return "reserved";
+  if (status === "negotiation" || status === "signing") return "reserved";
   if (status === "sold") return "sold";
   return "notMarketing";
+}
+
+function text(value: string | null | undefined) {
+  return (value ?? "").trim();
+}
+
+function safeUrl(value: unknown, allowHttp = true): string {
+  if (typeof value !== "string") return "";
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol === "https:" || (allowHttp && url.protocol === "http:")) return url.toString();
+  } catch {
+    // not a URL
+  }
+  return "";
+}
+
+const MODEL_3D_LABEL = /תלת[\s-]*מימד|\b3d\b/i;
+
+/** Only the link labelled as a 3D model leaves the server; every other project link may be internal. */
+export function pickModel3dUrl(additionalLinks: unknown): string {
+  if (!Array.isArray(additionalLinks)) return "";
+  for (const link of additionalLinks) {
+    if (!link || typeof link !== "object") continue;
+    const { label, url } = link as { label?: unknown; url?: unknown };
+    if (typeof label === "string" && MODEL_3D_LABEL.test(label)) {
+      const safe = safeUrl(url, false);
+      if (safe) return safe;
+    }
+  }
+  return "";
+}
+
+function isoDate(value: string | null | undefined) {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value ?? "");
+  return match ? match[1] : "";
+}
+
+/** The marketing system usually stores the city inside the address; avoid "street, city, city". */
+export function formatLocation(address: string, city: string) {
+  if (!address) return city;
+  if (!city || address.includes(city)) return address;
+  return `${address}, ${city}`;
 }
 
 export function mapProjectType(value: string | null): Project["projectType"] {
@@ -131,7 +174,7 @@ export function mapProject(
   return {
     id: row.id,
     name,
-    location: [address, city].filter(Boolean).join(", "),
+    location: formatLocation(address, city),
     city,
     neighborhood: "",
     address,
@@ -170,5 +213,14 @@ export function mapProject(
     projectFiles: mapDocuments(documents, urlFor),
     technicalSpecNotes: [],
     technicalSpecSections: [],
+    details: {
+      developerCompany: text(row.developer_company),
+      financingBank: text(row.financing_bank),
+      constructionStage: text(row.construction_stage),
+      constructionStartDate: isoDate(row.construction_start_date),
+      constructionCompletionDate: isoDate(row.construction_completion_date),
+      websiteUrl: safeUrl(row.project_website_url),
+    },
+    model3dUrl: pickModel3dUrl(row.additional_links),
   };
 }

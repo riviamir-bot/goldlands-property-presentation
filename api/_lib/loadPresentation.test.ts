@@ -8,7 +8,8 @@ const u = { id: "u1", email: "user@example.com", full_name: "דנה לוי", rol
 const project = (id: string, name: string, sort: number | null, extra: Partial<MarketingProjectRow> = {}): MarketingProjectRow => ({
   id, slug: id, name, address: "", city: "תל אביב", status: "בשיווק", units: 4, new_units: 4, existing_units: null,
   building_count: 1, description: null, project_type: null, construction_stage: null, block: null, parcel: null,
-  sort_order: sort, deleted_at: null, ...extra,
+  sort_order: sort, deleted_at: null, developer_company: null, financing_bank: null, construction_start_date: null,
+  construction_completion_date: null, project_website_url: null, additional_links: null, ...extra,
 });
 const apartment = (id: string, projectId: string, floor: number, number: string, extra: Partial<MarketingApartmentRow> = {}): MarketingApartmentRow => ({
   id, project_id: projectId, apartment_number: number, building: null, floor, rooms: 4, area: 90, balcony_area: 10,

@@ -1,72 +1,77 @@
-import { Building2 } from "lucide-react";
+import { Building2, ExternalLink } from "lucide-react";
 import { ProjectLogoSlot } from "../components/ProjectLogoSlot";
+import { useI18n } from "../i18n/LanguageContext";
+import type { MessageKey } from "../i18n/strings";
 import type { Project } from "../types";
+import { formatMonthYear } from "../utils/format";
 
 interface ProjectOpeningScreenProps {
   project: Project;
 }
 
-type Row = [label: string, value: string];
+type Row = [label: MessageKey, value: string];
 
-const hasValue = (value: string) => value.trim() !== "" && value.trim() !== "0";
+const hasValue = (value: string | undefined): value is string => Boolean(value && value.trim() && value.trim() !== "0");
 
 export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
+  const { t, language } = useI18n();
+  const details = project.details;
   const mainImage = project.heroImage;
-  const groups: Array<{ title: string; rows: Row[] }> = [
+  const blockParcel = [project.block, project.parcel].filter(hasValue).join(" / ");
+
+  const groups: Array<{ title: MessageKey; rows: Row[] }> = [
     {
-      title: "פרטי מיקום",
+      title: "overview.location",
       rows: [
-        ["עיר", project.city],
-        ["שכונה", project.neighborhood],
-        ["כתובת", project.address],
-        ["סוג פרויקט", project.projectType],
+        ["overview.address", project.address],
+        ["overview.city", project.address.includes(project.city) ? "" : project.city],
+        ["overview.type", project.projectType],
+        ["overview.blockParcel", blockParcel],
       ],
     },
     {
-      title: "היקף הפרויקט",
+      title: "overview.construction",
       rows: [
-        ["דירות קיימות", project.stats.existingApartments],
-        ["דירות חדשות", project.stats.newApartments],
-        ["בניינים", project.stats.buildings],
-        ["קומות", project.stats.floors],
+        ["overview.developer", details?.developerCompany ?? ""],
+        ["overview.bank", details?.financingBank ?? ""],
+        ["overview.stage", details?.constructionStage ?? ""],
+        ["overview.start", formatMonthYear(details?.constructionStartDate ?? "", language)],
+        ["overview.completion", formatMonthYear(details?.constructionCompletionDate ?? "", language)],
       ],
     },
     {
-      title: "תמהיל דירות",
+      title: "overview.scope",
       rows: [
-        ["3 חדרים", project.apartmentMix.threeRooms],
-        ["4 חדרים", project.apartmentMix.fourRooms],
-        ["5 חדרים", project.apartmentMix.fiveRooms],
-        ["דירות גן", project.apartmentMix.gardenApartments],
-        ["פנטהאוזים", project.apartmentMix.penthouses],
-      ],
-    },
-    {
-      title: "חניה, מחסן ואכלוס",
-      rows: [
-        ["חניה", project.stats.parking],
-        ["מחסן", project.stats.storage],
-        ["צפי אכלוס", project.stats.occupancy],
+        ["overview.existingUnits", project.stats.existingApartments],
+        ["overview.newUnits", project.stats.newApartments],
+        ["overview.buildings", project.stats.buildings],
       ],
     },
   ];
   const visibleGroups = groups
     .map((group) => ({ ...group, rows: group.rows.filter(([, value]) => hasValue(value)) }))
     .filter((group) => group.rows.length > 0);
-  const headlineStats: Row[] = (
+
+  const mix = (
     [
-      ["קומות", project.stats.floors],
-      ["דירות", project.stats.units],
-      ["אכלוס", project.stats.occupancy],
-    ] as Row[]
+      [3, project.apartmentMix.threeRooms],
+      [4, project.apartmentMix.fourRooms],
+      [5, project.apartmentMix.fiveRooms],
+    ] as const
+  ).filter(([, count]) => hasValue(count));
+
+  const headline: Array<[MessageKey, string]> = (
+    [
+      ["overview.units", project.stats.units],
+      ["overview.stage", details?.constructionStage ?? ""],
+      ["overview.completion", formatMonthYear(details?.constructionCompletionDate ?? "", language)],
+    ] as Array<[MessageKey, string]>
   ).filter(([, value]) => hasValue(value));
-  // The unit count already has its own tile; do not repeat it as a chip.
-  const facts = project.keyFacts.filter((fact) => fact !== `${project.stats.units} דירות`);
 
   return (
     <section className="panel project-overview-panel">
       <div className="project-overview-layout">
-        <section className="project-overview-visual" aria-label="הדמיית הפרויקט">
+        <section className="project-overview-visual" aria-label={project.name}>
           <div
             className={mainImage ? "project-overview-image" : "project-overview-image project-overview-image--empty"}
             style={mainImage ? { backgroundImage: `url("${mainImage}")` } : undefined}
@@ -85,48 +90,57 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
             <div className="project-overview-heading">
               <ProjectLogoSlot project={project} compact markOnly />
               <div>
-                <span className="eyebrow">{project.location}</span>
-                <h2>{project.name}</h2>
+                <span className="eyebrow" dir="auto">{project.location}</span>
+                <h2 dir="auto">{project.name}</h2>
               </div>
             </div>
-            {project.tagline && <p>{project.tagline}</p>}
-            {project.description && <p className="project-overview-description">{project.description}</p>}
+            {project.tagline && <p dir="auto">{project.tagline}</p>}
+            {project.description && <p className="project-overview-description" dir="auto">{project.description}</p>}
           </div>
 
-          {headlineStats.length > 0 && (
-            <div className="overview-stat-grid" aria-label="נתוני פרויקט מרכזיים">
-              {headlineStats.map(([label, value]) => (
+          {headline.length > 0 && (
+            <div className="overview-stat-grid" aria-label={t("overview.scope")}>
+              {headline.map(([label, value]) => (
                 <article key={label}>
-                  <span>{label}</span>
+                  <span>{t(label)}</span>
                   <strong>{value}</strong>
                 </article>
               ))}
             </div>
           )}
 
-          {facts.length > 0 && (
-            <div className="overview-facts" aria-label="דגשי פרויקט">
-              {facts.map((fact) => (
-                <span key={fact}>{fact}</span>
+          {mix.length > 0 && (
+            <div className="overview-facts" aria-label={t("overview.mix")}>
+              {mix.map(([rooms, count]) => (
+                <span key={rooms}>
+                  <b>{count}</b> × {t("overview.roomsN", { n: rooms })}
+                </span>
               ))}
             </div>
           )}
 
-          <div className="overview-fact-groups" aria-label="סקירת פרויקט">
+          <div className="overview-fact-groups">
             {visibleGroups.map((group) => (
               <details className="overview-fact-group" key={group.title} open>
-                <summary>{group.title}</summary>
+                <summary>{t(group.title)}</summary>
                 <dl>
                   {group.rows.map(([label, value]) => (
                     <div key={label}>
-                      <dt>{label}</dt>
-                      <dd>{value}</dd>
+                      <dt>{t(label)}</dt>
+                      <dd dir="auto">{value}</dd>
                     </div>
                   ))}
                 </dl>
               </details>
             ))}
           </div>
+
+          {details?.websiteUrl && (
+            <a className="ghost-button project-website-link" href={details.websiteUrl} target="_blank" rel="noreferrer">
+              <ExternalLink size={16} />
+              {t("overview.website")}
+            </a>
+          )}
         </section>
       </div>
     </section>

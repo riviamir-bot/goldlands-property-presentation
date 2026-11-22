@@ -1,103 +1,233 @@
-import { useEffect, useMemo, useState } from "react";
-import { Bike, Building, Car, Copy, ExternalLink, GraduationCap, MapPin, Navigation, Trees } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { Bus, Copy, GraduationCap, HeartPulse, Navigation, ShoppingCart, Star, Trees } from "lucide-react";
+import { useI18n } from "../i18n/LanguageContext";
+import {
+  fetchNearbyPlaces,
+  geocodeAddress,
+  PLACE_CATEGORIES,
+  type LatLon,
+  type NearbyPlace,
+  type PlaceCategory,
+} from "../services/geo";
 import type { Project } from "../types";
 
-const places = [
-  { label: "פארק מרכזי", value: "3 דקות", icon: Trees },
-  { label: "רכבת קלה", value: "7 דקות", icon: Car },
-  { label: "בתי ספר", value: "5 דקות", icon: GraduationCap },
-  { label: "מרכז מסחרי", value: "4 דקות", icon: Building },
-  { label: "שבילי אופניים", value: "צמוד", icon: Bike },
-];
+const CATEGORY_STYLE: Record<PlaceCategory, { color: string; icon: typeof Star }> = {
+  education: { color: "#8ca8d8", icon: GraduationCap },
+  synagogues: { color: "#e7bb66", icon: Star },
+  parks: { color: "#7fc9a2", icon: Trees },
+  transit: { color: "#c79be0", icon: Bus },
+  shopping: { color: "#e59a7a", icon: ShoppingCart },
+  health: { color: "#d57777", icon: HeartPulse },
+};
 
-function makeMapsEmbedUrl(address: string) {
-  return `https://www.google.com/maps?q=${encodeURIComponent(address).replace(/%20/g, "+")}&output=embed`;
+type LoadState<T> = { status: "loading" } | { status: "failed" } | { status: "ready"; value: T };
+
+function markerIcon(color: string, className = "") {
+  return L.divIcon({
+    className: `map-marker ${className}`,
+    html: `<span style="background:${color}"></span>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
 }
 
+const projectIcon = L.divIcon({
+  className: "map-marker map-marker--project",
+  html: "<span></span>",
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+});
+
 export function LocationScreen({ project }: { project: Project }) {
-  const [mapFailed, setMapFailed] = useState(false);
-  const embedUrl = useMemo(
-    () => project.googleMapsEmbedUrl || makeMapsEmbedUrl(project.address),
-    [project.address, project.googleMapsEmbedUrl],
+  const { t } = useI18n();
+  const mapElement = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const layerRef = useRef<L.LayerGroup | null>(null);
+  const markersRef = useRef(new Map<string, L.Marker>());
+  const [point, setPoint] = useState<LoadState<LatLon>>({ status: "loading" });
+  const [places, setPlaces] = useState<LoadState<NearbyPlace[]>>({ status: "loading" });
+  const [enabled, setEnabled] = useState<Set<PlaceCategory>>(() => new Set(PLACE_CATEGORIES));
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setPoint({ status: "loading" });
+    setPlaces({ status: "loading" });
+    geocodeAddress(project.address || project.city, project.city, controller.signal)
+      .then((value) => setPoint(value ? { status: "ready", value } : { status: "failed" }))
+      .catch(() => {
+        if (!controller.signal.aborted) setPoint({ status: "failed" });
+      });
+    return () => controller.abort();
+  }, [project.address, project.city]);
+
+  useEffect(() => {
+    if (point.status !== "ready") return undefined;
+    const controller = new AbortController();
+    fetchNearbyPlaces(point.value, controller.signal)
+      .then((value) => setPlaces({ status: "ready", value }))
+      .catch(() => {
+        if (!controller.signal.aborted) setPlaces({ status: "failed" });
+      });
+    return () => controller.abort();
+  }, [point]);
+
+  // Create the map once the project is located.
+  useEffect(() => {
+    if (point.status !== "ready" || !mapElement.current) return undefined;
+    const map = L.map(mapElement.current, { zoomControl: true, scrollWheelZoom: true }).setView([point.value.lat, point.value.lon], 16);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
+    }).addTo(map);
+    L.marker([point.value.lat, point.value.lon], { icon: projectIcon, zIndexOffset: 1000 })
+      .addTo(map)
+      .bindTooltip(project.name, { permanent: true, direction: "top", offset: [0, -16], className: "map-project-label" });
+    L.circle([point.value.lat, point.value.lon], { radius: 1000, color: "#d6b25e", weight: 1, opacity: 0.5, fillOpacity: 0.03 }).addTo(map);
+    layerRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
+    // The container may still be settling its size inside the layout.
+    const resize = window.setTimeout(() => map.invalidateSize(), 150);
+    return () => {
+      window.clearTimeout(resize);
+      map.remove();
+      mapRef.current = null;
+      layerRef.current = null;
+      markersRef.current.clear();
+    };
+  }, [point, project.name]);
+
+  const visiblePlaces = useMemo(
+    () => (places.status === "ready" ? places.value.filter((place) => enabled.has(place.category)) : []),
+    [enabled, places],
   );
 
   useEffect(() => {
-    setMapFailed(false);
-  }, [embedUrl]);
+    const layer = layerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    markersRef.current.clear();
+    for (const place of visiblePlaces) {
+      const marker = L.marker([place.lat, place.lon], { icon: markerIcon(CATEGORY_STYLE[place.category].color) })
+        .bindPopup(`<strong>${escapeHtml(place.name)}</strong><br/>${escapeHtml(t("map.walk", { min: place.walkMinutes }))}`);
+      marker.addTo(layer);
+      markersRef.current.set(place.id, marker);
+    }
+  }, [t, visiblePlaces, point]);
 
-  const copyAddress = () => {
-    void navigator.clipboard?.writeText(project.address);
+  const toggleCategory = (category: PlaceCategory) =>
+    setEnabled((current) => {
+      const next = new Set(current);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+
+  const focusPlace = (place: NearbyPlace) => {
+    mapRef.current?.flyTo([place.lat, place.lon], 17, { duration: 0.6 });
+    markersRef.current.get(place.id)?.openPopup();
   };
 
-  return (
-    <section className="location-layout">
-      <section className="map-panel location-map-panel" aria-label={`מפת ${project.name}`}>
-        {!mapFailed ? (
-          <iframe
-            allowFullScreen
-            loading="lazy"
-            onError={() => setMapFailed(true)}
-            referrerPolicy="no-referrer-when-downgrade"
-            src={embedUrl}
-            title={`מפת ${project.name}`}
-          />
-        ) : (
-          <div className="map-fallback">
-            <MapPin size={42} strokeWidth={1.6} />
-            <span>לא ניתן לטעון את תצוגת המפה כרגע</span>
-            <strong>{project.address}</strong>
-            <a className="gold-button gold-button--compact" href={project.googleMapsUrl} target="_blank" rel="noreferrer">
-              <ExternalLink size={16} />
-              פתיחה במפות Google
-            </a>
-          </div>
-        )}
-      </section>
+  const copyAddress = () => {
+    void navigator.clipboard?.writeText(project.location).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    });
+  };
 
-      <aside className="location-side-panel">
-        <div className="location-address-panel">
-          <div className="location-address-panel__icon">
-            <MapPin size={34} />
-          </div>
-          <div>
-            <span className="eyebrow">כתובת הפרויקט</span>
-            <h2>{project.address}</h2>
-            <p>
-              {project.name} ממוקם ב{project.neighborhood}, {project.city}. ניתן לפתוח ניווט או לשתף את הכתובת
-              ישירות מתוך פגישת המכירה.
-            </p>
-          </div>
-          <div className="location-address-panel__actions">
-            <a className="gold-button" href={project.googleMapsUrl} target="_blank" rel="noreferrer">
-              <ExternalLink size={17} />
-              פתיחה במפות Google
+  const directionsUrl =
+    point.status === "ready"
+      ? `https://www.google.com/maps/dir/?api=1&destination=${point.value.lat},${point.value.lon}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(project.location)}`;
+
+  const countBy = (category: PlaceCategory) =>
+    places.status === "ready" ? places.value.filter((place) => place.category === category).length : 0;
+
+  return (
+    <section className="location-live">
+      <div className="location-live__map" dir="ltr">
+        {point.status === "loading" && <div className="location-live__state">{t("map.loading")}</div>}
+        {point.status === "failed" && <div className="location-live__state">{t("map.failed")}</div>}
+        <div ref={mapElement} className="location-live__canvas" />
+      </div>
+
+      <aside className="location-live__panel">
+        <div className="location-live__address">
+          <span className="eyebrow">{t("overview.address")}</span>
+          <strong dir="auto">{project.location}</strong>
+          <div className="action-row">
+            <a className="mini-button" href={directionsUrl} target="_blank" rel="noreferrer">
+              <Navigation size={15} />
+              {t("map.navigate")}
             </a>
-            <button className="ghost-button" onClick={copyAddress} type="button">
-              <Copy size={17} />
-              העתקת כתובת
+            <button className="mini-button" type="button" onClick={copyAddress}>
+              <Copy size={15} />
+              {copied ? t("common.copied") : t("map.copyAddress")}
             </button>
           </div>
         </div>
 
-        <div className="nearby-grid">
-          <article className="nearby-card nearby-card--address">
-            <Navigation size={24} strokeWidth={1.7} />
-            <span>אזור</span>
-            <strong>{project.location}</strong>
-          </article>
-          {places.map((place) => {
-            const Icon = place.icon;
+        <div className="location-live__heading">
+          <h2>{t("map.nearby")}</h2>
+          <span>{t("map.radius")}</span>
+        </div>
 
+        <div className="poi-filters" role="group" aria-label={t("map.nearby")}>
+          {PLACE_CATEGORIES.map((category) => {
+            const { color, icon: Icon } = CATEGORY_STYLE[category];
+            const active = enabled.has(category);
             return (
-              <article className="nearby-card" key={place.label}>
-                <Icon size={24} strokeWidth={1.7} />
-                <span>{place.label}</span>
-                <strong>{place.value}</strong>
-              </article>
+              <button
+                key={category}
+                type="button"
+                className={active ? "poi-filter active" : "poi-filter"}
+                aria-pressed={active}
+                onClick={() => toggleCategory(category)}
+                style={{ ["--poi-color" as string]: color }}
+              >
+                <Icon size={15} />
+                {t(`poi.${category}`)}
+                {places.status === "ready" && <small>{countBy(category)}</small>}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="poi-list">
+          {places.status === "loading" && point.status !== "failed" && <p className="poi-list__state">{t("map.poisLoading")}</p>}
+          {places.status === "failed" && <p className="poi-list__state">{t("map.poisFailed")}</p>}
+          {places.status === "ready" && visiblePlaces.length === 0 && <p className="poi-list__state">{t("map.noPois")}</p>}
+          {PLACE_CATEGORIES.filter((category) => enabled.has(category)).map((category) => {
+            const items = visiblePlaces.filter((place) => place.category === category);
+            if (items.length === 0) return null;
+            const { color, icon: Icon } = CATEGORY_STYLE[category];
+            return (
+              <section key={category} className="poi-group">
+                <h3 style={{ color }}>
+                  <Icon size={16} />
+                  {t(`poi.${category}`)}
+                </h3>
+                <ul>
+                  {items.map((place) => (
+                    <li key={place.id}>
+                      <button type="button" onClick={() => focusPlace(place)}>
+                        <span dir="auto">{place.name}</span>
+                        <small>{t("map.walk", { min: place.walkMinutes })}</small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             );
           })}
         </div>
       </aside>
     </section>
   );
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }

@@ -1,147 +1,79 @@
-import { FileDown, Printer, Share2 } from "lucide-react";
-import { formatPrice } from "../utils/format";
-import type { Apartment, Project } from "../types";
+import { useEffect, useMemo, useState } from "react";
+import { PlanViewer } from "../components/PlanViewer";
+import { StatusBadge } from "../components/StatusBadge";
+import { useI18n } from "../i18n/LanguageContext";
+import type { Apartment } from "../types";
+import { formatNumber, formatPrice } from "../utils/format";
 
 interface PlanScreenProps {
-  apartment?: Apartment;
-  project?: Project;
+  apartments: Apartment[];
+  initialApartmentId: string | null;
+  showPrices: boolean;
 }
 
-const floorTargetOrder = [
-  "קומת קרקע",
-  "קומות 1-4",
-  "קומות 5-6",
-  "קומה 7",
-  "גג וגג עליון",
-  "תכנית מגרש",
-];
+export function PlanScreen({ apartments, initialApartmentId, showPrices }: PlanScreenProps) {
+  const { t } = useI18n();
+  const withPlans = useMemo(() => apartments.filter((apartment) => apartment.planUrl), [apartments]);
+  const [activeId, setActiveId] = useState(initialApartmentId);
 
-export function PlanScreen({ apartment, project }: PlanScreenProps) {
-  if (!apartment) {
+  useEffect(() => setActiveId(initialApartmentId), [initialApartmentId]);
+
+  const active = withPlans.find((apartment) => apartment.id === activeId) ?? withPlans[0];
+  if (!active) {
     return (
-      <section className="empty-state compact-empty-state">
-        <h2>אין דירה להצגת תכנית</h2>
-        <p>לאחר הוספת דירה ושיוך תכנית, היא תופיע כאן.</p>
-      </section>
+      <div className="empty-state compact-empty-state">
+        <h2>{t("plans.none")}</h2>
+      </div>
     );
   }
 
-  const uploadedPlanUrl = apartment.planUrl?.trim();
-  const floorPlans = (project?.projectFiles ?? [])
-    .filter((file) => file.type === "תכנית קומה")
-    .sort((a, b) => {
-      const aIndex = floorTargetOrder.indexOf(a.target);
-      const bIndex = floorTargetOrder.indexOf(b.target);
-
-      return (aIndex < 0 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex < 0 ? Number.MAX_SAFE_INTEGER : bIndex);
-    });
-
   return (
-    <section className="plan-layout">
-      <div className="plan-canvas" aria-label="תוכנית דירה">
-        {uploadedPlanUrl ? (
-          <iframe
-            className="plan-canvas__document"
-            src={uploadedPlanUrl}
-            title={`תוכנית דירה ${apartment.number}`}
-          />
-        ) : (
-          <>
-            <div className="plan-canvas__label">
-              <span>תוכנית דירה {apartment.number}</span>
-              <strong>{apartment.planAttached ? "קובץ תוכנית משויך לדירה" : "מקום שמור לקובץ תוכנית"}</strong>
-            </div>
-            <div className="room room--living">סלון</div>
-            <div className="room room--kitchen">מטבח</div>
-            <div className="room room--master">חדר הורים</div>
-            <div className="room room--bedroom">חדר</div>
-            <div className="room room--safe">ממ&quot;ד</div>
-            <div className="room room--bath">רחצה</div>
-            <div className="room room--balcony">מרפסת</div>
-          </>
-        )}
+    <section className="plan-layout plan-layout--live">
+      <div className="plan-layout__viewer">
+        <PlanViewer apartment={active} />
       </div>
-
       <aside className="details-card">
-        <span className="eyebrow">תוכנית דירה</span>
-        <h2>דירה {apartment.number}</h2>
-        <p className="plan-source-note">
-          התוכנית נפתחת מתוך כפתור &quot;תוכנית&quot; בשורת הדירה, ותעלה בעתיד מניהול דירות ומלאי או מתוכניות דירה.
-        </p>
+        <label className="plan-picker">
+          <span className="eyebrow">{t("plans.pick")}</span>
+          <select value={active.id} onChange={(event) => setActiveId(event.currentTarget.value)}>
+            {withPlans.map((apartment) => (
+              <option key={apartment.id} value={apartment.id}>
+                {t("apartment.title", { n: apartment.number })} · {formatNumber(apartment.rooms)} {t("field.rooms")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <h2>{t("apartment.title", { n: active.number })}</h2>
         <dl>
           <div>
-            <dt>חדרים</dt>
-            <dd>{apartment.rooms}</dd>
+            <dt>{t("field.floor")}</dt>
+            <dd>{active.floor}</dd>
           </div>
           <div>
-            <dt>קומה</dt>
-            <dd>{apartment.floor}</dd>
+            <dt>{t("field.rooms")}</dt>
+            <dd>{formatNumber(active.rooms)}</dd>
           </div>
           <div>
-            <dt>שטח פנימי</dt>
-            <dd>{apartment.apartmentArea} מ&quot;ר</dd>
+            <dt>{t("field.area")}</dt>
+            <dd>{formatNumber(active.apartmentArea, t("unit.sqm"))}</dd>
           </div>
           <div>
-            <dt>מרפסת</dt>
-            <dd>{apartment.balconyArea} מ&quot;ר</dd>
+            <dt>{t("field.balcony")}</dt>
+            <dd>{formatNumber(active.balconyArea, t("unit.sqm"))}</dd>
           </div>
           <div>
-            <dt>גינה</dt>
-            <dd>{apartment.gardenArea ? `${apartment.gardenArea} מ"ר` : "לא רלוונטי"}</dd>
+            <dt>{t("field.status")}</dt>
+            <dd>
+              <StatusBadge status={active.status} />
+            </dd>
           </div>
-          <div>
-            <dt>חניה</dt>
-            <dd>{apartment.parking}</dd>
-          </div>
-          <div>
-            <dt>מחסן</dt>
-            <dd>{apartment.storage}</dd>
-          </div>
-          <div>
-            <dt>כיוון</dt>
-            <dd>{apartment.direction}</dd>
-          </div>
-          <div>
-            <dt>מחיר מיוחד</dt>
-            <dd>{formatPrice(apartment.specialPrice)}</dd>
-          </div>
-          <div>
-            <dt>קובץ תוכנית</dt>
-            <dd>{apartment.planAttached ? apartment.planFileName ?? `תוכנית דירה ${apartment.number}` : "טרם צורף"}</dd>
-          </div>
+          {showPrices && active.status !== "sold" && (
+            <div>
+              <dt>{t("field.price")}</dt>
+              <dd>{formatPrice(active.price)}</dd>
+            </div>
+          )}
         </dl>
-        <div className="action-row">
-          <button
-            className="mini-button"
-            disabled={!uploadedPlanUrl}
-            onClick={() => {
-              if (uploadedPlanUrl) window.open(uploadedPlanUrl, "_blank", "noopener,noreferrer");
-            }}
-            type="button"
-          >
-            <FileDown size={17} />
-            PDF
-          </button>
-          <button className="mini-button">
-            <Printer size={17} />
-            הדפסה
-          </button>
-          <button className="mini-button">
-            <Share2 size={17} />
-            שיתוף
-          </button>
-        </div>
-        {floorPlans.length > 0 && (
-          <section className="floor-plan-list" aria-label="תכניות קומה">
-            <h3>תכניות קומה</h3>
-            {floorPlans.map((file) => (
-              <a href={file.url} key={file.id} rel="noreferrer" target="_blank">
-                <span>{file.target || "תכנית קומה"}</span>
-                <small>{file.name}</small>
-              </a>
-            ))}
-          </section>
-        )}
       </aside>
     </section>
   );

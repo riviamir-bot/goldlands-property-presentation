@@ -1,74 +1,37 @@
-import {
-  Building2,
-  FileText,
-  Home,
-  Images,
-  Landmark,
-  ListChecks,
-  MapPinned,
-  Ruler,
-} from "lucide-react";
-import { SectionButton } from "./SectionButton";
+import { Box, FileText, Home, Images, Landmark, ListChecks, MapPinned, Ruler } from "lucide-react";
+import { useI18n } from "../i18n/LanguageContext";
 import type { Screen } from "../types";
 
 const sections = [
-  { title: "תצוגת פרויקט", screen: "opening", icon: Landmark },
-  { title: "דירות פנויות", screen: "apartments", icon: Home },
-  { title: "מחירון", screen: "prices", icon: FileText },
-  { title: "הדמיות", screen: "gallery", icon: Images },
-  { title: "תוכניות דירה", screen: "plans", icon: Ruler },
-  { title: "מפרט טכני", screen: "technical", icon: ListChecks },
-  { title: "מיקום וסביבה", screen: "location", icon: MapPinned },
-] satisfies Array<{
-  title: string;
-  screen: Screen;
-  icon: typeof Building2;
-}>;
+  { screen: "opening", icon: Landmark },
+  { screen: "apartments", icon: Home },
+  { screen: "prices", icon: FileText },
+  { screen: "gallery", icon: Images },
+  { screen: "plans", icon: Ruler },
+  { screen: "technical", icon: ListChecks },
+  { screen: "model3d", icon: Box },
+  { screen: "location", icon: MapPinned },
+] as const satisfies ReadonlyArray<{ screen: Screen; icon: unknown }>;
 
 interface ProjectSectionNavProps {
   active: Screen;
   /** Sections that have content for this project, in display order. */
   visible: Screen[];
   onNavigate: (screen: Screen) => void;
-  variant?: "grid" | "tabs";
 }
 
-export function ProjectSectionNav({
-  active,
-  visible,
-  onNavigate,
-  variant = "tabs",
-}: ProjectSectionNavProps) {
+export function ProjectSectionNav({ active, visible, onNavigate }: ProjectSectionNavProps) {
+  const { t } = useI18n();
   return (
-    <nav
-      className={`project-section-nav project-section-nav--${variant}`}
-      aria-label="ניווט פרקי פרויקט"
-    >
-      {sections.filter((section) => visible.includes(section.screen)).map((section) => {
-        if (variant === "grid") {
-          return (
-            <SectionButton
-              key={section.screen}
-              title={section.title}
-              icon={section.icon}
-              onClick={() => onNavigate(section.screen)}
-            />
-          );
-        }
-
-        const Icon = section.icon;
-
-        return (
-          <button
-            className={active === section.screen ? "active" : ""}
-            key={section.screen}
-            onClick={() => onNavigate(section.screen)}
-          >
+    <nav className="project-section-nav project-section-nav--tabs" aria-label={t("section.opening")}>
+      {sections
+        .filter((section) => visible.includes(section.screen))
+        .map(({ screen, icon: Icon }) => (
+          <button className={active === screen ? "active" : ""} key={screen} onClick={() => onNavigate(screen)} aria-current={active === screen}>
             <Icon size={17} strokeWidth={1.6} />
-            {section.title}
+            {t(`section.${screen}`)}
           </button>
-        );
-      })}
+        ))}
     </nav>
   );
 }

@@ -16,6 +16,12 @@ export interface MarketingProjectRow {
   parcel: string | null;
   sort_order: number | null;
   deleted_at: string | null;
+  developer_company: string | null;
+  financing_bank: string | null;
+  construction_start_date: string | null;
+  construction_completion_date: string | null;
+  project_website_url: string | null;
+  additional_links: unknown;
 }
 
 export interface MarketingApartmentRow {

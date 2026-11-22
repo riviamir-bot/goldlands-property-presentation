@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatNumber, formatPrice } from "./format";
+import { formatMonthYear, formatNumber, formatPrice } from "./format";
 
 describe("format", () => {
   it("formats missing numbers as a dash", () => {
@@ -15,5 +15,18 @@ describe("format", () => {
     expect(formatPrice(3250000)).toContain("₪");
     expect(formatNumber(98, "מ״ר")).toBe("98 מ״ר");
     expect(formatNumber(4.5)).toBe("4.5");
+  });
+});
+
+describe("formatMonthYear", () => {
+  it("formats an ISO date as month and year in the chosen language", () => {
+    expect(formatMonthYear("2027-09-30", "en")).toBe("September 2027");
+    expect(formatMonthYear("2027-09-30", "fr")).toBe("septembre 2027");
+    expect(formatMonthYear("2027-09-30", "he")).toContain("2027");
+  });
+
+  it("returns an empty string for missing or malformed dates", () => {
+    expect(formatMonthYear("", "he")).toBe("");
+    expect(formatMonthYear("30/09/2027", "he")).toBe("");
   });
 });

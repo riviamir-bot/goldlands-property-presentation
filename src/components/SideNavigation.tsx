@@ -1,5 +1,7 @@
 import { Building2, LogOut } from "lucide-react";
 import { BrandLogo } from "./BrandLogo";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useI18n } from "../i18n/LanguageContext";
 
 interface SideNavigationProps {
   userName?: string;
@@ -8,21 +10,23 @@ interface SideNavigationProps {
 }
 
 export function SideNavigation({ userName, onProjects, onSignOut }: SideNavigationProps) {
+  const { t } = useI18n();
   return (
-    <aside className="side-navigation" aria-label="תפריט">
+    <aside className="side-navigation" aria-label={t("nav.allProjects")}>
       <BrandLogo onClick={onProjects} />
       <nav className="side-navigation__menu">
         <button className="active" onClick={onProjects}>
           <Building2 size={24} strokeWidth={1.5} />
-          כל הפרויקטים
+          {t("nav.allProjects")}
         </button>
       </nav>
       <div className="side-navigation__support">
+        <LanguageSwitcher />
         {userName && <strong>{userName}</strong>}
         {onSignOut && (
           <button className="mini-button side-navigation__logout" onClick={onSignOut} type="button">
             <LogOut size={15} />
-            התנתקות
+            {t("nav.signOut")}
           </button>
         )}
       </div>

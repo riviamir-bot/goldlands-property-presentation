@@ -21,14 +21,23 @@ describe("visibleSections", () => {
     expect(visibleSections(project, [apt])).toEqual(["opening", "apartments", "prices", "gallery"]);
   });
 
-  it("adds plans, technical spec and location only when present", () => {
+  it("adds plans, technical spec, 3D and location only when present", () => {
     const project: Project = {
       ...base,
-      googleMapsEmbedUrl: "https://maps",
+      address: "ערבי נחל 28",
+      model3dUrl: "https://my.matterport.com/show/?m=1",
       technicalSpecSections: [{ id: "s", title: "t", items: ["i"], displayOrder: 0 }],
     };
-    expect(visibleSections(project, [{ ...apt, planAttached: true }])).toEqual([
-      "opening", "apartments", "prices", "plans", "technical", "location",
+    expect(visibleSections(project, [{ ...apt, planAttached: true, planUrl: "https://x/p.pdf" }])).toEqual([
+      "opening", "apartments", "prices", "plans", "technical", "model3d", "location",
     ]);
+  });
+
+  it("does not offer the plans tab for a plan flag without a file", () => {
+    expect(visibleSections(base, [{ ...apt, planAttached: true }])).not.toContain("plans");
+  });
+
+  it("hides the price list when prices are hidden", () => {
+    expect(visibleSections(base, [apt], { showPrices: false })).toEqual(["opening", "apartments"]);
   });
 });

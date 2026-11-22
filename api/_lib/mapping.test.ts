@@ -18,6 +18,8 @@ const projectRow: MarketingProjectRow = {
   id: "p1", slug: "p-1", name: "ערבי נחל", address: "ערבי נחל 5", city: "תל אביב", status: "בשיווק",
   units: 12, new_units: 16, existing_units: 8, building_count: 1, description: null,
   project_type: 'תמ"א 38/2', construction_stage: "בבניה", block: null, parcel: null, sort_order: 1, deleted_at: null,
+  developer_company: null, financing_bank: null, construction_start_date: null, construction_completion_date: null,
+  project_website_url: null, additional_links: null,
 };
 const aptRow: MarketingApartmentRow = {
   id: "a1", project_id: "p1", apartment_number: "7", building: null, floor: 3, rooms: 4, area: 98,
@@ -45,6 +47,7 @@ describe("mapping", () => {
     expect(mapApartmentStatus("available")).toBe("available");
     expect(mapApartmentStatus("negotiation")).toBe("reserved");
     expect(mapApartmentStatus("sold")).toBe("sold");
+    expect(mapApartmentStatus("signing")).toBe("reserved");
     expect(mapApartmentStatus("weird")).toBe("notMarketing");
     expect(mapApartmentStatus(null)).toBe("notMarketing");
   });
@@ -117,5 +120,51 @@ describe("mapping", () => {
       "1d02af7d-d119-47ac-bec8-2f11149f848e",
       "71e9deae-2d8b-4776-822c-3788e8a38c99",
     ]);
+  });
+
+  it("does not repeat the city when the address already contains it", () => {
+    expect(mapProject({ ...projectRow, address: "ערבי נחל 28, תל אביב" }, [], [], [], urlFor).location).toBe("ערבי נחל 28, תל אביב");
+    expect(mapProject({ ...projectRow, address: "בוגרשוב 30 תל אביב" }, [], [], [], urlFor).location).toBe("בוגרשוב 30 תל אביב");
+    expect(mapProject({ ...projectRow, address: "ערבי נחל 28" }, [], [], [], urlFor).location).toBe("ערבי נחל 28, תל אביב");
+  });
+
+  it("maps the client-facing project details", () => {
+    const project = mapProject({
+      ...projectRow,
+      developer_company: " גולדלנדס בע״מ ",
+      financing_bank: "בנק הפועלים",
+      construction_start_date: "2025-03-01",
+      construction_completion_date: "2027-09-30",
+      project_website_url: "https://example.co.il/project",
+      block: "6906",
+      parcel: "12",
+    }, [], [], [], urlFor);
+    expect(project.details).toEqual({
+      developerCompany: "גולדלנדס בע״מ",
+      financingBank: "בנק הפועלים",
+      constructionStage: "בבניה",
+      constructionStartDate: "2025-03-01",
+      constructionCompletionDate: "2027-09-30",
+      websiteUrl: "https://example.co.il/project",
+    });
+    expect(project.block).toBe("6906");
+  });
+
+  it("drops unsafe or empty links", () => {
+    const project = mapProject({ ...projectRow, project_website_url: "javascript:alert(1)" }, [], [], [], urlFor);
+    expect(project.details?.websiteUrl).toBe("");
+  });
+
+  it("takes the 3D model link from the additional links and exposes no other link", () => {
+    const links = [
+      { label: "ארכיון", url: "https://drive.example.com/internal" },
+      { label: "תלת מימד", url: "https://my.matterport.com/show/?m=abc" },
+    ];
+    const project = mapProject({ ...projectRow, additional_links: links }, [], [], [], urlFor);
+    expect(project.model3dUrl).toBe("https://my.matterport.com/show/?m=abc");
+    expect(JSON.stringify(project)).not.toContain("drive.example.com");
+    expect(mapProject({ ...projectRow, additional_links: [{ label: "3D Model", url: "https://x.example/3d" }] }, [], [], [], urlFor).model3dUrl).toBe("https://x.example/3d");
+    expect(mapProject({ ...projectRow, additional_links: [{ label: "תלת מימד", url: "http://insecure.example" }] }, [], [], [], urlFor).model3dUrl).toBe("");
+    expect(mapProject({ ...projectRow, additional_links: "garbage" }, [], [], [], urlFor).model3dUrl).toBe("");
   });
 });

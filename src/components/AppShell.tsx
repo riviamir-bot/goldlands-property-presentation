@@ -1,6 +1,8 @@
 import { ArrowLeft, ArrowRight, Building2, LogOut } from "lucide-react";
 import { BrandLogo } from "./BrandLogo";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ProjectLogoSlot } from "./ProjectLogoSlot";
+import { useI18n } from "../i18n/LanguageContext";
 import type { Project } from "../types";
 
 interface AppShellProps {
@@ -9,6 +11,8 @@ interface AppShellProps {
   title: string;
   eyebrow?: string;
   notice?: React.ReactNode;
+  /** Extra header controls (price toggle, client summary). */
+  actions?: React.ReactNode;
   onProjects: () => void;
   onBack?: () => void;
   onNext?: () => void;
@@ -22,12 +26,17 @@ export function AppShell({
   title,
   eyebrow,
   notice,
+  actions,
   onProjects,
   onBack,
   onNext,
-  nextLabel = "המשך",
+  nextLabel,
   onSignOut,
 }: AppShellProps) {
+  const { t, dir } = useI18n();
+  const BackIcon = dir === "rtl" ? ArrowRight : ArrowLeft;
+  const NextIcon = dir === "rtl" ? ArrowLeft : ArrowRight;
+
   return (
     <div className="app-shell">
       <header className="topbar presentation-header">
@@ -35,20 +44,17 @@ export function AppShell({
         <div className="presentation-header__brand">
           <BrandLogo compact onClick={onProjects} />
         </div>
-        <nav className="topbar__actions presentation-header__actions" aria-label="ניווט ראשי">
-          {onSignOut && (
-            <button className="ghost-button ghost-button--compact" onClick={onSignOut} type="button">
-              <LogOut size={16} />
-              התנתקות
-            </button>
-          )}
-          <button className="ghost-button header-back-button" onClick={onBack} disabled={!onBack}>
-            <ArrowRight size={18} />
-            חזרה
-          </button>
-          <button className="icon-button" onClick={onProjects} aria-label="כל הפרויקטים">
+        <nav className="topbar__actions presentation-header__actions" aria-label={t("nav.allProjects")}>
+          {actions}
+          <LanguageSwitcher />
+          <button className="icon-button" onClick={onProjects} aria-label={t("nav.allProjects")} title={t("nav.allProjects")}>
             <Building2 size={20} />
           </button>
+          {onSignOut && (
+            <button className="icon-button" onClick={onSignOut} type="button" aria-label={t("nav.signOut")} title={t("nav.signOut")}>
+              <LogOut size={18} />
+            </button>
+          )}
         </nav>
       </header>
 
@@ -61,14 +67,14 @@ export function AppShell({
         {children}
       </main>
 
-      <footer className="screen-controls" aria-label="ניווט מסך">
+      <footer className="screen-controls" aria-label={t("nav.next")}>
         <button className="ghost-button" onClick={onBack} disabled={!onBack}>
-          <ArrowRight size={18} />
-          חזרה
+          <BackIcon size={18} />
+          {t("nav.back")}
         </button>
         <button className="gold-button" onClick={onNext} disabled={!onNext}>
-          {nextLabel}
-          <ArrowLeft size={18} />
+          {nextLabel ?? t("nav.next")}
+          <NextIcon size={18} />
         </button>
       </footer>
     </div>
