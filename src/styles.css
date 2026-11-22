@@ -6418,3 +6418,241 @@ body.has-fullscreen-layer {
     display: none;
   }
 }
+
+/* Keep the map's own layers (labels, controls) inside the map, below the app's bars. */
+.location-live__map {
+  isolation: isolate;
+  z-index: 0;
+}
+
+/* Phones: compact bars so the content gets the screen. */
+@media (max-width: 760px) {
+  .management-layout {
+    display: block;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .management-layout .side-navigation {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: auto;
+    min-height: 0;
+    height: auto;
+    margin: 0;
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: rgba(5, 5, 5, 0.94);
+    backdrop-filter: blur(14px);
+  }
+
+  .management-layout .side-navigation .brand-logo {
+    flex-direction: row;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+  }
+
+  .management-layout .side-navigation .brand-logo__mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .management-layout .side-navigation .brand-logo__text small,
+  .management-layout .side-navigation__menu,
+  .management-layout .side-navigation__support strong {
+    display: none;
+  }
+
+  .management-layout .side-navigation .brand-logo__text strong {
+    font-size: 0.95rem;
+  }
+
+  .management-layout .side-navigation__support {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .management-layout .side-navigation__support .language-switcher {
+    margin: 0;
+  }
+
+  .management-layout .side-navigation__logout {
+    width: auto;
+    margin: 0;
+    padding: 7px 10px;
+    font-size: 0;
+    gap: 0;
+  }
+
+  .management-layout .side-navigation__logout svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .management-layout .management-main {
+    padding: 16px 14px 32px;
+  }
+
+  .management-layout .screen-heading h1 {
+    font-size: 1.7rem;
+  }
+
+  /* Project screens */
+  .topbar.presentation-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 0;
+    padding: 8px 12px;
+  }
+
+  .presentation-header__project {
+    display: none;
+  }
+
+  .presentation-header__brand .brand-logo__text {
+    display: none;
+  }
+
+  .presentation-header__actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .presentation-header__actions .ghost-button--compact,
+  .presentation-header__actions .gold-button--compact {
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+
+  .presentation-header__actions .icon-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .presentation-header__actions .language-switcher button {
+    min-width: 28px;
+    padding: 4px 6px;
+  }
+
+  .presentation-screen {
+    padding: 12px 12px 88px;
+  }
+
+  .presentation-screen .screen-heading {
+    margin-bottom: 8px;
+  }
+
+  .presentation-screen .screen-heading h1 {
+    font-size: 1.5rem;
+  }
+
+  .project-section-nav--tabs,
+  .project-section-nav {
+    position: sticky;
+    top: 52px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    margin: 0 -12px 12px;
+    padding: 8px 12px;
+    border-radius: 0;
+    scrollbar-width: none;
+  }
+
+  .project-section-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .project-section-nav--tabs button,
+  .project-section-nav button {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .screen-controls {
+    flex-direction: row;
+    gap: 10px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .screen-controls > button {
+    flex: 1;
+    width: auto;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .gallery-screen .gallery-frame {
+    height: 56vh;
+  }
+
+  .gallery-thumb {
+    width: 84px;
+    height: 56px;
+  }
+
+  .gallery-hint {
+    display: none;
+  }
+
+  .zoomable__controls {
+    inset-block-start: 8px;
+    inset-inline-start: 8px;
+  }
+
+  .gallery-arrow {
+    width: 40px;
+    height: 40px;
+  }
+
+  .location-live__map {
+    min-height: 340px;
+  }
+
+  .location-live {
+    min-height: 0;
+  }
+
+  .plan-layout--live .plan-viewer,
+  .model3d-frame {
+    height: 60vh;
+  }
+
+  .apartment-drawer__body,
+  .apartment-drawer__header,
+  .apartment-drawer__actions {
+    padding-inline: 16px;
+  }
+
+  .apartment-drawer__actions button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .compare-grid {
+    grid-template-columns: 84px repeat(var(--compare-columns), minmax(120px, 1fr));
+    overflow-x: auto;
+    padding-inline: 12px;
+  }
+}
