@@ -35,7 +35,8 @@ export function PdfPlanImage({ url, alt }: { url: string; alt: string }) {
         if (!context) throw new Error("no canvas");
         context.fillStyle = "#ffffff";
         context.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: context, viewport }).promise;
+        // "print" draws without waiting for animation frames, so it also finishes in a background tab.
+        await page.render({ canvasContext: context, viewport, intent: "print" }).promise;
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
         if (!blob) throw new Error("no image");
         objectUrl = URL.createObjectURL(blob);
