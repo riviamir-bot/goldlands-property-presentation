@@ -21,3 +21,14 @@ describe("planKind", () => {
     expect(planKind(apt({ planFileName: "plan" }))).toBe("pdf");
   });
 });
+
+describe("pdfRenderScale", () => {
+  it("renders a page about 3200px wide, never upscaling more than 4x or below 1x", async () => {
+    const { pdfRenderScale } = await import("./plans");
+    expect(pdfRenderScale(1440)).toBeCloseTo(3200 / 1440);
+    expect(pdfRenderScale(1984)).toBeCloseTo(3200 / 1984);
+    expect(pdfRenderScale(400)).toBe(4);
+    expect(pdfRenderScale(8000)).toBe(1);
+    expect(pdfRenderScale(0)).toBe(1);
+  });
+});

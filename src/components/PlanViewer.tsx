@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { PdfPlanImage } from "./PdfPlanImage";
 import { ZoomableImage } from "./ZoomableImage";
 import { useI18n } from "../i18n/LanguageContext";
 import type { Apartment } from "../types";
@@ -16,7 +17,7 @@ export function PlanViewer({ apartment, compact = false }: { apartment: Apartmen
       {kind === "image" ? (
         <ZoomableImage src={apartment.planUrl!} alt={`${t("field.plan")} - ${title}`} />
       ) : (
-        <iframe src={`${apartment.planUrl}#view=FitH`} title={`${t("field.plan")} - ${title}`} />
+        <PdfPlanImage url={apartment.planUrl!} alt={`${t("field.plan")} - ${title}`} />
       )}
       <a className="plan-viewer__open" href={apartment.planUrl} target="_blank" rel="noreferrer" title={t("common.openNewTab")} aria-label={t("common.openNewTab")}>
         <ExternalLink size={16} />
