@@ -105,9 +105,10 @@ export async function loadSharedPresentation(
   const project = (await data.listProjects([link.project_id])).find((row) => row.id === link.project_id && !row.deleted_at);
   if (!project) return fail(410, "הקישור אינו בתוקף.");
 
-  const [apartmentRows, renderRows, agent] = await Promise.all([
+  const [apartmentRows, renderRows, renderGroupRows, agent] = await Promise.all([
     data.listApartments([project.id]),
     data.listRenders([project.id]),
+    data.listRenderGroups ? data.listRenderGroups([project.id]) : Promise.resolve([]),
     link.created_by ? data.getAgentContact(link.created_by) : Promise.resolve(null),
   ]);
   const activeRows = apartmentRows.filter((row) => !row.deleted_at && row.project_id === project.id);
@@ -137,7 +138,7 @@ export async function loadSharedPresentation(
   return {
     status: 200,
     body: {
-      project: mapProject(project, renderRows, [], activeRows, urlFor),
+      project: mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
       apartments,
       showPrices: link.show_prices,
       language: LANGUAGES.includes(link.language as ShareLanguage) ? (link.language as ShareLanguage) : "he",

@@ -1,6 +1,7 @@
 import { renderCaption } from "./renderCaption.js";
-import type { Apartment, ApartmentStatus, Project, ProjectFile, ProjectFileAssociation } from "../../src/types";
+import type { Apartment, ApartmentStatus, Project, ProjectFile, ProjectFileAssociation, ProjectRenderGroup } from "../../src/types";
 import type {
+  MarketingRenderGroupRow,
   MarketingApartmentRow,
   MarketingDocumentRow,
   MarketingProjectRow,
@@ -163,12 +164,39 @@ function mapDocuments(documents: MarketingDocumentRow[], urlFor: SignedUrlLookup
   return files;
 }
 
+/** Manual groups with their renderings, building first, then the dashboard order. Empty groups are dropped. */
+function mapRenderGroups(
+  renders: MarketingRenderRow[],
+  groups: MarketingRenderGroupRow[],
+  urlFor: SignedUrlLookup,
+): ProjectRenderGroup[] {
+  const ordered = [...groups].sort(
+    (a, b) =>
+      Number(b.is_building) - Number(a.is_building) ||
+      a.sort_order - b.sort_order ||
+      a.name.localeCompare(b.name, "he"),
+  );
+  const sorted = sortRenders(renders);
+  return ordered
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      isBuilding: group.is_building,
+      images: sorted
+        .filter((render) => render.group_id === group.id)
+        .map((render) => urlFor(render.storage_bucket, render.storage_path))
+        .filter((url): url is string => Boolean(url)),
+    }))
+    .filter((group) => group.images.length > 0);
+}
+
 export function mapProject(
   row: MarketingProjectRow,
   renders: MarketingRenderRow[],
   documents: MarketingDocumentRow[],
   apartments: MarketingApartmentRow[],
   urlFor: SignedUrlLookup,
+  renderGroups: MarketingRenderGroupRow[] = [],
 ): Project {
   const name = row.name.trim();
   const city = (row.city ?? "").trim();
@@ -229,6 +257,7 @@ export function mapProject(
     },
     gallery: { exterior: imageUrls, interior: [], lobby: [], surroundings: [] },
     galleryCaptions,
+    renderGroups: mapRenderGroups(renders, renderGroups, urlFor),
     projectFiles: mapDocuments(documents, urlFor),
     technicalSpecNotes: [],
     technicalSpecSections: [],

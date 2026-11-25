@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupGalleryByApartment } from "./gallery-groups";
+import { buildGalleryGroups, groupGalleryByApartment } from "./gallery-groups";
 
 describe("groupGalleryByApartment", () => {
   it("groups numbered apartments in numeric order, with their renders in order", () => {
@@ -39,5 +39,38 @@ describe("groupGalleryByApartment", () => {
 
   it("returns no groups for an empty gallery", () => {
     expect(groupGalleryByApartment([], {})).toEqual([]);
+  });
+});
+
+describe("buildGalleryGroups", () => {
+  it("puts manual groups first in their order and groups the rest automatically", async () => {
+    const { buildGalleryGroups } = await import("./gallery-groups");
+    const captions = { a: "דירת גן", b: "דירה 3", c: "הבניין", d: "לובי" };
+    const groups = buildGalleryGroups(["a", "b", "c", "d"], captions, [
+      { id: "building", name: "הבניין", images: ["c", "d"] },
+      { id: "garden", name: "דירות גן", images: ["a"] },
+    ]);
+    expect(groups.map((group) => [group.key, group.label, group.images])).toEqual([
+      ["building", "הבניין", ["c", "d"]],
+      ["garden", "דירות גן", ["a"]],
+      ["דירה 3", "דירה 3", ["b"]],
+    ]);
+  });
+
+  it("drops manual groups with no images, and ignores images that are not in the gallery", async () => {
+    const { buildGalleryGroups } = await import("./gallery-groups");
+    const groups = buildGalleryGroups(["a"], {}, [
+      { id: "empty", name: "ריקה", images: ["x"] },
+      { id: "one", name: "אחת", images: ["a", "a"] },
+    ]);
+    expect(groups).toEqual([{ key: "one", label: "אחת", images: ["a"] }]);
+  });
+
+  it("falls back to the automatic grouping when there are no manual groups", async () => {
+    const { buildGalleryGroups } = await import("./gallery-groups");
+    const captions = { a: "דירה 2", b: "דירה 1" };
+    expect(buildGalleryGroups(["a", "b"], captions, [])).toEqual(
+      groupGalleryByApartment(["a", "b"], captions),
+    );
   });
 });
