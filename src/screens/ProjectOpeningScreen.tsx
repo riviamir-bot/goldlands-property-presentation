@@ -4,6 +4,7 @@ import { useI18n } from "../i18n/LanguageContext";
 import type { MessageKey } from "../i18n/strings";
 import type { Project } from "../types";
 import { formatMonthYear } from "../utils/format";
+import { translateConstructionStage, translateProjectType } from "../i18n/project-values";
 
 interface ProjectOpeningScreenProps {
   project: Project;
@@ -25,7 +26,7 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
       rows: [
         ["overview.address", project.address],
         ["overview.city", project.address.includes(project.city) ? "" : project.city],
-        ["overview.type", project.projectType],
+        ["overview.type", translateProjectType(project.projectType, language)],
         ["overview.blockParcel", blockParcel],
       ],
     },
@@ -34,7 +35,7 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
       rows: [
         ["overview.developer", details?.developerCompany ?? ""],
         ["overview.bank", details?.financingBank ?? ""],
-        ["overview.stage", details?.constructionStage ?? ""],
+        ["overview.stage", translateConstructionStage(details?.constructionStage ?? "", language)],
         ["overview.start", formatMonthYear(details?.constructionStartDate ?? "", language)],
         ["overview.completion", formatMonthYear(details?.constructionCompletionDate ?? "", language)],
       ],
