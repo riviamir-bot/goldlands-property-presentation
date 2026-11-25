@@ -1,19 +1,25 @@
 export interface GalleryGroup {
-  /** Stable id used for selection; "" for renders with no apartment in their caption. */
+  /** Stable id used for selection. Empty for renderings that name no apartment or building. */
   key: string;
-  /** Text shown on the filter button: "דירה 26", "דירת גן", "דירת 4 חדרים". */
+  /** Text shown on the filter button: "הבניין", "דירה 26", "דירת גן", "פנטהאוז". */
   label: string;
   images: string[];
 }
 
-/** Apartment number ("דירה 26") or apartment type ("דירת גן", "דירת 4 חדרים") at the start of a caption. */
-const APARTMENT_CAPTION = /^(דירה\s+\d+|דירת\s+[^·]+?)\s*(?:·|$)/;
+/** Text before the first " · " of a caption, when it names the building, a numbered apartment, or an apartment type. */
+const GROUP_CAPTION = /^(הבניין|דירה\s+\d+|דירת\s+.+|פנטהאוז|דופלקס)$/;
 const APARTMENT_NUMBER = /^דירה\s+(\d+)/;
+const BUILDING = "הבניין";
+
+function groupLabel(caption: string | undefined) {
+  const first = caption?.split("·")[0]?.trim() ?? "";
+  return GROUP_CAPTION.test(first) ? first : null;
+}
 
 /**
- * Splits gallery images by the apartment named in their caption ("דירה 26 · מטבח", "דירת גן").
- * Numbered apartments come first in numeric order, then apartment types in Hebrew order.
- * Renders that name no apartment come last, in one general group. Empty groups are never returned.
+ * Splits gallery images by what their caption names: the building first, then numbered apartments,
+ * then apartment types (garden, 4 rooms, penthouse...). Renderings that name none of these come last,
+ * in one general group. Empty groups are never returned.
  */
 export function groupGalleryByApartment(
   images: string[],
@@ -23,7 +29,7 @@ export function groupGalleryByApartment(
   const general: string[] = [];
 
   for (const image of images) {
-    const label = captions?.[image]?.match(APARTMENT_CAPTION)?.[1]?.trim();
+    const label = groupLabel(captions?.[image]);
     if (!label) {
       general.push(image);
       continue;
@@ -33,12 +39,16 @@ export function groupGalleryByApartment(
     groups.set(label, group);
   }
 
-  const numbered = (group: GalleryGroup) => Number(group.label.match(APARTMENT_NUMBER)?.[1] ?? NaN);
+  const rank = (group: GalleryGroup) => {
+    if (group.label === BUILDING) return [0, 0] as const;
+    const number = group.label.match(APARTMENT_NUMBER)?.[1];
+    return number ? ([1, Number(number)] as const) : ([2, 0] as const);
+  };
   const sorted = [...groups.values()].sort((a, b) => {
-    const aNumber = numbered(a);
-    const bNumber = numbered(b);
-    if (!Number.isNaN(aNumber) && !Number.isNaN(bNumber)) return aNumber - bNumber;
-    if (Number.isNaN(aNumber) !== Number.isNaN(bNumber)) return Number.isNaN(aNumber) ? 1 : -1;
+    const [aRank, aNumber] = rank(a);
+    const [bRank, bNumber] = rank(b);
+    if (aRank !== bRank) return aRank - bRank;
+    if (aNumber !== bNumber) return aNumber - bNumber;
     return a.label.localeCompare(b.label, "he");
   });
 

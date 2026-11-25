@@ -1,5 +1,4 @@
 import { Building2, MapPin } from "lucide-react";
-import { ProjectLogoSlot } from "../components/ProjectLogoSlot";
 import { SideNavigation } from "../components/SideNavigation";
 import { useI18n } from "../i18n/LanguageContext";
 import type { Project } from "../types";
@@ -61,7 +60,6 @@ function ProjectCard({ project, onSelect }: { project: Project; onSelect: (proje
       </div>
 
       <div className="project-card__body">
-        <ProjectLogoSlot project={project} compact markOnly />
         <div className="project-card__meta-row">
           <span className="project-card__meta">
             <MapPin size={16} />

@@ -23,13 +23,14 @@ describe("groupGalleryByApartment", () => {
     expect(groups[1].images).toEqual(["a", "d"]);
   });
 
-  it("puts numbered apartments before types, and renders with no apartment last", () => {
+  it("puts the building first, numbered apartments before types, and renders with no apartment last", () => {
     const captions = { a: "דירת 3 חדרים", b: "דירה 7", c: "הבניין", d: "לובי" };
     const groups = groupGalleryByApartment(["a", "b", "c", "d"], captions);
     expect(groups).toEqual([
+      { key: "הבניין", label: "הבניין", images: ["c"] },
       { key: "דירה 7", label: "דירה 7", images: ["b"] },
       { key: "דירת 3 חדרים", label: "דירת 3 חדרים", images: ["a"] },
-      { key: "", label: "", images: ["c", "d"] },
+      { key: "", label: "", images: ["d"] },
     ]);
   });
 
@@ -72,5 +73,17 @@ describe("buildGalleryGroups", () => {
     expect(buildGalleryGroups(["a", "b"], captions, [])).toEqual(
       groupGalleryByApartment(["a", "b"], captions),
     );
+  });
+});
+
+describe("penthouse and building captions", () => {
+  it("groups penthouse renders and keeps the building in its own group", () => {
+    const captions = { a: "פנטהאוז · סלון", b: "פנטהאוז", c: "הבניין · חזית", d: "חדר שינה" };
+    const groups = groupGalleryByApartment(["a", "b", "c", "d"], captions);
+    expect(groups.map((group) => [group.label, group.images])).toEqual([
+      ["הבניין", ["c"]],
+      ["פנטהאוז", ["a", "b"]],
+      ["", ["d"]],
+    ]);
   });
 });
