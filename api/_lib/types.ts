@@ -50,6 +50,16 @@ export interface MarketingRenderRow {
   sort_order: number | null;
   is_featured: boolean;
   modified_at: string | null;
+  /** Manual group of the rendering; null or missing means the automatic grouping applies. */
+  group_id?: string | null;
+}
+
+export interface MarketingRenderGroupRow {
+  id: string;
+  project_id: string;
+  name: string;
+  is_building: boolean;
+  sort_order: number;
 }
 
 export interface MarketingDocumentRow {

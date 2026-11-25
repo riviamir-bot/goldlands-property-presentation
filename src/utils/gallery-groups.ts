@@ -45,3 +45,33 @@ export function groupGalleryByApartment(
   if (general.length > 0) sorted.push({ key: "", label: "", images: general });
   return sorted;
 }
+
+export interface ManualGalleryGroup {
+  id: string;
+  name: string;
+  images: string[];
+}
+
+/**
+ * Groups for the gallery: the manual groups set in the dashboard first (building first, as sent),
+ * then the automatic grouping for the renderings that are not in any manual group.
+ */
+export function buildGalleryGroups(
+  images: string[],
+  captions: Record<string, string> | undefined,
+  manualGroups: ManualGalleryGroup[] | undefined,
+): GalleryGroup[] {
+  if (!manualGroups?.length) return groupGalleryByApartment(images, captions);
+
+  const available = new Set(images);
+  const assigned = new Set<string>();
+  const manual: GalleryGroup[] = [];
+  for (const group of manualGroups) {
+    const groupImages = [...new Set(group.images)].filter((image) => available.has(image) && !assigned.has(image));
+    groupImages.forEach((image) => assigned.add(image));
+    if (groupImages.length > 0) manual.push({ key: group.id, label: group.name, images: groupImages });
+  }
+
+  const rest = images.filter((image) => !assigned.has(image));
+  return [...manual, ...groupGalleryByApartment(rest, captions)];
+}

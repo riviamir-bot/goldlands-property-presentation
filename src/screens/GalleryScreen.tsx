@@ -4,7 +4,7 @@ import { ZoomableImage } from "../components/ZoomableImage";
 import { useFullscreen } from "../hooks/useFullscreen";
 import { useI18n } from "../i18n/LanguageContext";
 import type { GalleryCategory, Project } from "../types";
-import { groupGalleryByApartment } from "../utils/gallery-groups";
+import { buildGalleryGroups } from "../utils/gallery-groups";
 
 interface GalleryScreenProps {
   project: Project;
@@ -17,8 +17,8 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
   const { t, dir } = useI18n();
   const allImages = useMemo(() => categories.flatMap((category) => project.gallery[category]), [project.gallery]);
   const groups = useMemo(
-    () => groupGalleryByApartment(allImages, project.galleryCaptions),
-    [allImages, project.galleryCaptions],
+    () => buildGalleryGroups(allImages, project.galleryCaptions, project.renderGroups),
+    [allImages, project.galleryCaptions, project.renderGroups],
   );
   const [selectedGroup, setSelectedGroup] = useState<string>(ALL_GROUP);
   const images = useMemo(() => {

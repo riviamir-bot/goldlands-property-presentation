@@ -10,6 +10,13 @@ export type Screen =
   | "model3d"
   | "location";
 
+export interface ProjectRenderGroup {
+  id: string;
+  name: string;
+  isBuilding: boolean;
+  images: string[];
+}
+
 export type UserRole = "admin" | "sales" | "viewer";
 
 export interface CurrentUser {
@@ -139,6 +146,8 @@ export interface Project {
   gallery: Record<GalleryCategory, string[]>;
   /** Short caption per gallery image url ("דירה 26 · מטבח"); "" or missing when the file name says nothing. */
   galleryCaptions?: Record<string, string>;
+  /** Manual groups set in the dashboard, building first. Renderings outside them keep the automatic grouping. */
+  renderGroups?: ProjectRenderGroup[];
   materialFileCounts?: Partial<Record<string, number>>;
   projectFiles?: ProjectFile[];
   technicalSpecNotes?: string[];

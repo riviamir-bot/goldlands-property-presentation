@@ -5,6 +5,7 @@ import type {
   MarketingApartmentRow,
   MarketingDocumentRow,
   MarketingProjectRow,
+  MarketingRenderGroupRow,
   MarketingRenderRow,
   ShareLinkRow,
   UsageEventType,
@@ -23,6 +24,7 @@ export interface MarketingData extends MarketingReader {
   listProjects(scope: ProjectScope): Promise<MarketingProjectRow[]>;
   listApartments(projectIds: string[]): Promise<MarketingApartmentRow[]>;
   listRenders(projectIds: string[]): Promise<MarketingRenderRow[]>;
+  listRenderGroups?(projectIds: string[]): Promise<MarketingRenderGroupRow[]>;
   listDocuments(projectIds: string[]): Promise<MarketingDocumentRow[]>;
   /** Result is keyed by `${bucket}/${path}`. */
   signUrls(items: StorageObjectRef[], ttlSeconds: number): Promise<Map<string, string>>;
@@ -120,10 +122,11 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
     return { status: 200, body: { user, projects: [], apartments: [], generatedAt } };
   }
 
-  const [apartmentRowsRaw, renderRows, documentRows] = await Promise.all([
+  const [apartmentRowsRaw, renderRows, documentRows, renderGroupRows] = await Promise.all([
     data.listApartments(projectIds),
     data.listRenders(projectIds),
     data.listDocuments(projectIds),
+    data.listRenderGroups ? data.listRenderGroups(projectIds) : Promise.resolve([]),
   ]);
   const inScope = new Set(projectIds);
   const apartmentRows = apartmentRowsRaw
@@ -146,6 +149,7 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
   const apartmentsByProject = byKey(apartmentRows, (row) => row.project_id);
   const rendersByProject = byKey(renderRows, (row) => row.project_id);
   const documentsByProject = byKey(documentRows, (row) => row.project_id);
+  const renderGroupsByProject = byKey(renderGroupRows, (row) => row.project_id);
 
   return {
     status: 200,
@@ -158,6 +162,7 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
           documentsByProject.get(row.id) ?? [],
           apartmentsByProject.get(row.id) ?? [],
           urlFor,
+          renderGroupsByProject.get(row.id) ?? [],
         ),
       ),
       apartments: apartmentRows.map((row) => mapApartment(row, urlFor)),

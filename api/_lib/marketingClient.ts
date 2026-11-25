@@ -5,6 +5,7 @@ import type {
   MarketingApartmentRow,
   MarketingDocumentRow,
   MarketingProjectRow,
+  MarketingRenderGroupRow,
   MarketingRenderRow,
   ShareLinkRow,
 } from "./types";
@@ -13,7 +14,8 @@ const PROJECT_COLUMNS =
   "id, slug, name, address, city, status, units, new_units, existing_units, building_count, description, project_type, construction_stage, block, parcel, sort_order, deleted_at, developer_company, financing_bank, construction_start_date, construction_completion_date, project_website_url, additional_links";
 const APARTMENT_COLUMNS =
   "id, project_id, apartment_number, building, floor, rooms, area, balcony_area, price, status, deleted_at, plan_storage_path, plan_filename, plan_content_type";
-const RENDER_COLUMNS = "id, project_id, filename, storage_bucket, storage_path, sort_order, is_featured, modified_at";
+const RENDER_COLUMNS = "id, project_id, filename, storage_bucket, storage_path, sort_order, is_featured, modified_at, group_id";
+const RENDER_GROUP_COLUMNS = "id, project_id, name, is_building, sort_order";
 const DOCUMENT_COLUMNS = "id, project_id, document_type, filename, storage_bucket, storage_path, created_at";
 
 export class MarketingConfigurationError extends Error {
@@ -100,6 +102,14 @@ export function createMarketingData(): MarketingData {
         .in("project_id", projectIds)
         .is("deleted_at", null);
       return unwrap(result, []) as MarketingRenderRow[];
+    },
+
+    async listRenderGroups(projectIds) {
+      const result = await client
+        .from("project_render_groups")
+        .select(RENDER_GROUP_COLUMNS)
+        .in("project_id", projectIds);
+      return unwrap(result, []) as MarketingRenderGroupRow[];
     },
 
     async listDocuments(projectIds) {
