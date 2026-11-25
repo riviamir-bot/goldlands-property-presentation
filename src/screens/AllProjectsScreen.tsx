@@ -1,6 +1,7 @@
 import { Building2, MapPin } from "lucide-react";
 import { SideNavigation } from "../components/SideNavigation";
 import { useI18n } from "../i18n/LanguageContext";
+import { translateProjectType } from "../i18n/project-values";
 import type { Project } from "../types";
 
 interface AllProjectsScreenProps {
@@ -42,6 +43,7 @@ export function AllProjectsScreen({ projects, userName, notice, onSelect, onSign
 }
 
 function ProjectCard({ project, onSelect }: { project: Project; onSelect: (projectId: string) => void }) {
+  const { language } = useI18n();
   const image = project.heroImage;
 
   return (
@@ -65,7 +67,7 @@ function ProjectCard({ project, onSelect }: { project: Project; onSelect: (proje
             <MapPin size={16} />
             {project.location}
           </span>
-          <span className="project-card__type">{project.projectType}</span>
+          <span className="project-card__type">{translateProjectType(project.projectType, language)}</span>
         </div>
         <h2 dir="auto">{project.name}</h2>
         {project.tagline && <p>{project.tagline}</p>}
