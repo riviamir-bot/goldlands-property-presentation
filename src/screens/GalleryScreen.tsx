@@ -4,21 +4,42 @@ import { ZoomableImage } from "../components/ZoomableImage";
 import { useFullscreen } from "../hooks/useFullscreen";
 import { useI18n } from "../i18n/LanguageContext";
 import type { GalleryCategory, Project } from "../types";
+import { groupGalleryByApartment } from "../utils/gallery-groups";
 
 interface GalleryScreenProps {
   project: Project;
 }
 
 const categories: GalleryCategory[] = ["exterior", "interior", "lobby", "surroundings"];
+const ALL_GROUP = "all";
+const GENERAL_GROUP = "general";
 
 export function GalleryScreen({ project }: GalleryScreenProps) {
   const { t, dir } = useI18n();
-  const images = useMemo(() => categories.flatMap((category) => project.gallery[category]), [project.gallery]);
+  const allImages = useMemo(() => categories.flatMap((category) => project.gallery[category]), [project.gallery]);
+  const groups = useMemo(
+    () => groupGalleryByApartment(allImages, project.galleryCaptions),
+    [allImages, project.galleryCaptions],
+  );
+  const [selectedGroup, setSelectedGroup] = useState<string>(ALL_GROUP);
+  const images = useMemo(() => {
+    if (selectedGroup === ALL_GROUP) return allImages;
+    const group = groups.find((item) => (item.apartmentNumber ?? GENERAL_GROUP) === selectedGroup);
+    return group?.images ?? allImages;
+  }, [allImages, groups, selectedGroup]);
   const [index, setIndex] = useState(0);
   const { isFullscreen, toggle } = useFullscreen();
   const current = Math.min(index, Math.max(images.length - 1, 0));
 
-  useEffect(() => setIndex(0), [project.id]);
+  useEffect(() => {
+    setIndex(0);
+    setSelectedGroup(ALL_GROUP);
+  }, [project.id]);
+
+  const chooseGroup = (key: string) => {
+    setSelectedGroup(key);
+    setIndex(0);
+  };
 
   const step = (delta: number) => setIndex((value) => (Math.min(value, images.length - 1) + delta + images.length) % images.length);
 
@@ -51,6 +72,36 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
 
   return (
     <section className={isFullscreen ? "gallery-screen gallery-screen--fullscreen" : "gallery-screen"}>
+      {groups.length > 1 && (
+        <div className="gallery-groups" role="group" aria-label={t("gallery.byApartment")}>
+          <button
+            type="button"
+            className={selectedGroup === ALL_GROUP ? "gallery-group active" : "gallery-group"}
+            aria-pressed={selectedGroup === ALL_GROUP}
+            onClick={() => chooseGroup(ALL_GROUP)}
+          >
+            {t("gallery.allRenders")} <span className="gallery-group__count">{allImages.length}</span>
+          </button>
+          {groups.map((group) => {
+            const key = group.apartmentNumber ?? GENERAL_GROUP;
+            const label = group.apartmentNumber
+              ? t("gallery.apartment", { n: group.apartmentNumber })
+              : t("gallery.general");
+            return (
+              <button
+                key={key}
+                type="button"
+                className={selectedGroup === key ? "gallery-group active" : "gallery-group"}
+                aria-pressed={selectedGroup === key}
+                onClick={() => chooseGroup(key)}
+              >
+                {label} <span className="gallery-group__count">{group.images.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="gallery-frame">
         <ZoomableImage key={images[current]} src={images[current]} alt={`${project.name} - ${caption}`} />
 

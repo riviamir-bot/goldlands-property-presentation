@@ -6707,3 +6707,42 @@ body.has-fullscreen-layer {
   color: var(--gold-light);
   font-size: 0.9rem;
 }
+
+/* Renderings filtered by apartment */
+.gallery-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.gallery-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 1px solid var(--gold-light);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gold-light);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.gallery-group:hover,
+.gallery-group:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gallery-group.active {
+  background: var(--gold-light);
+  color: #1b1b1b;
+  font-weight: 700;
+}
+
+.gallery-group__count {
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
