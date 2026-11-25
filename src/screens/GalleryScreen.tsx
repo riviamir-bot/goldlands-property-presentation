@@ -12,7 +12,6 @@ interface GalleryScreenProps {
 
 const categories: GalleryCategory[] = ["exterior", "interior", "lobby", "surroundings"];
 const ALL_GROUP = "all";
-const GENERAL_GROUP = "general";
 
 export function GalleryScreen({ project }: GalleryScreenProps) {
   const { t, dir } = useI18n();
@@ -24,7 +23,7 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
   const [selectedGroup, setSelectedGroup] = useState<string>(ALL_GROUP);
   const images = useMemo(() => {
     if (selectedGroup === ALL_GROUP) return allImages;
-    const group = groups.find((item) => (item.apartmentNumber ?? GENERAL_GROUP) === selectedGroup);
+    const group = groups.find((item) => item.key === selectedGroup);
     return group?.images ?? allImages;
   }, [allImages, groups, selectedGroup]);
   const [index, setIndex] = useState(0);
@@ -83,10 +82,8 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
             {t("gallery.allRenders")} <span className="gallery-group__count">{allImages.length}</span>
           </button>
           {groups.map((group) => {
-            const key = group.apartmentNumber ?? GENERAL_GROUP;
-            const label = group.apartmentNumber
-              ? t("gallery.apartment", { n: group.apartmentNumber })
-              : t("gallery.general");
+            const key = group.key;
+            const label = group.key ? group.label : t("gallery.general");
             return (
               <button
                 key={key}
