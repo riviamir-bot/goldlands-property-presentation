@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Check } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { useI18n } from "../i18n/LanguageContext";
 
 export interface ContactProjectOption {
@@ -24,6 +24,7 @@ export function ContactForm({ initialProjectIds, fallbackProjects, medium = "cli
   const [projects, setProjects] = useState<ContactProjectOption[]>(fallbackProjects);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initialProjectIds));
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [pickerOpen, setPickerOpen] = useState(false);
   const startedAt = useRef(Date.now());
 
   useEffect(() => {
@@ -45,6 +46,9 @@ export function ContactForm({ initialProjectIds, fallbackProjects, medium = "cli
     }
     return [...groups.entries()];
   }, [projects]);
+
+  const selectedNames = projects.filter((project) => selected.has(project.id)).map((project) => project.name);
+  const selectedLabel = selectedNames.length > 2 ? t("gv.contact.pickedMany", { first: selectedNames[0], n: selectedNames.length - 1 }) : selectedNames.join(", ");
 
   const toggle = (id: string) =>
     setSelected((current) => {
@@ -98,19 +102,34 @@ export function ContactForm({ initialProjectIds, fallbackProjects, medium = "cli
     <form className="gv-contact__form" onSubmit={submit} noValidate>
       <fieldset className="gv-contact__projects" aria-invalid={invalid("projectIds")}>
         <legend>{t("gv.contact.projects")}</legend>
-        {byCity.map(([city, items]) => (
-          <div className="gv-contact__city" key={city || "-"}>
-            {city && <span className="gv-contact__city-name">{city}</span>}
-            <div className="gv-contact__chips">
-              {items.map((project) => (
-                <label className="gv-chip" key={project.id}>
-                  <input type="checkbox" checked={selected.has(project.id)} onChange={() => toggle(project.id)} />
-                  <span>{project.name}</span>
-                </label>
-              ))}
-            </div>
+        <button
+          type="button"
+          className="gv-picker"
+          aria-expanded={pickerOpen}
+          aria-controls="gv-project-list"
+          onClick={() => setPickerOpen((open) => !open)}
+        >
+          <span>{selectedLabel || t("gv.contact.pick")}</span>
+          <ChevronDown size={18} aria-hidden="true" />
+        </button>
+        {pickerOpen && (
+          <div className="gv-picker__list" id="gv-project-list">
+            {byCity.map(([city, items]) => (
+              <div className="gv-picker__group" key={city || "-"}>
+                {city && <span className="gv-picker__city">{city}</span>}
+                {items.map((project) => (
+                  <label className="gv-picker__option" key={project.id}>
+                    <input type="checkbox" checked={selected.has(project.id)} onChange={() => toggle(project.id)} />
+                    <span>{project.name}</span>
+                  </label>
+                ))}
+              </div>
+            ))}
+            <button type="button" className="gv-picker__done" onClick={() => setPickerOpen(false)}>
+              {t("gv.contact.pickDone")}
+            </button>
           </div>
-        ))}
+        )}
       </fieldset>
 
       <div className="gv-contact__fields">
