@@ -111,13 +111,6 @@
   width: auto;
   max-width: 55%;
   object-fit: contain;
-  /* White on the glass, so dark navy/green logos stay readable. */
-  filter: brightness(0) invert(1) drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
-}
-
-/* בר יהודה 3: a solid filled mark that turns into a blank shape in white — keep its colours. */
-.gv-project-logo[src*="58f23443-b4de-4aac-b252-73d142046368"] {
-  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
 }
 
 .gv-project-name {

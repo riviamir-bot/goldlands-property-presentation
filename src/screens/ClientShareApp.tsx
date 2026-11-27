@@ -129,7 +129,7 @@ export function ClientShareApp({ token }: { token: string }) {
   if (state.kind !== "ready") {
     return (
       <main className="gv gv-status" dir={dir}>
-        <BrandLogo />
+        <BrandLogo surface="light" />
         <p>{state.kind === "loading" ? t("client.loading") : t("client.expired")}</p>
       </main>
     );
