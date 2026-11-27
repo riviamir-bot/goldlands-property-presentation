@@ -741,7 +741,13 @@ button.gv-tile {
     white-space: nowrap;
   }
 
-  .gv-meeting-bar__button--primary span {
+  .gv-meeting-bar__button--primary span,
+  .gv-meeting-bar__button--labelled span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
     display: inline;
   }
 }

@@ -157,9 +157,9 @@ export default function App() {
           </span>
         </button>
       )}
-      <button type="button" className="gv-meeting-bar__button" onClick={() => setIsProjectShareOpen(true)} title={t("share.projectLink")}>
+      <button type="button" className="gv-meeting-bar__button gv-meeting-bar__button--labelled" onClick={() => setIsProjectShareOpen(true)} title={t("share.projectLink")}>
         <Link2 size={18} aria-hidden="true" />
-        <span>{t("share.projectLink")}</span>
+        <span>{t("share.projectLinkShort")}</span>
       </button>
       <LanguageSwitcher />
     </nav>
