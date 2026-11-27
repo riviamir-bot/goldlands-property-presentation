@@ -168,12 +168,7 @@ export function ContactForm({ initialProjectIds, fallbackProjects, medium = "cli
 
       <label className="gv-consent">
         <input type="checkbox" name="consent" required aria-invalid={invalid("consent")} />
-        <span>
-          {t("gv.contact.consent")}{" "}
-          <a href="https://www.goldlands.co.il/%d7%9e%d7%93%d7%99%d7%a0%d7%99%d7%95%d7%aa-%d7%94%d7%a4%d7%a8%d7%98%d7%99%d7%95%d7%aa/" target="_blank" rel="noreferrer">
-            {t("legal.privacy")}
-          </a>
-        </span>
+        <span>{t("gv.contact.consent")}</span>
       </label>
 
       {status.kind === "error" && (
