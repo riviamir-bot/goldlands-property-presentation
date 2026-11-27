@@ -44,4 +44,4 @@ Design and plans: `docs/superpowers/`.
 
 ## Brand logo
 
-Put the official GOLDLANDS logo (transparent PNG) at `public/brand/goldlands-logo.png`. Until it exists the text mark is shown.
+The official GOLDLANDS logo (from the brand design "GOLDLANDS.CO.IL" in Canva) is in `public/brand/`: `goldlands-logo-horizontal.png` (navy, for light pages) and `goldlands-logo-light-horizontal.png` (white, for the dark marketer app), plus the full stacked versions.

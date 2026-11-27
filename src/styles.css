@@ -2238,7 +2238,7 @@ button:disabled {
 
 .brand-logo__mark {
   width: 44px;
-  height: 44px;
+  height: 40px;
 }
 
 .brand-logo__text strong {
@@ -2318,7 +2318,7 @@ button:disabled {
 
 .project-card__image .project-logo-slot {
   min-width: 168px;
-  min-height: 44px;
+  min-height: 40px;
 }
 
 .project-card__image .project-logo-slot strong {
@@ -4388,7 +4388,7 @@ button:disabled {
 }
 
 .overview-fact-group dl div {
-  min-height: 44px;
+  min-height: 40px;
   padding-block: 7px;
 }
 
@@ -6640,7 +6640,7 @@ body.has-fullscreen-layer {
   .screen-controls > button {
     flex: 1;
     width: auto;
-    min-height: 44px;
+    min-height: 40px;
     justify-content: center;
   }
 
@@ -6863,13 +6863,13 @@ body.has-fullscreen-layer {
 
 .brand-logo__image {
   display: block;
-  height: 44px;
+  height: 40px;
   width: auto;
-  max-width: 220px;
+  max-width: 240px;
   object-fit: contain;
 }
 
 .brand-logo__image--compact {
   height: 32px;
-  max-width: 160px;
+  max-width: 220px;
 }

@@ -57,7 +57,7 @@ export function ClientShareApp({ token }: { token: string }) {
   if (state.kind !== "ready") {
     return (
       <main className="gv gv-status" dir={dir}>
-        <BrandLogo />
+        <BrandLogo surface="light" />
         <p>{state.kind === "loading" ? t("client.loading") : t("client.expired")}</p>
       </main>
     );
@@ -90,7 +90,7 @@ export function ClientShareApp({ token }: { token: string }) {
   return (
     <div className="gv" dir={dir}>
       <header className="gv-bar">
-        <BrandLogo compact />
+        <BrandLogo compact surface="light" />
         <div className="gv-bar__actions">
           {agent?.name && <span className="gv-bar__agent">{t("client.from", { name: agent.name })}</span>}
           {agent?.phone && (

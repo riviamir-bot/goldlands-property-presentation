@@ -1,31 +1,46 @@
 /* Gold View: the client-facing project page. Scoped under .gv so the marketer app keeps its own look. */
 .gv {
-  --gv-basalt: #16130f;
-  --gv-stone: #1f1b16;
-  --gv-stone-2: #29241d;
-  --gv-limestone: #efe7d8;
-  --gv-dust: #a89f8f;
-  --gv-gold: #c8a35a;
-  --gv-gold-pale: #e7d3a1;
-  --gv-hairline: rgba(200, 163, 90, 0.3);
-  --gv-serif: "Frank Ruhl Libre", "David Libre", Georgia, serif;
+  /* GOLDLANDS brand: navy and gold on white, as in the logo */
+  --gv-paper: #ffffff;
+  --gv-sand: #f4f1ec;
+  --gv-navy: #0b2146;
+  --gv-navy-soft: #50607a;
+  --gv-gold: #c3a26e;
+  --gv-gold-ink: #8f6d36;
+  --gv-hairline: rgba(11, 33, 70, 0.12);
+  --gv-gold-line: rgba(195, 162, 110, 0.7);
   --gv-sans: "Assistant", "Heebo", Arial, sans-serif;
   --gv-measure: 64ch;
 
+  /* The shared screens (gallery, spec, map) read these app tokens: light values here. */
+  --black: #ffffff;
+  --charcoal: #f4f1ec;
+  --panel: #f4f1ec;
+  --panel-soft: #ffffff;
+  --glass: rgba(255, 255, 255, 0.9);
+  --line: rgba(11, 33, 70, 0.12);
+  --line-strong: rgba(195, 162, 110, 0.7);
+  --gold: #a9874f;
+  --gold-light: #8f6d36;
+  --gold-deep: #8f6d36;
+  --text: #0b2146;
+  --muted: #50607a;
+  --soft: rgba(11, 33, 70, 0.05);
+
   min-height: 100vh;
-  background: var(--gv-basalt);
-  color: var(--gv-limestone);
+  background: var(--gv-paper);
+  color: var(--gv-navy);
   font-family: var(--gv-sans);
   font-size: 1.0625rem;
   line-height: 1.7;
 }
 
 .gv a {
-  color: var(--gv-gold-pale);
+  color: var(--gv-gold-ink);
 }
 
 .gv :focus-visible {
-  outline: 2px solid var(--gv-gold-pale);
+  outline: 2px solid var(--gv-gold-ink);
   outline-offset: 3px;
 }
 
@@ -39,13 +54,13 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px clamp(16px, 4vw, 48px);
-  background: rgba(22, 19, 15, 0.86);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(10px);
   border-block-end: 1px solid var(--gv-hairline);
 }
 
 .gv-bar .brand-logo__text strong {
-  font-family: var(--gv-serif);
+  font-family: var(--gv-sans);
   font-weight: 500;
   letter-spacing: 0.08em;
 }
@@ -57,7 +72,7 @@
 }
 
 .gv-bar__agent {
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
   font-size: 0.95rem;
 }
 
@@ -68,13 +83,13 @@
   padding: 7px 14px;
   border: 1px solid var(--gv-gold);
   border-radius: 999px;
-  color: var(--gv-gold-pale);
+  color: var(--gv-gold-ink);
   text-decoration: none;
   font-weight: 600;
 }
 
 .gv .gv-bar__whatsapp:hover {
-  background: rgba(200, 163, 90, 0.12);
+  background: rgba(195, 162, 110, 0.14);
 }
 
 /* Hero: the render, full width, with the project name set large in the serif */
@@ -85,7 +100,7 @@
   min-height: min(78vh, 760px);
   overflow: hidden;
   isolation: isolate;
-  background: var(--gv-stone);
+  background: var(--gv-sand);
 }
 
 .gv-hero__image {
@@ -102,7 +117,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(to top, rgba(22, 19, 15, 0.96) 0%, rgba(22, 19, 15, 0.55) 38%, rgba(22, 19, 15, 0) 70%);
+  background: linear-gradient(to top, rgba(11, 33, 70, 0.88) 0%, rgba(11, 33, 70, 0.45) 40%, rgba(11, 33, 70, 0) 72%);
 }
 
 .gv-hero__copy {
@@ -111,19 +126,24 @@
   padding: 0 clamp(20px, 4vw, 48px) clamp(32px, 6vh, 64px);
 }
 
+.gv-hero__copy {
+  color: #ffffff;
+}
+
 .gv-hero__location {
   margin: 0 0 4px;
-  color: var(--gv-gold-pale);
+  color: #e6d3ac;
   font-size: 1.05rem;
 }
 
 .gv-hero h1 {
   margin: 0;
-  font-family: var(--gv-serif);
-  font-weight: 500;
+  font-family: var(--gv-sans);
+  font-weight: 300;
   font-size: clamp(3rem, 9vw, 6.5rem);
   line-height: 1;
   letter-spacing: -0.01em;
+  color: #ffffff;
   animation: gv-rise 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
@@ -131,14 +151,14 @@
   max-width: 40ch;
   margin: 14px 0 26px;
   font-size: clamp(1.1rem, 2.2vw, 1.4rem);
-  color: var(--gv-limestone);
+  color: #ffffff;
 }
 
 .gv-hero__note {
   position: absolute;
   inset-block-start: 14px;
   inset-inline-end: 16px;
-  color: rgba(239, 231, 216, 0.7);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.75rem;
 }
 
@@ -164,15 +184,24 @@
   padding: 0 28px;
   border: 0;
   border-radius: 2px;
-  background: var(--gv-gold);
-  color: #1a150d;
+  background: var(--gv-navy);
+  color: #ffffff;
   font: 700 1.05rem var(--gv-sans);
   text-decoration: none;
   cursor: pointer;
 }
 
 .gv .gv-button:hover {
-  background: var(--gv-gold-pale);
+  background: #163a73;
+}
+
+.gv .gv-hero .gv-button {
+  background: var(--gv-gold);
+  color: var(--gv-navy);
+}
+
+.gv .gv-hero .gv-button:hover {
+  background: #d6bb8f;
 }
 
 .gv .gv-button:disabled {
@@ -200,16 +229,17 @@
 }
 
 .gv-facts dt {
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
   font-size: 0.9rem;
 }
 
 .gv-facts dd {
   margin: 2px 0 0;
-  font-family: var(--gv-serif);
-  font-size: 1.9rem;
+  font-family: var(--gv-sans);
+  font-weight: 300;
+  font-size: 2.1rem;
   line-height: 1.2;
-  color: var(--gv-limestone);
+  color: var(--gv-navy);
 }
 
 /* Sections */
@@ -230,19 +260,19 @@
   align-items: center;
   gap: 18px;
   margin: 0 0 28px;
-  font-family: var(--gv-serif);
-  font-weight: 500;
+  font-family: var(--gv-sans);
+  font-weight: 400;
   font-size: clamp(1.7rem, 3.4vw, 2.3rem);
   line-height: 1.2;
-  color: var(--gv-limestone);
+  color: var(--gv-navy);
 }
 
 .gv-heading::after {
   content: "";
   flex: 1;
   height: 12px;
-  border-inline-end: 1px solid var(--gv-gold);
-  background: linear-gradient(var(--gv-gold), var(--gv-gold)) center / 100% 1px no-repeat;
+  border-inline-end: 1px solid var(--gv-gold-line);
+  background: linear-gradient(var(--gv-gold-line), var(--gv-gold-line)) center / 100% 1px no-repeat;
 }
 
 .gv-heading::before {
@@ -280,7 +310,7 @@
 }
 
 .gv-about__credits dt {
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
 }
 
 .gv-about__credits dd {
@@ -295,13 +325,13 @@
 
 .gv-disclosure summary {
   cursor: pointer;
-  color: var(--gv-gold-pale);
+  color: var(--gv-gold-ink);
   font-weight: 600;
 }
 
 .gv-disclosure p {
   margin: 10px 0;
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
   line-height: 1.75;
 }
 
@@ -314,7 +344,7 @@
 
 .gv-apartment {
   padding: 20px;
-  background: var(--gv-stone);
+  background: var(--gv-sand);
   border-block-start: 2px solid var(--gv-gold);
 }
 
@@ -327,8 +357,8 @@
 
 .gv-apartment h3 {
   margin: 0;
-  font-family: var(--gv-serif);
-  font-weight: 500;
+  font-family: var(--gv-sans);
+  font-weight: 400;
   font-size: 1.6rem;
 }
 
@@ -340,7 +370,7 @@
 }
 
 .gv-apartment dt {
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
   font-size: 0.85rem;
 }
 
@@ -353,9 +383,9 @@
   margin: 16px 0 0;
   padding-block-start: 12px;
   border-block-start: 1px solid var(--gv-hairline);
-  font-family: var(--gv-serif);
+  font-family: var(--gv-sans);
   font-size: 1.6rem;
-  color: var(--gv-gold-pale);
+  color: var(--gv-gold-ink);
 }
 
 /* Feature (robotic parking) inside Gold View: wider, quieter frame */
@@ -363,15 +393,15 @@
   border-radius: 0;
   border: 0;
   border-block-start: 2px solid var(--gv-gold);
-  background: var(--gv-stone);
+  background: var(--gv-sand);
   padding: clamp(20px, 4vw, 40px);
 }
 
 .gv .feature-block__copy h3 {
-  font-family: var(--gv-serif);
-  font-weight: 500;
+  font-family: var(--gv-sans);
+  font-weight: 400;
   font-size: clamp(1.7rem, 3.4vw, 2.3rem);
-  color: var(--gv-limestone);
+  color: var(--gv-navy);
 }
 
 .gv .feature-block__copy p {
@@ -379,7 +409,7 @@
 }
 
 .gv .feature-block__copy li {
-  color: var(--gv-limestone);
+  color: var(--gv-navy);
 }
 
 .gv .feature-block__video iframe {
@@ -398,14 +428,14 @@
 .gv-contact__lead {
   max-width: var(--gv-measure);
   margin: -12px 0 24px;
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
 }
 
 .gv-contact__form {
   display: grid;
   gap: 24px;
   padding: clamp(20px, 4vw, 36px);
-  background: var(--gv-stone);
+  background: var(--gv-sand);
 }
 
 .gv-contact__projects {
@@ -426,7 +456,7 @@
 .gv-contact__city-name {
   display: block;
   margin-block-end: 6px;
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
   font-size: 0.9rem;
 }
 
@@ -453,19 +483,19 @@
   padding: 8px 16px;
   border: 1px solid var(--gv-hairline);
   border-radius: 999px;
-  color: var(--gv-limestone);
+  color: var(--gv-navy);
   transition: background-color 150ms, border-color 150ms;
 }
 
 .gv-chip input:checked + span {
-  background: var(--gv-gold);
-  border-color: var(--gv-gold);
-  color: #1a150d;
+  background: var(--gv-navy);
+  border-color: var(--gv-navy);
+  color: #ffffff;
   font-weight: 700;
 }
 
 .gv-chip input:focus-visible + span {
-  outline: 2px solid var(--gv-gold-pale);
+  outline: 2px solid var(--gv-gold-ink);
   outline-offset: 2px;
 }
 
@@ -485,7 +515,7 @@
 }
 
 .gv-field span {
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
   font-size: 0.92rem;
 }
 
@@ -496,8 +526,8 @@
   padding: 10px 12px;
   border: 1px solid var(--gv-hairline);
   border-radius: 2px;
-  background: var(--gv-basalt);
-  color: var(--gv-limestone);
+  background: var(--gv-paper);
+  color: var(--gv-navy);
   font: inherit;
 }
 
@@ -512,14 +542,14 @@
 }
 
 .gv [aria-invalid="true"] {
-  border-color: #d98b7a;
+  border-color: #b3412e;
 }
 
 .gv-consent {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
   font-size: 0.95rem;
 }
 
@@ -540,7 +570,7 @@
 
 .gv-contact__error {
   margin: 0;
-  color: #e8a596;
+  color: #b3412e;
 }
 
 .gv-contact__form .gv-button {
@@ -552,9 +582,9 @@
   align-items: center;
   gap: 14px;
   padding: 28px;
-  background: var(--gv-stone);
+  background: var(--gv-sand);
   border-block-start: 2px solid var(--gv-gold);
-  color: var(--gv-gold-pale);
+  color: var(--gv-gold-ink);
   font-size: 1.15rem;
 }
 
@@ -568,7 +598,7 @@
   margin: 40px auto 0;
   padding: 24px 0 40px;
   border-block-start: 1px solid var(--gv-hairline);
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
   font-size: 0.8rem;
   line-height: 1.6;
 }
@@ -585,7 +615,7 @@
   justify-items: center;
   gap: 12px;
   text-align: center;
-  color: var(--gv-dust);
+  color: var(--gv-navy-soft);
 }
 
 @media (max-width: 860px) {
@@ -649,7 +679,7 @@
 .gv .location-live__panel {
   border-radius: 2px;
   border-color: var(--gv-hairline);
-  background: var(--gv-stone);
+  background: var(--gv-sand);
 }
 
 .gv .technical-accordion__icon {
@@ -664,7 +694,7 @@
 }
 
 .gv .location-live__about p {
-  color: var(--gv-limestone);
+  color: var(--gv-navy);
   font-size: 1rem;
 }
 
@@ -690,4 +720,19 @@
   .gv-hero {
     min-height: 72vh;
   }
+}
+
+/* Gallery on the light page: the photo sits on sand, not black (full screen stays dark) */
+.gv .gallery-screen:not(.gallery-screen--fullscreen) .gallery-frame,
+.gv .gallery-thumb {
+  background: var(--gv-sand);
+}
+
+.gv .gallery-screen .gallery-frame {
+  border-radius: 2px;
+}
+
+.gv .brand-logo__image--compact {
+  height: 36px;
+  max-width: 240px;
 }
