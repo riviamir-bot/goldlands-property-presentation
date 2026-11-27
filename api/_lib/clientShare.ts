@@ -35,7 +35,7 @@ function parseShareRequest(value: unknown): ShareRequest | null {
   const input = value as Record<string, unknown>;
   const { projectId, apartmentIds, showPrices, language } = input;
   if (typeof projectId !== "string" || !UUID.test(projectId)) return null;
-  if (!Array.isArray(apartmentIds) || apartmentIds.length === 0 || apartmentIds.length > MAX_APARTMENTS) return null;
+  if (!Array.isArray(apartmentIds) || apartmentIds.length > MAX_APARTMENTS) return null;
   if (!apartmentIds.every((id) => typeof id === "string" && UUID.test(id))) return null;
   if (typeof showPrices !== "boolean") return null;
   if (!LANGUAGES.includes(language as ShareLanguage)) return null;
@@ -74,7 +74,7 @@ export async function createShareLink(
     project_id: request.projectId,
     created_by: auth.user.id,
     apartment_ids: request.apartmentIds,
-    show_prices: request.showPrices,
+    show_prices: request.apartmentIds.length > 0 && request.showPrices,
     language: request.language,
     expires_at: expiresAt,
   });

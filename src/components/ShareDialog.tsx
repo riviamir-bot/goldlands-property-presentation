@@ -17,6 +17,7 @@ interface ShareDialogProps {
 
 export function ShareDialog({ project, apartments, defaultShowPrices, withToken, onClose }: ShareDialogProps) {
   const { t, language } = useI18n();
+  const projectOnly = apartments.length === 0;
   const [showPrices, setShowPrices] = useState(defaultShowPrices);
   const [shareLanguage, setShareLanguage] = useState<Language>(language);
   const [phone, setPhone] = useState("");
@@ -34,13 +35,13 @@ export function ShareDialog({ project, apartments, defaultShowPrices, withToken,
   const create = async () => {
     setState({ kind: "creating" });
     const result = await withToken((token) =>
-      createShareLink(token, { projectId: project.id, apartmentIds: apartments.map((a) => a.id), showPrices, language: shareLanguage }),
+      createShareLink(token, { projectId: project.id, apartmentIds: apartments.map((a) => a.id), showPrices: projectOnly ? false : showPrices, language: shareLanguage }),
     );
     if (result?.kind === "ok") setState({ kind: "ready", url: result.url });
     else setState({ kind: "error", message: (result?.kind === "error" && result.message) || t("share.error") });
   };
 
-  const message = state.kind === "ready" ? translate(shareLanguage, "share.message", { project: project.name, url: state.url }) : "";
+  const message = state.kind === "ready" ? translate(shareLanguage, projectOnly ? "share.messageProject" : "share.message", { project: project.name, url: state.url }) : "";
 
   const copy = () => {
     if (state.kind !== "ready") return;
@@ -52,17 +53,18 @@ export function ShareDialog({ project, apartments, defaultShowPrices, withToken,
 
   return (
     <div className="drawer-backdrop drawer-backdrop--center" onClick={onClose} role="presentation">
-      <section className="share-dialog" role="dialog" aria-modal="true" aria-label={t("share.title")} onClick={(event) => event.stopPropagation()}>
+      <section className="share-dialog" role="dialog" aria-modal="true" aria-label={projectOnly ? t("share.titleProject") : t("share.title")} onClick={(event) => event.stopPropagation()}>
         <header className="apartment-drawer__header">
-          <h2>{t("share.title")}</h2>
+          <h2>{projectOnly ? t("share.titleProject") : t("share.title")}</h2>
           <button className="icon-button" type="button" onClick={onClose} aria-label={t("common.close")}>
             <X size={20} />
           </button>
         </header>
 
         <div className="share-dialog__body">
-          <p className="share-dialog__intro">{t("share.intro")}</p>
+          <p className="share-dialog__intro">{projectOnly ? t("share.introProject") : t("share.intro")}</p>
 
+          {!projectOnly && (
           <div>
             <span className="eyebrow">{t("share.apartments")}</span>
             <ul className="share-dialog__apartments">
@@ -73,13 +75,16 @@ export function ShareDialog({ project, apartments, defaultShowPrices, withToken,
               ))}
             </ul>
           </div>
+          )}
 
           {state.kind !== "ready" ? (
             <>
+              {!projectOnly && (
               <label className="share-dialog__check">
                 <input type="checkbox" checked={showPrices} onChange={(event) => setShowPrices(event.currentTarget.checked)} />
                 {t("share.includePrices")}
               </label>
+              )}
 
               <label className="share-dialog__field">
                 <span>{t("share.language")}</span>
