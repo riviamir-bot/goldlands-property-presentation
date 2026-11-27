@@ -81,7 +81,7 @@ describe("createShareLink", () => {
     expect(res.status).toBe(201);
     if (res.status !== 201) return;
     const token = res.body.url.split("/s/")[1];
-    expect(res.body.url).toMatch(/^https:\/\/app\.example\/s\/[A-Za-z0-9_-]{43}$/);
+    expect(res.body.url).toMatch(/^https:\/\/app\.example\/s\/[A-Za-z0-9_-]{12}$/);
     expect(data.links[0].token_hash).toBe(hashToken(token));
     expect(JSON.stringify(data.links)).not.toContain(token);
     expect(data.links[0]).toMatchObject({ project_id: PROJECT, created_by: "u1", apartment_ids: [A1, A2], show_prices: true, language: "en" });

@@ -14,6 +14,7 @@ describe("handoff", () => {
     const token = "A".repeat(43);
     expect(shareTokenFromPath(`/s/${token}`)).toBe(token);
     expect(shareTokenFromPath(`/s/${token}/`)).toBe(token);
+    expect(shareTokenFromPath(`/s/${"B".repeat(12)}`)).toBe("B".repeat(12));
     expect(shareTokenFromPath("/s/short")).toBeNull();
     expect(shareTokenFromPath("/")).toBeNull();
   });
