@@ -178,8 +178,8 @@ export default function App() {
           <main className="gv-section-view">
             <SectionBar title={title} onBack={back} />
             <div className="gv-section-body">
-              {current === "apartments" && <ApartmentsScreen variant="available" apartments={openApartments} {...tableProps} onTogglePrices={meeting.togglePrices} />}
-              {current === "prices" && <ApartmentsScreen variant="priceList" apartments={listedApartments} {...tableProps} onTogglePrices={meeting.togglePrices} />}
+              {current === "apartments" && <ApartmentsScreen variant="available" apartments={openApartments} {...tableProps} />}
+              {current === "prices" && <ApartmentsScreen variant="priceList" apartments={listedApartments} {...tableProps} />}
               {current === "plans" && (
                 <PlanScreen apartments={listedApartments} initialApartmentId={planApartmentId} showPrices={meeting.showPrices} />
               )}

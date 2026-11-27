@@ -1,4 +1,4 @@
-import { Columns3, Eye, EyeOff, FileSearch, Star } from "lucide-react";
+import { Columns3, FileSearch, Star } from "lucide-react";
 import { StatusBadge } from "../components/StatusBadge";
 import { useI18n } from "../i18n/LanguageContext";
 import { formatNumber, formatPrice } from "../utils/format";
@@ -16,8 +16,6 @@ export interface ApartmentTableProps {
 
 interface ApartmentsScreenProps extends ApartmentTableProps {
   variant: "available" | "priceList";
-  /** Marketer meeting only: shows the hide/show prices button in the screen header. */
-  onTogglePrices?: () => void;
 }
 
 export const MAX_COMPARE = 3;
@@ -31,7 +29,6 @@ export function ApartmentsScreen({
   onToggleSelection,
   onToggleCompare,
   variant,
-  onTogglePrices,
 }: ApartmentsScreenProps) {
   const { t, language } = useI18n();
   const heading = variant === "available" ? t("apartments.heading") : t("prices.heading");
@@ -45,15 +42,7 @@ export function ApartmentsScreen({
           <span className="eyebrow">{eyebrow}</span>
           <h2>{heading}</h2>
         </div>
-        <div className="gv-apt-head__tools">
-          <span className="count-pill">{t("count.apartments", { count: apartments.length })}</span>
-          {onTogglePrices && (
-            <button type="button" className="gv-meeting-bar__button" onClick={onTogglePrices} aria-pressed={!showPrices}>
-              {showPrices ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}
-              <span>{showPrices ? t("prices.hide") : t("prices.show")}</span>
-            </button>
-          )}
-        </div>
+        <span className="count-pill">{t("count.apartments", { count: apartments.length })}</span>
       </div>
 
       {apartments.length > 0 ? (
