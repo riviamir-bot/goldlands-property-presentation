@@ -89,11 +89,18 @@ describe("createShareLink", () => {
     expect(data.events).toEqual([{ projectId: PROJECT, userId: "u1", eventType: "share_link_created", shareLinkId: "link-1" }]);
   });
 
+  it("creates a project-only link with no apartments and no prices", async () => {
+    const data = fake();
+    const result = await createShareLink(data, "Bearer good", body({ apartmentIds: [], showPrices: true }), "https://app.example", now);
+    expect(result.status).toBe(201);
+    expect(data.links[0].apartment_ids).toEqual([]);
+    expect(data.links[0].show_prices).toBe(false);
+  });
+
   it("rejects apartments that are sold, deleted or from another project, and malformed input", async () => {
     for (const bad of [
       body({ apartmentIds: [SOLD] }),
       body({ apartmentIds: ["aaaaaaaa-0000-4000-8000-000000000099"] }),
-      body({ apartmentIds: [] }),
       body({ apartmentIds: Array.from({ length: 51 }, () => A1) }),
       body({ language: "de" }),
       body({ showPrices: "yes" }),

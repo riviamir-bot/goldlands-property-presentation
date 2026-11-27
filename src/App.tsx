@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Columns3, FileText, ListOrdered, Send } from "lucide-react";
+import { Columns3, FileText, Link2, ListOrdered, Send } from "lucide-react";
 import { ApartmentDrawer } from "./components/ApartmentDrawer";
 import { CompareDialog } from "./components/CompareDialog";
 import { GlassBackdrop, GvHeader, SectionBar, TileGrid, projectSummary, type GlassTile } from "./components/GoldViewParts";
@@ -24,6 +24,7 @@ export default function App() {
   const [openApartmentId, setOpenApartmentId] = useState<string | null>(null);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isProjectShareOpen, setIsProjectShareOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const meeting = usePresentationState(selectedProjectId);
@@ -154,6 +155,10 @@ export default function App() {
           </span>
         </button>
       )}
+      <button type="button" className="gv-meeting-bar__button" onClick={() => setIsProjectShareOpen(true)} title={t("share.projectLink")}>
+        <Link2 size={18} aria-hidden="true" />
+        <span>{t("share.projectLink")}</span>
+      </button>
       <LanguageSwitcher />
     </nav>
   );
@@ -221,6 +226,16 @@ export default function App() {
           defaultShowPrices={meeting.showPrices}
           withToken={withToken}
           onClose={() => setIsShareOpen(false)}
+        />
+      )}
+
+      {isProjectShareOpen && (
+        <ShareDialog
+          project={selectedProject}
+          apartments={[]}
+          defaultShowPrices={false}
+          withToken={withToken}
+          onClose={() => setIsProjectShareOpen(false)}
         />
       )}
       </div>
