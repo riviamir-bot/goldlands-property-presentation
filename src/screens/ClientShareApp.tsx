@@ -160,7 +160,7 @@ export function ClientShareApp({ token }: { token: string }) {
   const titleOf = (id: string) => (id === "contact" ? t("gv.contact.title") : (tiles.find((tile) => tile.id === id)?.title ?? ""));
 
   return (
-    <div className="gv" dir={dir}>
+    <div className="gv gv--framed" dir={dir}>
       <GlassBackdrop image={project.heroImage} dim={Boolean(current)} />
       <GvHeader project={project} />
 

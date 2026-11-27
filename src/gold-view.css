@@ -97,14 +97,33 @@
   margin-inline: auto;
 }
 
-/* Fixed top bar with both logos on every screen. Light frosted glass, so the logos keep their original colours. */
+/* Both logos stay at the top of every screen, with no background of their own.
+   Only the area below them scrolls, so content never slides under the logos. */
+.gv--framed {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gv--framed > .gv-home,
+.gv--framed > .gv-section-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .gv {
   --gv-header-h: 72px;
 }
 
 .gv-header {
-  position: sticky;
-  top: 0;
+  position: relative;
+  flex: none;
   z-index: 6;
   display: flex;
   align-items: center;
@@ -112,11 +131,7 @@
   gap: 16px;
   height: var(--gv-header-h);
   padding: 8px clamp(16px, 4vw, 32px);
-  background: rgba(255, 255, 255, 0.95);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  backdrop-filter: blur(16px) saturate(1.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 6px 24px rgba(10, 16, 30, 0.18);
+  background: transparent;
 }
 
 .gv-header .brand-logo__image--compact {
@@ -271,7 +286,7 @@ button.gv-tile {
 
 .gv-section-bar {
   position: sticky;
-  top: var(--gv-header-h);
+  top: 0;
   z-index: 5;
   display: flex;
   align-items: center;

@@ -176,7 +176,7 @@ export default function App() {
 
   return (
     <>
-      <div className="gv gv--meeting" dir={dir}>
+      <div className="gv gv--framed gv--meeting" dir={dir}>
         <GlassBackdrop image={selectedProject.heroImage} dim={Boolean(current)} />
         <GvHeader project={selectedProject} onBrandClick={() => go("", "")} />
         {notice}
