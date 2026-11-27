@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { MessageCircle } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
 import { ContactForm } from "../components/ContactForm";
 import { FeatureBlocks } from "../components/FeatureBlocks";
@@ -12,7 +11,6 @@ import { translateConstructionStage } from "../i18n/project-values";
 import { fetchSharedPresentation, type SharedPresentationPayload } from "../services/presentationApi";
 import type { Project } from "../types";
 import { formatMonthYear, formatNumber, formatPrice } from "../utils/format";
-import { whatsappUrl } from "../utils/handoff";
 import { GalleryScreen } from "./GalleryScreen";
 import { LocationScreen } from "./LocationScreen";
 import { Model3dScreen } from "./Model3dScreen";
@@ -63,7 +61,7 @@ export function ClientShareApp({ token }: { token: string }) {
     );
   }
 
-  const { project, apartments, showPrices, agent } = state.payload;
+  const { project, apartments, showPrices } = state.payload;
   const details = project.details;
   const hasImages = Object.values(project.gallery).some((images) => images.length > 0);
   const specSections = project.technicalSpecSections ?? [];
@@ -92,13 +90,6 @@ export function ClientShareApp({ token }: { token: string }) {
       <header className="gv-bar">
         <BrandLogo compact surface="light" />
         <div className="gv-bar__actions">
-          {agent?.name && <span className="gv-bar__agent">{t("client.from", { name: agent.name })}</span>}
-          {agent?.phone && (
-            <a className="gv-bar__whatsapp" aria-label="WhatsApp" href={whatsappUrl(agent.phone, project.name)} target="_blank" rel="noreferrer">
-              <MessageCircle size={16} aria-hidden="true" />
-              <span className="gv-bar__whatsapp-label">WhatsApp</span>
-            </a>
-          )}
           <LanguageSwitcher />
         </div>
       </header>

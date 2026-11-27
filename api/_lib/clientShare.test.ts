@@ -113,14 +113,14 @@ describe("createShareLink", () => {
 describe("loadSharedPresentation", () => {
   const token = "T".repeat(43);
 
-  it("returns only the selected apartments, the agent contact and no project documents", async () => {
+  it("returns only the selected apartments, no marketer details and no project documents", async () => {
     const data = fake({ link: { token, apartment_ids: [A1, SOLD] } });
     const res = await loadSharedPresentation(data, token, now);
     expect(res.status).toBe(200);
     if (res.status !== 200) return;
     expect(res.body.apartments.map((a) => a.id)).toEqual([A1, SOLD]);
     expect(res.body.apartments.find((a) => a.id === SOLD)?.price).toBe(0);
-    expect(res.body.agent).toEqual({ name: "דנה לוי", phone: "0501234567" });
+    expect(res.body.agent).toBeNull();
     expect(res.body.language).toBe("en");
     expect(JSON.stringify(res.body)).not.toContain("internal.xlsx");
   });

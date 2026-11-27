@@ -106,11 +106,12 @@ export async function loadSharedPresentation(
   const project = (await data.listProjects([link.project_id])).find((row) => row.id === link.project_id && !row.deleted_at);
   if (!project) return fail(410, "הקישור אינו בתוקף.");
 
-  const [apartmentRows, renderRows, renderGroupRows, agent, contentRows] = await Promise.all([
+  // Internal details (who sent the link, marketer contact) never reach the client; leads come back through the contact form.
+  const agent = null;
+  const [apartmentRows, renderRows, renderGroupRows, contentRows] = await Promise.all([
     data.listApartments([project.id]),
     data.listRenders([project.id]),
     data.listRenderGroups ? data.listRenderGroups([project.id]) : Promise.resolve([]),
-    link.created_by ? data.getAgentContact(link.created_by) : Promise.resolve(null),
     data.listProjectContent ? data.listProjectContent([project.id]) : Promise.resolve([]),
   ]);
   const activeRows = apartmentRows.filter((row) => !row.deleted_at && row.project_id === project.id);
