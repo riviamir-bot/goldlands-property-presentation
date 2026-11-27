@@ -1339,3 +1339,31 @@ button.gv-tile {
 .gv .plan-viewer:not(.plan-viewer--empty) {
   background: transparent;
 }
+
+.gv-legal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 14px 4px 18px;
+  color: var(--gv-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.gv-legal p {
+  margin: 0;
+}
+
+.gv-legal nav {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+.gv-legal a,
+.gv-consent a {
+  color: var(--gv-gold);
+  text-decoration: underline;
+}

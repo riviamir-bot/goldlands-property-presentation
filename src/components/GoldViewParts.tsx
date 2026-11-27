@@ -158,3 +158,23 @@ export function AboutSection({ project }: { project: Project }) {
     </>
   );
 }
+
+const SITE = "https://www.goldlands.co.il";
+
+/** Disclaimer and links to the legal pages of the GOLDLANDS site, shown on the client page. */
+export function LegalFooter() {
+  const { t } = useI18n();
+  return (
+    <div className="gv-legal">
+      <p dir="auto">{t("legal.disclaimer")}</p>
+      <nav aria-label="legal">
+        <a href={`${SITE}/%d7%9e%d7%93%d7%99%d7%a0%d7%99%d7%95%d7%aa-%d7%94%d7%a4%d7%a8%d7%98%d7%99%d7%95%d7%aa/`} target="_blank" rel="noreferrer">
+          {t("legal.privacy")}
+        </a>
+        <a href={`${SITE}/%d7%94%d7%a6%d7%94%d7%a8%d7%aa-%d7%a0%d7%92%d7%99%d7%a9%d7%95%d7%aa/`} target="_blank" rel="noreferrer">
+          {t("legal.accessibility")}
+        </a>
+      </nav>
+    </div>
+  );
+}

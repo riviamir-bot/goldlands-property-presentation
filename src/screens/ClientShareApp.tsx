@@ -6,6 +6,7 @@ import { FeatureBlocks } from "../components/FeatureBlocks";
 import {
   AboutSection,
   GlassBackdrop,
+  LegalFooter,
   Panel,
   GvHeader,
   SectionBar,
@@ -183,6 +184,7 @@ export function ClientShareApp({ token }: { token: string }) {
             <div className="gv-home__lang">
               <LanguageSwitcher />
             </div>
+            <LegalFooter />
           </div>
         </main>
       ) : (
@@ -218,6 +220,7 @@ export function ClientShareApp({ token }: { token: string }) {
             ) : (
               <SharedSection id={current} project={project} />
             )}
+            <LegalFooter />
           </div>
           {current !== "contact" && (
             <footer className="gv-section-footer">
