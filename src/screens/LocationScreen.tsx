@@ -170,6 +170,13 @@ export function LocationScreen({ project }: { project: Project }) {
           </div>
         </div>
 
+        {project.locationDescription && (
+          <div className="location-live__about">
+            <span className="eyebrow">{project.neighborhood || t("location.aboutArea")}</span>
+            <p dir="auto">{project.locationDescription}</p>
+          </div>
+        )}
+
         <div className="location-live__heading">
           <h2>{t("map.nearby")}</h2>
           <span>{t("map.radius")}</span>

@@ -87,6 +87,28 @@ export interface TechnicalSpecSectionData {
   displayOrder: number;
 }
 
+export interface ProjectFact {
+  label: string;
+  value: string;
+}
+
+export interface ProjectFeatureFaq {
+  q: string;
+  a: string;
+}
+
+/** A highlighted project feature explained to clients, e.g. robotic parking. */
+export interface ProjectFeatureBlock {
+  key: string;
+  title: string;
+  intro: string;
+  bullets: string[];
+  /** Privacy-enhanced YouTube embed URL, or "". */
+  videoEmbedUrl: string;
+  videoCaption: string;
+  faqs: ProjectFeatureFaq[];
+}
+
 export interface ProjectDetails {
   developerCompany: string;
   financingBank: string;
@@ -155,6 +177,14 @@ export interface Project {
   details?: ProjectDetails;
   /** Embeddable interactive 3D model, https only; empty when the project has none. */
   model3dUrl?: string;
+  /** Gold View content (published rows of presentation_project_content). */
+  locationDescription?: string;
+  developerAbout?: string;
+  developerWebsite?: string;
+  architect?: string;
+  facts?: ProjectFact[];
+  featureBlocks?: ProjectFeatureBlock[];
+  legalDisclaimer?: string;
 }
 
 export interface Apartment {

@@ -2,6 +2,7 @@ import {
   TechnicalSpecAccordion,
   defaultOverviewSpecIds,
 } from "../components/TechnicalSpecAccordion";
+import { FeatureBlocks } from "../components/FeatureBlocks";
 import type { Project } from "../types";
 
 interface TechnicalSpecScreenProps {
@@ -16,7 +17,8 @@ export function TechnicalSpecScreen({ project }: TechnicalSpecScreenProps) {
     : importedSpecItems.length > 0
       ? [{ id: "other", title: "מפרט טכני", items: importedSpecItems, displayOrder: 0 }]
       : undefined;
-  const shouldShowDemoSpec = !project?.isSupabaseBacked && !sections;
+  const featureBlocks = project?.featureBlocks ?? [];
+  const shouldShowDemoSpec = !project?.isSupabaseBacked && !sections && featureBlocks.length === 0;
 
   return (
     <section className="panel technical-spec-panel">
@@ -27,6 +29,7 @@ export function TechnicalSpecScreen({ project }: TechnicalSpecScreenProps) {
         </div>
         <p>תצוגת מפרט נקייה לפגישת לקוח, באותו מבנה אקורדיון שמופיע בסקירת הפרויקט.</p>
       </header>
+      <FeatureBlocks blocks={featureBlocks} />
       {sections ? (
         <TechnicalSpecAccordion
           defaultOpenIds={sections.map((section) => section.id)}
@@ -35,11 +38,14 @@ export function TechnicalSpecScreen({ project }: TechnicalSpecScreenProps) {
         />
       ) : shouldShowDemoSpec ? (
         <TechnicalSpecAccordion defaultOpenIds={defaultOverviewSpecIds} variant="screen" />
-      ) : (
+      ) : featureBlocks.length > 0 ? null : (
         <div className="empty-state compact-empty-state">
           <h3>עדיין לא הוזן מפרט טכני</h3>
           <p>ניתן להוסיף ולערוך סעיפים במסך ניהול הפרויקט.</p>
         </div>
+      )}
+      {project?.legalDisclaimer && (
+        <p className="spec-disclaimer" dir="auto">{project.legalDisclaimer}</p>
       )}
     </section>
   );

@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { MarketingData, StorageObjectRef } from "./loadPresentation.js";
 import { cleanSecret } from "./safety.js";
 import type {
+  MarketingProjectContentRow,
   MarketingApartmentRow,
   MarketingDocumentRow,
   MarketingProjectRow,
@@ -16,6 +17,10 @@ const APARTMENT_COLUMNS =
   "id, project_id, apartment_number, building, floor, rooms, area, balcony_area, price, status, deleted_at, plan_storage_path, plan_filename, plan_content_type";
 const RENDER_COLUMNS = "id, project_id, filename, storage_bucket, storage_path, sort_order, is_featured, modified_at, group_id";
 const RENDER_GROUP_COLUMNS = "id, project_id, name, is_building, sort_order";
+const CONTENT_COLUMNS =
+  "project_id, status, tagline, description, neighborhood, location_description, developer_name, developer_about, developer_website, architect, facts, spec_sections, feature_blocks, legal_disclaimer";
+/** Postgres "undefined table" and PostgREST "table not in schema cache". */
+const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
 const DOCUMENT_COLUMNS = "id, project_id, document_type, filename, storage_bucket, storage_path, created_at";
 
 export class MarketingConfigurationError extends Error {
@@ -110,6 +115,17 @@ export function createMarketingData(): MarketingData {
         .select(RENDER_GROUP_COLUMNS)
         .in("project_id", projectIds);
       return unwrap(result, []) as MarketingRenderGroupRow[];
+    },
+
+    async listProjectContent(projectIds) {
+      const result = await client
+        .from("presentation_project_content")
+        .select(CONTENT_COLUMNS)
+        .eq("status", "published")
+        .in("project_id", projectIds);
+      // Until the migration is applied the table does not exist: show projects without the extra content.
+      if (result.error && MISSING_TABLE_CODES.has((result.error as { code?: string }).code ?? "")) return [];
+      return unwrap(result, []) as MarketingProjectContentRow[];
     },
 
     async listDocuments(projectIds) {

@@ -14,7 +14,7 @@ export function visibleSections(project: Project, apartments: Apartment[], optio
   if (apartments.length > 0 && showPrices) sections.push("prices");
   if (hasImages) sections.push("gallery");
   if (apartments.some((apartment) => apartment.planAttached && apartment.planUrl)) sections.push("plans");
-  if ((project.technicalSpecSections ?? []).length > 0) sections.push("technical");
+  if ((project.technicalSpecSections ?? []).length > 0 || (project.featureBlocks ?? []).length > 0) sections.push("technical");
   if (project.model3dUrl) sections.push("model3d");
   if (project.address.trim() || project.city.trim()) sections.push("location");
 

@@ -34,6 +34,7 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
       title: "overview.construction",
       rows: [
         ["overview.developer", details?.developerCompany ?? ""],
+        ["overview.architect", project.architect ?? ""],
         ["overview.bank", details?.financingBank ?? ""],
         ["overview.stage", translateConstructionStage(details?.constructionStage ?? "", language)],
         ["overview.start", formatMonthYear(details?.constructionStartDate ?? "", language)],
@@ -135,6 +136,19 @@ export function ProjectOpeningScreen({ project }: ProjectOpeningScreenProps) {
               </details>
             ))}
           </div>
+
+          {project.developerAbout && (
+            <details className="overview-fact-group overview-developer">
+              <summary>{t("overview.aboutDeveloper")}</summary>
+              <p dir="auto">{project.developerAbout}</p>
+              {project.developerWebsite && (
+                <a className="ghost-button" href={project.developerWebsite} target="_blank" rel="noreferrer">
+                  <ExternalLink size={16} />
+                  {t("overview.developerWebsite")}
+                </a>
+              )}
+            </details>
+          )}
 
           {details?.websiteUrl && (
             <a className="ghost-button project-website-link" href={details.websiteUrl} target="_blank" rel="noreferrer">
