@@ -4,7 +4,7 @@ import { LANGUAGES } from "../i18n/strings";
 export function LanguageSwitcher() {
   const { language, setLanguage, t } = useI18n();
   return (
-    <div className="language-switcher" role="group" aria-label={t("nav.language")}>
+    <div className="language-switcher" dir="rtl" role="group" aria-label={t("nav.language")}>
       {LANGUAGES.map((item) => (
         <button
           key={item.id}

@@ -14,6 +14,7 @@ const PROJECT_TYPES: Record<string, Record<Language, string>> = {
 
 const CONSTRUCTION_STAGES: Record<string, Record<Language, string>> = {
   "בבניה": { he: "בבניה", en: "Under construction", fr: "En construction" },
+  "בביצוע": { he: "בביצוע", en: "Under construction", fr: "En construction" },
   "היתר בתנאים": { he: "היתר בתנאים", en: "Conditional permit", fr: "Permis sous conditions" },
   "התקבל היתר בניה": { he: "התקבל היתר בניה", en: "Building permit received", fr: "Permis de construire obtenu" },
 };

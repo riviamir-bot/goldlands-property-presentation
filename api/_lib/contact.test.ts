@@ -53,6 +53,16 @@ describe("submitContact", () => {
     expect(d.deliverLead).not.toHaveBeenCalled();
   });
 
+  it("trusts the time measured on the page, not the visitor's clock", async () => {
+    const d = data();
+    const { startedAt: _ignored, ...rest } = valid;
+    expect((await submitContact(d, { ...rest, elapsedMs: 8000 }, NOW)).body).toMatchObject({ delivered: 2 });
+    const bot = data();
+    await submitContact(bot, { ...rest, elapsedMs: 300 }, NOW);
+    await submitContact(bot, { ...rest }, NOW);
+    expect(bot.deliverLead).not.toHaveBeenCalled();
+  });
+
   it("validates fields with a pointer to the field", async () => {
     const d = data();
     expect(await submitContact(d, { ...valid, phone: "12" }, NOW)).toMatchObject({ status: 422, body: { field: "phone" } });

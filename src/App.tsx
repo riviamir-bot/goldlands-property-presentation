@@ -185,9 +185,9 @@ export default function App() {
         {notice}
         {!current ? (
           <main className="gv-home">
-            <header className="gv-top">
+            <header className="gv-top" dir="rtl">
               <ProjectLogo project={selectedProject} />
-              <BrandLogo compact surface="light" onClick={() => setSelectedProjectId("")} />
+              <BrandLogo compact surface="gold" onClick={() => setSelectedProjectId("")} />
             </header>
             <div className="gv-home__body">
               <div className="gv-home__title">
@@ -211,7 +211,6 @@ export default function App() {
           </main>
         )}
         {meetingBar}
-      </div>
 
       {openApartment && (
         <ApartmentDrawer
@@ -247,6 +246,7 @@ export default function App() {
           onClose={() => setIsShareOpen(false)}
         />
       )}
+      </div>
     </>
   );
 }
