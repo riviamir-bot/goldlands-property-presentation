@@ -5,7 +5,7 @@ import type {
   ProjectFeatureFaq,
   TechnicalSpecSectionData,
 } from "../../src/types";
-import type { MarketingProjectContentRow } from "./types";
+import type { MarketingProjectContentRow, MarketingProjectTranslationRow } from "./types";
 
 const MAX_ITEMS = 60;
 const MAX_TEXT = 5000;
@@ -92,12 +92,47 @@ export function mapFeatureBlocks(value: unknown): ProjectFeatureBlock[] {
   });
 }
 
+const TRANSLATION_LANGUAGES = ["en", "fr"] as const;
+
+/** Maps the reviewed translation rows of one project; unknown languages and empty rows are ignored. */
+export function mapTranslations(rows: MarketingProjectTranslationRow[]): NonNullable<Project["translations"]> {
+  const result: NonNullable<Project["translations"]> = {};
+  for (const row of rows) {
+    const language = TRANSLATION_LANGUAGES.find((item) => item === row.language);
+    if (!language) continue;
+    const specSections = mapSpecSections(row.spec_sections);
+    const featureBlocks = mapFeatureBlocks(row.feature_blocks);
+    result[language] = {
+      name: str(row.name, 200),
+      city: str(row.city, 120),
+      address: str(row.address, 300),
+      neighborhood: str(row.neighborhood, 120),
+      tagline: str(row.tagline, 200),
+      description: str(row.description),
+      locationDescription: str(row.location_description),
+      developerAbout: str(row.developer_about),
+      technicalSpecSections: specSections.length ? specSections : undefined,
+      featureBlocks: featureBlocks.length ? featureBlocks : undefined,
+    };
+  }
+  return result;
+}
+
 /**
  * Applies published Gold View content on top of a project mapped from the marketing data.
  * Content fills and overrides texts (tagline, description, spec); empty content values keep the marketing data.
  * The developer name from the marketing system wins over the deck when both exist.
  */
-export function applyProjectContent(project: Project, content: MarketingProjectContentRow | undefined): Project {
+export function applyProjectContent(
+  project: Project,
+  content: MarketingProjectContentRow | undefined,
+  translationRows: MarketingProjectTranslationRow[] = [],
+): Project {
+  const withTranslations = translationRows.length ? { ...project, translations: mapTranslations(translationRows) } : project;
+  return applyPublishedContent(withTranslations, content);
+}
+
+function applyPublishedContent(project: Project, content: MarketingProjectContentRow | undefined): Project {
   if (!content || content.status !== "published") return project;
   const specSections = mapSpecSections(content.spec_sections);
   const developerName = str(content.developer_name, 200);

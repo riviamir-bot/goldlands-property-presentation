@@ -185,6 +185,22 @@ export interface Project {
   facts?: ProjectFact[];
   featureBlocks?: ProjectFeatureBlock[];
   legalDisclaimer?: string;
+  /** Reviewed English/French texts; a missing language or field shows the Hebrew text. */
+  translations?: Partial<Record<"en" | "fr", ProjectTranslation>>;
+}
+
+/** The project texts that exist in other languages. Empty strings / missing arrays mean "no translation". */
+export interface ProjectTranslation {
+  name?: string;
+  city?: string;
+  address?: string;
+  neighborhood?: string;
+  tagline?: string;
+  description?: string;
+  locationDescription?: string;
+  developerAbout?: string;
+  technicalSpecSections?: TechnicalSpecSectionData[];
+  featureBlocks?: ProjectFeatureBlock[];
 }
 
 export interface Apartment {

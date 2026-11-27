@@ -1,9 +1,10 @@
 import type { Apartment, Project } from "../../src/types";
 import { resolveUser, type MarketingReader, type PresentationUser, type ProjectScope } from "./access.js";
 import { EXCLUDED_PROJECT_IDS, mapApartment, mapProject, PLAN_BUCKET } from "./mapping.js";
-import { applyProjectContent } from "./projectContent.js";
+import { applyProjectContent, mapTranslations } from "./projectContent.js";
 import type {
   MarketingProjectContentRow,
+  MarketingProjectTranslationRow,
   MarketingApartmentRow,
   MarketingDocumentRow,
   MarketingProjectRow,
@@ -39,6 +40,8 @@ export interface MarketingData extends MarketingReader {
   listRenderGroups?(projectIds: string[]): Promise<MarketingRenderGroupRow[]>;
   /** Published Gold View content; [] when none (or before the table exists). */
   listProjectContent?(projectIds: string[]): Promise<MarketingProjectContentRow[]>;
+  /** Reviewed English/French texts; [] when none (or before the table exists). */
+  listProjectTranslations?(projectIds: string[]): Promise<MarketingProjectTranslationRow[]>;
   listDocuments(projectIds: string[]): Promise<MarketingDocumentRow[]>;
   /** Result is keyed by `${bucket}/${path}`. */
   signUrls(items: StorageObjectRef[], ttlSeconds: number): Promise<Map<string, string>>;
@@ -136,13 +139,15 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
     return { status: 200, body: { user, projects: [], apartments: [], generatedAt } };
   }
 
-  const [apartmentRowsRaw, renderRows, documentRows, renderGroupRows, contentRows] = await Promise.all([
+  const [apartmentRowsRaw, renderRows, documentRows, renderGroupRows, contentRows, translationRows] = await Promise.all([
     data.listApartments(projectIds),
     data.listRenders(projectIds),
     data.listDocuments(projectIds),
     data.listRenderGroups ? data.listRenderGroups(projectIds) : Promise.resolve([]),
     data.listProjectContent ? data.listProjectContent(projectIds) : Promise.resolve([]),
+    data.listProjectTranslations ? data.listProjectTranslations(projectIds) : Promise.resolve([]),
   ]);
+  const translationsByProject = byKey(translationRows, (row) => row.project_id);
   const contentByProject = new Map(contentRows.map((row) => [row.project_id, row]));
   const inScope = new Set(projectIds);
   const apartmentRows = apartmentRowsRaw
@@ -183,6 +188,7 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
             renderGroupsByProject.get(row.id) ?? [],
           ),
           contentByProject.get(row.id),
+          translationsByProject.get(row.id) ?? [],
         ),
       ),
       apartments: apartmentRows.map((row) => mapApartment(row, urlFor)),
