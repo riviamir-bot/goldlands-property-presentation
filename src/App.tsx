@@ -187,7 +187,7 @@ export default function App() {
           <main className="gv-home">
             <header className="gv-top">
               <ProjectLogo project={selectedProject} />
-              <BrandLogo compact surface="light" onClick={() => setSelectedProjectId("")} />
+              <BrandLogo compact surface="gold" onClick={() => setSelectedProjectId("")} />
             </header>
             <div className="gv-home__body">
               <div className="gv-home__title">

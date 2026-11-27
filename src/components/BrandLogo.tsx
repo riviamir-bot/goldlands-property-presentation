@@ -7,12 +7,14 @@ const LOGO_SRC = {
   dark: "/brand/goldlands-logo-light-horizontal.png",
   /** Navy wordmark, for light pages such as Gold View. */
   light: "/brand/goldlands-logo-horizontal.png",
+  /** All-gold wordmark, used in Gold View. */
+  gold: "/brand/goldlands-logo-gold-horizontal.png",
 } as const;
 
 interface BrandLogoProps {
   compact?: boolean;
   /** Background the logo sits on. */
-  surface?: "dark" | "light";
+  surface?: keyof typeof LOGO_SRC;
   onClick?: () => void;
 }
 
