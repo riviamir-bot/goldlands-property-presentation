@@ -1160,6 +1160,7 @@ button.gv-tile {
 .gv .gv-plan-layout {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 16px;
   direction: inherit;
 }
@@ -1393,4 +1394,8 @@ button.gv-tile {
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.gv .gv-plan-layout .plan-layout__viewer {
+  width: 100%;
 }
