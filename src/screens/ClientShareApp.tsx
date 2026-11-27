@@ -6,6 +6,7 @@ import { FeatureBlocks } from "../components/FeatureBlocks";
 import {
   AboutSection,
   GlassBackdrop,
+  LegalFooter,
   Panel,
   GvHeader,
   SectionBar,
@@ -18,6 +19,8 @@ import { PlanViewer } from "../components/PlanViewer";
 import { StatusBadge } from "../components/StatusBadge";
 import { TechnicalSpecAccordion } from "../components/TechnicalSpecAccordion";
 import { useI18n } from "../i18n/LanguageContext";
+import { translateTitle } from "../i18n/content-terms";
+import type { Language } from "../i18n/strings";
 import { fetchSharedPresentation, type SharedPresentationPayload } from "../services/presentationApi";
 import type { Project } from "../types";
 import { formatNumber, formatPrice } from "../utils/format";
@@ -58,6 +61,7 @@ function useSection() {
 export function projectTiles(
   project: Project,
   t: ReturnType<typeof useI18n>["t"],
+  language: Language,
   apartments: { count: number; available: number },
   extra: GlassTile[] = [],
 ): GlassTile[] {
@@ -80,7 +84,7 @@ export function projectTiles(
     ...(project.featureBlocks ?? []).map((block) => ({
       id: `feature-${block.key}`,
       icon: block.key.includes("parking") ? Car : Info,
-      title: block.title,
+      title: translateTitle(block.title, language),
       hint: t("gv.tile.feature"),
     })),
     ...(project.model3dUrl ? [{ id: "model3d", icon: Box, title: t("section.model3d"), hint: t("gv.tile.model3d") }] : []),
@@ -150,7 +154,7 @@ export function ClientShareApp({ token }: { token: string }) {
   }
 
   const { project, apartments, showPrices } = state.payload;
-  const tiles = projectTiles(project, t, {
+  const tiles = projectTiles(project, t, language, {
     count: apartments.length,
     available: apartments.filter((apartment) => apartment.status === "available").length,
   });
@@ -180,6 +184,7 @@ export function ClientShareApp({ token }: { token: string }) {
             <div className="gv-home__lang">
               <LanguageSwitcher />
             </div>
+            <LegalFooter />
           </div>
         </main>
       ) : (
@@ -201,7 +206,7 @@ export function ClientShareApp({ token }: { token: string }) {
                       <div><dt>{t("field.balcony")}</dt><dd>{formatNumber(apartment.balconyArea, t("unit.sqm"))}</dd></div>
                     </dl>
                     {showPrices && apartment.status !== "sold" && apartment.price > 0 && (
-                      <p className="gv-apartment__price">{formatPrice(apartment.price)}</p>
+                      <p className="gv-apartment__price">{formatPrice(apartment.price, language)}</p>
                     )}
                     {apartment.planUrl && <PlanViewer apartment={apartment} />}
                   </article>
@@ -215,6 +220,7 @@ export function ClientShareApp({ token }: { token: string }) {
             ) : (
               <SharedSection id={current} project={project} />
             )}
+            <LegalFooter />
           </div>
           {current !== "contact" && (
             <footer className="gv-section-footer">

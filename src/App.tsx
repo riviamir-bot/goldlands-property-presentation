@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Columns3, Eye, EyeOff, FileText, ListOrdered, LogOut, Send } from "lucide-react";
+import { Columns3, FileText, ListOrdered, Send } from "lucide-react";
 import { ApartmentDrawer } from "./components/ApartmentDrawer";
 import { CompareDialog } from "./components/CompareDialog";
 import { GlassBackdrop, GvHeader, SectionBar, TileGrid, projectSummary, type GlassTile } from "./components/GoldViewParts";
@@ -43,8 +43,8 @@ export default function App() {
       ...(listedApartments.length && meeting.showPrices ? [{ id: "prices", icon: ListOrdered, title: t("section.prices"), hint: t("gv.tile.prices") }] : []),
       ...(hasPlans ? [{ id: "plans", icon: FileText, title: t("section.plans"), hint: t("gv.tile.plans") }] : []),
     ];
-    return projectTiles(selectedProject, t, { count: openApartments.length, available: openApartments.filter((a) => a.status === "available").length }, extra);
-  }, [hasPlans, listedApartments.length, meeting.showPrices, openApartments, selectedProject, t]);
+    return projectTiles(selectedProject, t, language, { count: openApartments.length, available: openApartments.filter((a) => a.status === "available").length }, extra);
+  }, [hasPlans, language, listedApartments.length, meeting.showPrices, openApartments, selectedProject, t]);
 
   // A project can leave the user's scope, or a section can lose its content, while the app is open.
   useEffect(() => {
@@ -140,19 +140,6 @@ export default function App() {
   /** Marketer controls, always at hand during the meeting. Never shown on the client page. */
   const meetingBar = (
     <nav className="gv-meeting-bar" aria-label={t("gv.meeting.tools")}>
-      <button type="button" className="gv-meeting-bar__button" onClick={() => go("", "")}>
-        <Building2 size={18} aria-hidden="true" />
-        <span>{t("nav.allProjects")}</span>
-      </button>
-      <button
-        type="button"
-        className="gv-meeting-bar__button"
-        onClick={meeting.togglePrices}
-        aria-pressed={!meeting.showPrices}
-      >
-        {meeting.showPrices ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}
-        <span>{meeting.showPrices ? t("prices.hide") : t("prices.show")}</span>
-      </button>
       {comparedApartments.length > 1 && (
         <button type="button" className="gv-meeting-bar__button" onClick={() => setIsCompareOpen(true)}>
           <Columns3 size={18} aria-hidden="true" />
@@ -168,9 +155,6 @@ export default function App() {
         </button>
       )}
       <LanguageSwitcher />
-      <button type="button" className="gv-meeting-bar__button gv-meeting-bar__button--icon" onClick={() => void handleSignOut()} aria-label={t("nav.signOut")} title={t("nav.signOut")}>
-        <LogOut size={18} aria-hidden="true" />
-      </button>
     </nav>
   );
 
@@ -194,8 +178,8 @@ export default function App() {
           <main className="gv-section-view">
             <SectionBar title={title} onBack={back} />
             <div className="gv-section-body">
-              {current === "apartments" && <ApartmentsScreen variant="available" apartments={openApartments} {...tableProps} />}
-              {current === "prices" && <ApartmentsScreen variant="priceList" apartments={listedApartments} {...tableProps} />}
+              {current === "apartments" && <ApartmentsScreen variant="available" apartments={openApartments} {...tableProps} onTogglePrices={meeting.togglePrices} />}
+              {current === "prices" && <ApartmentsScreen variant="priceList" apartments={listedApartments} {...tableProps} onTogglePrices={meeting.togglePrices} />}
               {current === "plans" && (
                 <PlanScreen apartments={listedApartments} initialApartmentId={planApartmentId} showPrices={meeting.showPrices} />
               )}

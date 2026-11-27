@@ -158,3 +158,13 @@ export function AboutSection({ project }: { project: Project }) {
     </>
   );
 }
+
+/** Disclaimer shown at the bottom of the client page. */
+export function LegalFooter() {
+  const { t } = useI18n();
+  return (
+    <div className="gv-legal">
+      <p dir="auto">{t("legal.disclaimer")}</p>
+    </div>
+  );
+}

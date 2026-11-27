@@ -1,4 +1,5 @@
 import { useI18n } from "../i18n/LanguageContext";
+import { translateTitle } from "../i18n/content-terms";
 import type { ProjectFeatureBlock } from "../types";
 
 interface FeatureBlocksProps {
@@ -7,7 +8,7 @@ interface FeatureBlocksProps {
 
 /** Highlighted project features explained to clients (e.g. robotic parking): text, demo video and common questions. */
 export function FeatureBlocks({ blocks }: FeatureBlocksProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   if (blocks.length === 0) return null;
 
   return (
@@ -15,7 +16,7 @@ export function FeatureBlocks({ blocks }: FeatureBlocksProps) {
       {blocks.map((block, blockIndex) => (
         <article className="feature-block" key={`${blockIndex}-${block.key}`}>
           <div className="feature-block__copy">
-            <h3 dir="auto">{block.title}</h3>
+            <h3 dir="auto">{translateTitle(block.title, language)}</h3>
             {block.intro && <p dir="auto">{block.intro}</p>}
             {block.bullets.length > 0 && (
               <ul>

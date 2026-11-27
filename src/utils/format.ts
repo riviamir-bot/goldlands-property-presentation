@@ -4,10 +4,12 @@ function isPresent(value: number) {
   return Number.isFinite(value) && value > 0;
 }
 
-export function formatPrice(value: number) {
+const PRICE_LOCALES = { he: "he-IL", en: "en-IL", fr: "fr-FR" } as const;
+
+export function formatPrice(value: number, language: keyof typeof PRICE_LOCALES = "he") {
   if (!isPresent(value)) return MISSING;
 
-  return new Intl.NumberFormat("he-IL", {
+  return new Intl.NumberFormat(PRICE_LOCALES[language], {
     style: "currency",
     currency: "ILS",
     maximumFractionDigits: 0,

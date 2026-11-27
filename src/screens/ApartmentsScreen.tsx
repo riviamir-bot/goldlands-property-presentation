@@ -1,4 +1,4 @@
-import { Columns3, FileSearch, Star } from "lucide-react";
+import { Columns3, Eye, EyeOff, FileSearch, Star } from "lucide-react";
 import { StatusBadge } from "../components/StatusBadge";
 import { useI18n } from "../i18n/LanguageContext";
 import { formatNumber, formatPrice } from "../utils/format";
@@ -16,6 +16,8 @@ export interface ApartmentTableProps {
 
 interface ApartmentsScreenProps extends ApartmentTableProps {
   variant: "available" | "priceList";
+  /** Marketer meeting only: shows the hide/show prices button in the screen header. */
+  onTogglePrices?: () => void;
 }
 
 export const MAX_COMPARE = 3;
@@ -29,101 +31,104 @@ export function ApartmentsScreen({
   onToggleSelection,
   onToggleCompare,
   variant,
+  onTogglePrices,
 }: ApartmentsScreenProps) {
-  const { t } = useI18n();
-  const hasPlans = apartments.some((apartment) => apartment.planUrl);
+  const { t, language } = useI18n();
   const heading = variant === "available" ? t("apartments.heading") : t("prices.heading");
   const eyebrow = variant === "available" ? t("apartments.eyebrow") : t("section.prices");
   const empty = variant === "available" ? t("apartments.none") : t("prices.none");
 
   return (
-    <section className="panel">
-      <div className="panel__header">
+    <section className="gv-apt-section">
+      <div className="gv-apt-head">
         <div>
           <span className="eyebrow">{eyebrow}</span>
           <h2>{heading}</h2>
         </div>
-        <span className="count-pill">{t("count.apartments", { count: apartments.length })}</span>
+        <div className="gv-apt-head__tools">
+          <span className="count-pill">{t("count.apartments", { count: apartments.length })}</span>
+          {onTogglePrices && (
+            <button type="button" className="gv-meeting-bar__button" onClick={onTogglePrices} aria-pressed={!showPrices}>
+              {showPrices ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}
+              <span>{showPrices ? t("prices.hide") : t("prices.show")}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {apartments.length > 0 ? (
-        <div className="table-wrap">
-          <table className="lux-table lux-table--interactive">
-            <thead>
-              <tr>
-                <th aria-label={t("apartment.select")} />
-                <th>{t("field.apartment")}</th>
-                <th>{t("field.floor")}</th>
-                <th>{t("field.rooms")}</th>
-                <th>{t("field.area")}</th>
-                <th>{t("field.balcony")}</th>
-                {showPrices && <th>{t("field.price")}</th>}
-                <th>{t("field.status")}</th>
-                {hasPlans && <th>{t("field.plan")}</th>}
-                <th aria-label={t("apartment.compare")} />
-              </tr>
-            </thead>
-            <tbody>
-              {apartments.map((apartment) => {
-                const isSold = apartment.status === "sold";
-                const isSelected = selection.has(apartment.id);
-                const isCompared = compare.includes(apartment.id);
-                const compareFull = !isCompared && compare.length >= MAX_COMPARE;
-                return (
-                  <tr
-                    key={apartment.id}
-                    className={[isSold ? "lux-table__row--sold" : "", isSelected ? "lux-table__row--selected" : ""].join(" ")}
-                    onClick={() => onOpenApartment(apartment.id)}
-                  >
-                    <td className="lux-table__icon-cell">
-                      {!isSold && (
-                        <button
-                          type="button"
-                          className={isSelected ? "row-icon active" : "row-icon"}
-                          aria-pressed={isSelected}
-                          aria-label={isSelected ? t("apartment.unselect") : t("apartment.select")}
-                          title={isSelected ? t("apartment.unselect") : t("apartment.select")}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onToggleSelection(apartment.id);
-                          }}
-                        >
-                          <Star size={16} fill={isSelected ? "currentColor" : "none"} />
-                        </button>
-                      )}
-                    </td>
-                    <td className="lux-table__strong">{apartment.number || "—"}</td>
-                    <td>{apartment.floor}</td>
-                    <td>{formatNumber(apartment.rooms)}</td>
-                    <td>{formatNumber(apartment.apartmentArea, t("unit.sqm"))}</td>
-                    <td>{formatNumber(apartment.balconyArea, t("unit.sqm"))}</td>
-                    {showPrices && <td>{isSold ? "—" : formatPrice(apartment.price)}</td>}
-                    <td>
-                      <StatusBadge status={apartment.status} />
-                    </td>
-                    {hasPlans && <td>{apartment.planUrl && <FileSearch size={17} aria-label={t("field.plan")} />}</td>}
-                    <td className="lux-table__icon-cell">
+        <ul className={`gv-apt-list gv-apt-list--${variant}`}>
+          {apartments.map((apartment) => {
+            const isSold = apartment.status === "sold";
+            const isSelected = selection.has(apartment.id);
+            const isCompared = compare.includes(apartment.id);
+            const compareFull = !isCompared && compare.length >= MAX_COMPARE;
+            const facts: Array<[string, string]> = [
+              [t("field.floor"), String(apartment.floor || "—")],
+              [t("field.rooms"), formatNumber(apartment.rooms)],
+              [t("field.area"), formatNumber(apartment.apartmentArea, t("unit.sqm"))],
+              [t("field.balcony"), formatNumber(apartment.balconyArea, t("unit.sqm"))],
+            ];
+            return (
+              <li key={apartment.id} className="gv-apt-item">
+                <article
+                  className={["gv-apt", isSold ? "gv-apt--sold" : "", isSelected ? "gv-apt--selected" : ""].filter(Boolean).join(" ")}
+                  onClick={() => onOpenApartment(apartment.id)}
+                >
+                  <header className="gv-apt__head">
+                    <h3>{t("apartment.title", { n: apartment.number || "—" })}</h3>
+                    <StatusBadge status={apartment.status} />
+                  </header>
+                  {showPrices && <p className="gv-apt__price">{isSold ? "—" : formatPrice(apartment.price, language)}</p>}
+                  <dl className="gv-apt__facts">
+                    {facts.map(([label, value]) => (
+                      <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <footer className="gv-apt__actions">
+                    {apartment.planUrl && (
+                      <span className="gv-apt__plan">
+                        <FileSearch size={16} aria-hidden="true" /> {t("field.plan")}
+                      </span>
+                    )}
+                    {!isSold && (
                       <button
                         type="button"
-                        className={isCompared ? "row-icon active" : "row-icon"}
-                        aria-pressed={isCompared}
-                        disabled={compareFull}
-                        aria-label={t("apartment.compare")}
-                        title={compareFull ? t("compare.limit") : t("apartment.compare")}
+                        className={isSelected ? "row-icon active" : "row-icon"}
+                        aria-pressed={isSelected}
+                        aria-label={isSelected ? t("apartment.unselect") : t("apartment.select")}
+                        title={isSelected ? t("apartment.unselect") : t("apartment.select")}
                         onClick={(event) => {
                           event.stopPropagation();
-                          onToggleCompare(apartment.id);
+                          onToggleSelection(apartment.id);
                         }}
                       >
-                        <Columns3 size={16} />
+                        <Star size={18} fill={isSelected ? "currentColor" : "none"} />
                       </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    )}
+                    <button
+                      type="button"
+                      className={isCompared ? "row-icon active" : "row-icon"}
+                      aria-pressed={isCompared}
+                      disabled={compareFull}
+                      aria-label={t("apartment.compare")}
+                      title={compareFull ? t("compare.limit") : t("apartment.compare")}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onToggleCompare(apartment.id);
+                      }}
+                    >
+                      <Columns3 size={18} />
+                    </button>
+                  </footer>
+                </article>
+              </li>
+            );
+          })}
+        </ul>
       ) : (
         <div className="empty-state compact-empty-state">
           <h3>{empty}</h3>

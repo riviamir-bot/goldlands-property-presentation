@@ -14,7 +14,7 @@ interface CompareDialogProps {
 }
 
 export function CompareDialog({ apartments, showPrices, onClear, onClose }: CompareDialogProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -31,7 +31,7 @@ export function CompareDialog({ apartments, showPrices, onClear, onClose }: Comp
     [t("field.balcony"), (a) => formatNumber(a.balconyArea, t("unit.sqm"))],
     [t("field.status"), (a) => <StatusBadge status={a.status} />],
   ];
-  if (showPrices) rows.push([t("field.price"), (a) => (a.status === "sold" ? "—" : formatPrice(a.price))]);
+  if (showPrices) rows.push([t("field.price"), (a) => (a.status === "sold" ? "—" : formatPrice(a.price, language))]);
   const hasPlans = apartments.some((apartment) => apartment.planUrl);
 
   return (

@@ -12,7 +12,7 @@ interface PlanScreenProps {
 }
 
 export function PlanScreen({ apartments, initialApartmentId, showPrices }: PlanScreenProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const withPlans = useMemo(() => apartments.filter((apartment) => apartment.planUrl), [apartments]);
   const [activeId, setActiveId] = useState(initialApartmentId);
 
@@ -28,11 +28,11 @@ export function PlanScreen({ apartments, initialApartmentId, showPrices }: PlanS
   }
 
   return (
-    <section className="plan-layout plan-layout--live">
+    <section className="plan-layout plan-layout--live gv-plan-layout">
       <div className="plan-layout__viewer">
         <PlanViewer apartment={active} />
       </div>
-      <aside className="details-card">
+      <aside className="details-card gv-plan-details">
         <label className="plan-picker">
           <span className="eyebrow">{t("plans.pick")}</span>
           <select value={active.id} onChange={(event) => setActiveId(event.currentTarget.value)}>
@@ -70,7 +70,7 @@ export function PlanScreen({ apartments, initialApartmentId, showPrices }: PlanS
           {showPrices && active.status !== "sold" && (
             <div>
               <dt>{t("field.price")}</dt>
-              <dd>{formatPrice(active.price)}</dd>
+              <dd>{formatPrice(active.price, language)}</dd>
             </div>
           )}
         </dl>

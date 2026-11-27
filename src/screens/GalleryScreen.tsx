@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import { ZoomableImage } from "../components/ZoomableImage";
 import { useFullscreen } from "../hooks/useFullscreen";
 import { useI18n } from "../i18n/LanguageContext";
+import { translateCaption } from "../i18n/content-terms";
 import type { GalleryCategory, Project } from "../types";
 import { buildGalleryGroups } from "../utils/gallery-groups";
 
@@ -14,7 +15,7 @@ const categories: GalleryCategory[] = ["exterior", "interior", "lobby", "surroun
 const ALL_GROUP = "all";
 
 export function GalleryScreen({ project }: GalleryScreenProps) {
-  const { t, dir } = useI18n();
+  const { t, dir, language } = useI18n();
   const allImages = useMemo(() => categories.flatMap((category) => project.gallery[category]), [project.gallery]);
   const groups = useMemo(
     () => buildGalleryGroups(allImages, project.galleryCaptions, project.renderGroups),
@@ -27,6 +28,8 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
     return group?.images ?? allImages;
   }, [allImages, groups, selectedGroup]);
   const [index, setIndex] = useState(0);
+  const [drag, setDrag] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const { isFullscreen, toggle } = useFullscreen();
   const current = Math.min(index, Math.max(images.length - 1, 0));
 
@@ -56,6 +59,17 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dir, images.length]);
 
+  const onSwipeMove = (dx: number) => {
+    setDragging(true);
+    setDrag(dx);
+  };
+  const onSwipeEnd = (dx: number, velocity: number) => {
+    setDragging(false);
+    setDrag(0);
+    const width = document.querySelector(".gallery-track")?.getBoundingClientRect().width ?? 600;
+    if (Math.abs(dx) > width * 0.18 || Math.abs(velocity) > 0.4) step((dx < 0) === (dir === "rtl") ? -1 : 1);
+  };
+
   if (images.length === 0) {
     return (
       <div className="empty-state gallery-empty-state">
@@ -64,7 +78,7 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
     );
   }
 
-  const caption = project.galleryCaptions?.[images[current]] || t("gallery.projectRender");
+  const caption = translateCaption(project.galleryCaptions?.[images[current]] ?? "", language) || t("gallery.projectRender");
 
   const PrevIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
   const NextIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
@@ -83,7 +97,7 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
           </button>
           {groups.map((group) => {
             const key = group.key;
-            const label = group.key ? group.label : t("gallery.general");
+            const label = group.key ? translateCaption(group.label, language) : t("gallery.general");
             return (
               <button
                 key={key}
@@ -100,7 +114,37 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
       )}
 
       <div className="gallery-frame">
-        <ZoomableImage key={images[current]} src={images[current]} alt={`${project.name} - ${caption}`} />
+        <div className="gallery-track">
+          {images.map((image, imageIndex) => {
+            const count = images.length;
+            const offset = count > 2 ? ((imageIndex - current + count + 1) % count) - 1 : imageIndex - current;
+            if (Math.abs(offset) > 1) return null;
+            const place = offset * (dir === "rtl" ? -1 : 1) * 100;
+            return (
+              <div
+                key={imageIndex}
+                className="gallery-slide"
+                style={{
+                  transform: `translate3d(calc(${place}% + ${drag}px), 0, 0)`,
+                  transition: dragging ? "none" : "transform 0.35s cubic-bezier(0.22, 0.8, 0.3, 1)",
+                }}
+                aria-hidden={offset !== 0}
+              >
+                {offset === 0 ? (
+                  <ZoomableImage
+                    key={image}
+                    src={image}
+                    alt={`${project.name} - ${caption}`}
+                    onSwipeMove={count > 1 ? onSwipeMove : undefined}
+                    onSwipeEnd={count > 1 ? onSwipeEnd : undefined}
+                  />
+                ) : (
+                  <img src={image} alt="" draggable={false} />
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         <div className="render-caption" aria-live="polite">
           <span className="render-caption__title" dir="auto">{caption}</span>
@@ -143,8 +187,8 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
               key={image}
               className={imageIndex === current ? "gallery-thumb active" : "gallery-thumb"}
               onClick={() => setIndex(imageIndex)}
-              aria-label={project.galleryCaptions?.[image] || t("gallery.image", { n: imageIndex + 1 })}
-              title={project.galleryCaptions?.[image] || undefined}
+              aria-label={translateCaption(project.galleryCaptions?.[image] ?? "", language) || t("gallery.image", { n: imageIndex + 1 })}
+              title={translateCaption(project.galleryCaptions?.[image] ?? "", language) || undefined}
               aria-current={imageIndex === current}
             >
               <img src={image} alt="" loading="lazy" />

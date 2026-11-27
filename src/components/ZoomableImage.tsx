@@ -7,18 +7,25 @@ interface ZoomableImageProps {
   src: string;
   alt: string;
   className?: string;
+  /** Sideways drag of a one-finger gesture on an un-zoomed image: live travel in px while dragging, then the final travel and speed (px/ms). */
+  onSwipeMove?: (deltaX: number) => void;
+  onSwipeEnd?: (deltaX: number, velocity: number) => void;
 }
 
 type Point = { x: number; y: number };
 
 /** An image that zooms with the wheel, double click or pinch, and pans by dragging when zoomed. */
-export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
+export function ZoomableImage({ src, alt, className, onSwipeMove, onSwipeEnd }: ZoomableImageProps) {
   const { t } = useI18n();
   const frameRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>(IDENTITY);
   const pointers = useRef(new Map<number, Point>());
   const lastPinch = useRef<{ distance: number; center: Point } | null>(null);
   const lastDrag = useRef<Point | null>(null);
+  /** Start of a one-finger gesture that began on an un-zoomed image; null once a second finger joins. */
+  const swipe = useRef<(Point & { time: number; horizontal: boolean }) | null>(null);
+  const scaleRef = useRef(1);
+  scaleRef.current = view.scale;
 
   useEffect(() => setView(IDENTITY), [src]);
 
@@ -50,6 +57,7 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     lastDrag.current = { x: event.clientX, y: event.clientY };
     lastPinch.current = null;
+    swipe.current = pointers.current.size === 1 && scaleRef.current === 1 ? { x: event.clientX, y: event.clientY, time: Date.now(), horizontal: false } : null;
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -58,6 +66,7 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
     const active = Array.from(pointers.current.values());
 
     if (active.length >= 2) {
+      swipe.current = null;
       const [a, b] = active;
       const distance = Math.hypot(a.x - b.x, a.y - b.y);
       const center = fromCentre((a.x + b.x) / 2, (a.y + b.y) / 2);
@@ -72,12 +81,30 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
       return;
     }
 
+    const gesture = swipe.current;
+    if (gesture && onSwipeMove) {
+      const dx = event.clientX - gesture.x;
+      const dy = event.clientY - gesture.y;
+      if (!gesture.horizontal && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) gesture.horizontal = true;
+      if (gesture.horizontal) {
+        onSwipeMove(dx);
+        lastDrag.current = { x: event.clientX, y: event.clientY };
+        return;
+      }
+    }
+
     const last = lastDrag.current;
     if (last) setView((current) => panBy(current, event.clientX - last.x, event.clientY - last.y, size()));
     lastDrag.current = { x: event.clientX, y: event.clientY };
   };
 
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = swipe.current;
+    if (start?.horizontal && onSwipeEnd) {
+      const dx = event.type === "pointerup" ? event.clientX - start.x : 0;
+      onSwipeEnd(dx, dx / Math.max(1, Date.now() - start.time));
+    }
+    swipe.current = null;
     pointers.current.delete(event.pointerId);
     lastPinch.current = null;
     const remaining = Array.from(pointers.current.values())[0];
