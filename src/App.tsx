@@ -13,6 +13,7 @@ import { ApartmentsScreen, MAX_COMPARE } from "./screens/ApartmentsScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SharedSection, projectTiles } from "./screens/ClientShareApp";
 import { PlanScreen } from "./screens/PlanScreen";
+import { localizeProjects } from "./i18n/localize-project";
 import "./gold-view.css";
 
 export default function App() {
@@ -29,7 +30,8 @@ export default function App() {
   const [signInError, setSignInError] = useState<string | null>(null);
   const meeting = usePresentationState(selectedProjectId);
 
-  const projects = state.payload?.projects ?? [];
+  const rawProjects = state.payload?.projects;
+  const projects = useMemo(() => localizeProjects(rawProjects ?? [], language), [language, rawProjects]);
   const apartments = state.payload?.apartments ?? [];
   const selectedProject = useMemo(() => projects.find((project) => project.id === selectedProjectId), [projects, selectedProjectId]);
   const listedApartments = useMemo(

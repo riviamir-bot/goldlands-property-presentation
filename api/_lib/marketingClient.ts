@@ -4,6 +4,7 @@ import type { ContactData, ContactInboxRow, ContactProjectRow } from "./contact.
 import { cleanSecret } from "./safety.js";
 import type {
   MarketingProjectContentRow,
+  MarketingProjectTranslationRow,
   MarketingApartmentRow,
   MarketingDocumentRow,
   MarketingProjectRow,
@@ -132,6 +133,23 @@ export function createMarketingData(): MarketingData {
         return [];
       }
       return (result.data ?? []) as MarketingProjectContentRow[];
+    },
+
+    async listProjectTranslations(projectIds) {
+      const result = await client
+        .from("presentation_project_translations")
+        .select(
+          "project_id, language, name, city, address, neighborhood, tagline, description, location_description, developer_about, spec_sections, feature_blocks",
+        )
+        .in("project_id", projectIds);
+      // Translations are optional: on any error the presentation simply stays in Hebrew.
+      if (result.error) {
+        const code = (result.error as { code?: string }).code ?? "";
+        if (MISSING_TABLE_CODES.has(code)) console.warn("presentation_project_translations is missing; migration not applied yet");
+        else console.error("presentation_project_translations read failed", code, result.error.message);
+        return [];
+      }
+      return (result.data ?? []) as MarketingProjectTranslationRow[];
     },
 
     async listDocuments(projectIds) {

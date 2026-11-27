@@ -102,3 +102,30 @@ describe("applyProjectContent", () => {
     expect(project.developerWebsite).toBe("");
   });
 });
+
+describe("mapTranslations", () => {
+  const row = (language: string, extra: Record<string, unknown> = {}) => ({
+    project_id: "p1",
+    language,
+    name: "Bograshov 13",
+    city: "Tel Aviv",
+    address: null,
+    neighborhood: null,
+    tagline: null,
+    description: "Text",
+    location_description: null,
+    developer_about: null,
+    spec_sections: [{ title: "Kitchen", items: ["Sink"] }],
+    feature_blocks: null,
+    ...extra,
+  });
+
+  it("maps en and fr rows, ignores other languages and empty JSON", async () => {
+    const { mapTranslations } = await import("./projectContent");
+    const result = mapTranslations([row("en"), row("fr", { name: "Bograshov 13 FR" }), row("de")]);
+    expect(Object.keys(result).sort()).toEqual(["en", "fr"]);
+    expect(result.fr?.name).toBe("Bograshov 13 FR");
+    expect(result.en?.technicalSpecSections?.[0].title).toBe("Kitchen");
+    expect(result.en?.featureBlocks).toBeUndefined();
+  });
+});

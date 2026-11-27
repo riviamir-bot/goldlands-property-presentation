@@ -122,11 +122,12 @@ export async function loadSharedPresentation(
 
   // Internal details (who sent the link, marketer contact) never reach the client; leads come back through the contact form.
   const agent = null;
-  const [apartmentRows, renderRows, renderGroupRows, contentRows] = await Promise.all([
+  const [apartmentRows, renderRows, renderGroupRows, contentRows, translationRows] = await Promise.all([
     data.listApartments([project.id]),
     data.listRenders([project.id]),
     data.listRenderGroups ? data.listRenderGroups([project.id]) : Promise.resolve([]),
     data.listProjectContent ? data.listProjectContent([project.id]) : Promise.resolve([]),
+    data.listProjectTranslations ? data.listProjectTranslations([project.id]) : Promise.resolve([]),
   ]);
   const activeRows = apartmentRows.filter((row) => !row.deleted_at && row.project_id === project.id);
   // A link with no chosen apartments is a project link: it shows every apartment still on the market, as of now.
@@ -167,6 +168,7 @@ export async function loadSharedPresentation(
         applyProjectContent(
           mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
           contentRows.find((row) => row.project_id === project.id),
+          translationRows.filter((row) => row.project_id === project.id),
         ),
       ),
       apartments,

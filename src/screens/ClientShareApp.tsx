@@ -20,6 +20,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { TechnicalSpecAccordion } from "../components/TechnicalSpecAccordion";
 import { useI18n } from "../i18n/LanguageContext";
 import { translateTitle } from "../i18n/content-terms";
+import { localizeProject } from "../i18n/localize-project";
 import type { Language } from "../i18n/strings";
 import { fetchSharedPresentation, type SharedPresentationPayload } from "../services/presentationApi";
 import type { Project } from "../types";
@@ -153,7 +154,8 @@ export function ClientShareApp({ token }: { token: string }) {
     );
   }
 
-  const { project, apartments, showPrices } = state.payload;
+  const { apartments, showPrices } = state.payload;
+  const project = localizeProject(state.payload.project, language);
   const tiles = projectTiles(project, t, language, {
     count: apartments.length,
     available: apartments.filter((apartment) => apartment.status === "available").length,
