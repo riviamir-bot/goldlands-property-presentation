@@ -1,0 +1,693 @@
+/* Gold View: the client-facing project page. Scoped under .gv so the marketer app keeps its own look. */
+.gv {
+  --gv-basalt: #16130f;
+  --gv-stone: #1f1b16;
+  --gv-stone-2: #29241d;
+  --gv-limestone: #efe7d8;
+  --gv-dust: #a89f8f;
+  --gv-gold: #c8a35a;
+  --gv-gold-pale: #e7d3a1;
+  --gv-hairline: rgba(200, 163, 90, 0.3);
+  --gv-serif: "Frank Ruhl Libre", "David Libre", Georgia, serif;
+  --gv-sans: "Assistant", "Heebo", Arial, sans-serif;
+  --gv-measure: 64ch;
+
+  min-height: 100vh;
+  background: var(--gv-basalt);
+  color: var(--gv-limestone);
+  font-family: var(--gv-sans);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+
+.gv a {
+  color: var(--gv-gold-pale);
+}
+
+.gv :focus-visible {
+  outline: 2px solid var(--gv-gold-pale);
+  outline-offset: 3px;
+}
+
+/* Top bar */
+.gv-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px clamp(16px, 4vw, 48px);
+  background: rgba(22, 19, 15, 0.86);
+  backdrop-filter: blur(10px);
+  border-block-end: 1px solid var(--gv-hairline);
+}
+
+.gv-bar .brand-logo__text strong {
+  font-family: var(--gv-serif);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.gv-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gv-bar__agent {
+  color: var(--gv-dust);
+  font-size: 0.95rem;
+}
+
+.gv .gv-bar__whatsapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--gv-gold);
+  border-radius: 999px;
+  color: var(--gv-gold-pale);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.gv .gv-bar__whatsapp:hover {
+  background: rgba(200, 163, 90, 0.12);
+}
+
+/* Hero: the render, full width, with the project name set large in the serif */
+.gv-hero {
+  position: relative;
+  display: grid;
+  align-items: end;
+  min-height: min(78vh, 760px);
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--gv-stone);
+}
+
+.gv-hero__image {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gv-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(to top, rgba(22, 19, 15, 0.96) 0%, rgba(22, 19, 15, 0.55) 38%, rgba(22, 19, 15, 0) 70%);
+}
+
+.gv-hero__copy {
+  width: min(1120px, 100%);
+  margin-inline: auto;
+  padding: 0 clamp(20px, 4vw, 48px) clamp(32px, 6vh, 64px);
+}
+
+.gv-hero__location {
+  margin: 0 0 4px;
+  color: var(--gv-gold-pale);
+  font-size: 1.05rem;
+}
+
+.gv-hero h1 {
+  margin: 0;
+  font-family: var(--gv-serif);
+  font-weight: 500;
+  font-size: clamp(3rem, 9vw, 6.5rem);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  animation: gv-rise 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.gv-hero__tagline {
+  max-width: 40ch;
+  margin: 14px 0 26px;
+  font-size: clamp(1.1rem, 2.2vw, 1.4rem);
+  color: var(--gv-limestone);
+}
+
+.gv-hero__note {
+  position: absolute;
+  inset-block-start: 14px;
+  inset-inline-end: 16px;
+  color: rgba(239, 231, 216, 0.7);
+  font-size: 0.75rem;
+}
+
+@keyframes gv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gv-hero h1 {
+    animation: none;
+  }
+}
+
+/* Primary button */
+.gv .gv-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--gv-gold);
+  color: #1a150d;
+  font: 700 1.05rem var(--gv-sans);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.gv .gv-button:hover {
+  background: var(--gv-gold-pale);
+}
+
+.gv .gv-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Key facts, read like dimensions on a drawing */
+.gv-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  width: min(1120px, calc(100% - 2 * clamp(20px, 4vw, 48px)));
+  margin: 0 auto;
+  border-block-end: 1px solid var(--gv-hairline);
+}
+
+.gv-facts div {
+  padding: 22px 18px 20px;
+  border-inline-start: 1px solid var(--gv-hairline);
+}
+
+.gv-facts div:first-child {
+  border-inline-start: 0;
+  padding-inline-start: 0;
+}
+
+.gv-facts dt {
+  color: var(--gv-dust);
+  font-size: 0.9rem;
+}
+
+.gv-facts dd {
+  margin: 2px 0 0;
+  font-family: var(--gv-serif);
+  font-size: 1.9rem;
+  line-height: 1.2;
+  color: var(--gv-limestone);
+}
+
+/* Sections */
+.gv-main {
+  width: min(1120px, calc(100% - 2 * clamp(20px, 4vw, 48px)));
+  margin: 0 auto;
+  padding-block-end: 40px;
+}
+
+.gv-section {
+  padding-block: clamp(40px, 7vw, 72px) 0;
+}
+
+/* Dimension line: ticks at both ends, the title sitting on the line */
+.gv-heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 0 0 28px;
+  font-family: var(--gv-serif);
+  font-weight: 500;
+  font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+  line-height: 1.2;
+  color: var(--gv-limestone);
+}
+
+.gv-heading::after {
+  content: "";
+  flex: 1;
+  height: 12px;
+  border-inline-end: 1px solid var(--gv-gold);
+  background: linear-gradient(var(--gv-gold), var(--gv-gold)) center / 100% 1px no-repeat;
+}
+
+.gv-heading::before {
+  content: "";
+  width: 1px;
+  height: 12px;
+  background: var(--gv-gold);
+  order: -1;
+}
+
+/* About */
+.gv-about__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 64px);
+}
+
+.gv-about__text p {
+  max-width: var(--gv-measure);
+  margin: 0 0 1em;
+  font-size: 1.15rem;
+  line-height: 1.8;
+}
+
+.gv-about__credits dl {
+  margin: 0;
+}
+
+.gv-about__credits dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-block-end: 1px solid var(--gv-hairline);
+}
+
+.gv-about__credits dt {
+  color: var(--gv-dust);
+}
+
+.gv-about__credits dd {
+  margin: 0;
+  text-align: end;
+  font-weight: 600;
+}
+
+.gv-disclosure {
+  margin-block-start: 16px;
+}
+
+.gv-disclosure summary {
+  cursor: pointer;
+  color: var(--gv-gold-pale);
+  font-weight: 600;
+}
+
+.gv-disclosure p {
+  margin: 10px 0;
+  color: var(--gv-dust);
+  line-height: 1.75;
+}
+
+/* Apartments */
+.gv-apartments {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.gv-apartment {
+  padding: 20px;
+  background: var(--gv-stone);
+  border-block-start: 2px solid var(--gv-gold);
+}
+
+.gv-apartment header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gv-apartment h3 {
+  margin: 0;
+  font-family: var(--gv-serif);
+  font-weight: 500;
+  font-size: 1.6rem;
+}
+
+.gv-apartment dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin: 16px 0 0;
+}
+
+.gv-apartment dt {
+  color: var(--gv-dust);
+  font-size: 0.85rem;
+}
+
+.gv-apartment dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.gv-apartment__price {
+  margin: 16px 0 0;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--gv-hairline);
+  font-family: var(--gv-serif);
+  font-size: 1.6rem;
+  color: var(--gv-gold-pale);
+}
+
+/* Feature (robotic parking) inside Gold View: wider, quieter frame */
+.gv .feature-block {
+  border-radius: 0;
+  border: 0;
+  border-block-start: 2px solid var(--gv-gold);
+  background: var(--gv-stone);
+  padding: clamp(20px, 4vw, 40px);
+}
+
+.gv .feature-block__copy h3 {
+  font-family: var(--gv-serif);
+  font-weight: 500;
+  font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+  color: var(--gv-limestone);
+}
+
+.gv .feature-block__copy p {
+  font-size: 1.1rem;
+}
+
+.gv .feature-block__copy li {
+  color: var(--gv-limestone);
+}
+
+.gv .feature-block__video iframe {
+  border-radius: 0;
+}
+
+.gv .feature-block__faqs details {
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-block-end: 1px solid var(--gv-hairline);
+  padding-inline: 0;
+}
+
+/* Contact */
+.gv-contact__lead {
+  max-width: var(--gv-measure);
+  margin: -12px 0 24px;
+  color: var(--gv-dust);
+}
+
+.gv-contact__form {
+  display: grid;
+  gap: 24px;
+  padding: clamp(20px, 4vw, 36px);
+  background: var(--gv-stone);
+}
+
+.gv-contact__projects {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.gv-contact__projects legend {
+  margin-block-end: 12px;
+  font-weight: 700;
+}
+
+.gv-contact__city + .gv-contact__city {
+  margin-block-start: 14px;
+}
+
+.gv-contact__city-name {
+  display: block;
+  margin-block-end: 6px;
+  color: var(--gv-dust);
+  font-size: 0.9rem;
+}
+
+.gv-contact__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gv-chip {
+  position: relative;
+  cursor: pointer;
+}
+
+.gv-chip input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+
+.gv-chip span {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid var(--gv-hairline);
+  border-radius: 999px;
+  color: var(--gv-limestone);
+  transition: background-color 150ms, border-color 150ms;
+}
+
+.gv-chip input:checked + span {
+  background: var(--gv-gold);
+  border-color: var(--gv-gold);
+  color: #1a150d;
+  font-weight: 700;
+}
+
+.gv-chip input:focus-visible + span {
+  outline: 2px solid var(--gv-gold-pale);
+  outline-offset: 2px;
+}
+
+.gv-contact__fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.gv-field {
+  display: grid;
+  gap: 6px;
+}
+
+.gv-field--wide {
+  grid-column: 1 / -1;
+}
+
+.gv-field span {
+  color: var(--gv-dust);
+  font-size: 0.92rem;
+}
+
+.gv-field input,
+.gv-field textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--gv-hairline);
+  border-radius: 2px;
+  background: var(--gv-basalt);
+  color: var(--gv-limestone);
+  font: inherit;
+}
+
+.gv-field [dir="ltr"] {
+  text-align: end;
+}
+
+.gv-field input:focus,
+.gv-field textarea:focus {
+  border-color: var(--gv-gold);
+  outline: none;
+}
+
+.gv [aria-invalid="true"] {
+  border-color: #d98b7a;
+}
+
+.gv-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--gv-dust);
+  font-size: 0.95rem;
+}
+
+.gv-consent input {
+  width: 18px;
+  height: 18px;
+  margin-block-start: 4px;
+  accent-color: var(--gv-gold);
+}
+
+.gv-honeypot {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.gv-contact__error {
+  margin: 0;
+  color: #e8a596;
+}
+
+.gv-contact__form .gv-button {
+  justify-self: start;
+}
+
+.gv-contact__sent {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 28px;
+  background: var(--gv-stone);
+  border-block-start: 2px solid var(--gv-gold);
+  color: var(--gv-gold-pale);
+  font-size: 1.15rem;
+}
+
+.gv-contact__sent p {
+  margin: 0;
+}
+
+/* Footer */
+.gv-footer {
+  width: min(1120px, calc(100% - 2 * clamp(20px, 4vw, 48px)));
+  margin: 40px auto 0;
+  padding: 24px 0 40px;
+  border-block-start: 1px solid var(--gv-hairline);
+  color: var(--gv-dust);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.gv-footer p {
+  max-width: 100ch;
+  margin: 0 0 8px;
+}
+
+/* Loading / expired */
+.gv-status {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--gv-dust);
+}
+
+@media (max-width: 860px) {
+  .gv-about__grid,
+  .gv-contact__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .gv-bar__agent {
+    display: none;
+  }
+
+  .gv-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gv-facts div:nth-child(odd) {
+    border-inline-start: 0;
+    padding-inline-start: 0;
+  }
+
+  .gv-facts div:nth-child(n + 3) {
+    border-block-start: 1px solid var(--gv-hairline);
+  }
+
+  .gv-contact__form .gv-button {
+    justify-self: stretch;
+  }
+}
+
+/* The app's global stylesheet resets html to direction: inherit (always ltr), so Gold View sets its own. */
+.gv[dir="rtl"] {
+  direction: rtl;
+}
+
+.gv[dir="ltr"] {
+  direction: ltr;
+}
+
+.gv-bar .language-switcher {
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .gv-bar {
+    padding-inline: 12px;
+  }
+
+  .gv-bar__actions {
+    gap: 8px;
+  }
+
+  .gv .gv-bar__whatsapp {
+    padding: 7px 10px;
+  }
+}
+
+/* Shared screens restyled for Gold View: square stone panels instead of rounded cards */
+.gv .technical-accordion__item,
+.gv .location-live__map,
+.gv .location-live__panel {
+  border-radius: 2px;
+  border-color: var(--gv-hairline);
+  background: var(--gv-stone);
+}
+
+.gv .technical-accordion__icon {
+  border-radius: 2px;
+  background: transparent;
+  border-color: var(--gv-hairline);
+}
+
+.gv .location-live {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.75fr);
+  min-height: 480px;
+}
+
+.gv .location-live__about p {
+  color: var(--gv-limestone);
+  font-size: 1rem;
+}
+
+@media (max-width: 860px) {
+  .gv .location-live {
+    grid-template-columns: 1fr;
+  }
+
+  .gv .location-live__map {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 560px) {
+  .gv-bar .brand-logo__text small {
+    display: none;
+  }
+
+  .gv-bar__whatsapp-label {
+    display: none;
+  }
+
+  .gv-hero {
+    min-height: 72vh;
+  }
+}

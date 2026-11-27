@@ -6860,3 +6860,16 @@ body.has-fullscreen-layer {
     padding: 16px;
   }
 }
+
+.brand-logo__image {
+  display: block;
+  height: 44px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+}
+
+.brand-logo__image--compact {
+  height: 32px;
+  max-width: 160px;
+}

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { MarketingData, StorageObjectRef } from "./loadPresentation.js";
+import type { ContactData, ContactInboxRow, ContactProjectRow } from "./contact.js";
 import { cleanSecret } from "./safety.js";
 import type {
   MarketingProjectContentRow,
@@ -213,6 +214,54 @@ export function createMarketingData(): MarketingData {
       );
 
       return signed;
+    },
+  };
+}
+
+const CONTACT_INBOX_SOURCES = ["gold_view", "other"];
+const DELIVERY_TIMEOUT_MS = 8000;
+
+/** Public contact form data: project names and intake inboxes (read), and lead delivery through the marketing intake. */
+export function createContactData(): ContactData {
+  const client = getClient();
+  return {
+    async listContactProjects() {
+      const result = await client
+        .from("projects")
+        .select("id, name, city, sort_order")
+        .is("deleted_at", null)
+        .is("archived_at", null);
+      return unwrap(result, []) as ContactProjectRow[];
+    },
+
+    async listContactInboxes(projectIds) {
+      const result = await client
+        .from("project_lead_inboxes")
+        .select("project_id, source, token")
+        .in("project_id", projectIds)
+        .in("source", CONTACT_INBOX_SOURCES)
+        .eq("active", true);
+      return unwrap(result, []) as ContactInboxRow[];
+    },
+
+    async deliverLead(token, payload) {
+      const base = cleanSecret(process.env.MARKETING_APP_URL);
+      if (!base || !/^[A-Za-z0-9_-]{16,200}$/.test(token)) return false;
+      let url: URL;
+      try {
+        url = new URL(`/api/inbox/${token}`, base);
+        if (url.protocol !== "https:") return false;
+      } catch {
+        return false;
+      }
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
+      });
+      if (!response.ok) console.warn("[contact] intake rejected the lead", response.status);
+      return response.ok;
     },
   };
 }
