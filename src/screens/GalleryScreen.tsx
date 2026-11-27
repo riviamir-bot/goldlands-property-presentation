@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import { ZoomableImage } from "../components/ZoomableImage";
 import { useFullscreen } from "../hooks/useFullscreen";
 import { useI18n } from "../i18n/LanguageContext";
+import { translateCaption } from "../i18n/content-terms";
 import type { GalleryCategory, Project } from "../types";
 import { buildGalleryGroups } from "../utils/gallery-groups";
 
@@ -14,7 +15,7 @@ const categories: GalleryCategory[] = ["exterior", "interior", "lobby", "surroun
 const ALL_GROUP = "all";
 
 export function GalleryScreen({ project }: GalleryScreenProps) {
-  const { t, dir } = useI18n();
+  const { t, dir, language } = useI18n();
   const allImages = useMemo(() => categories.flatMap((category) => project.gallery[category]), [project.gallery]);
   const groups = useMemo(
     () => buildGalleryGroups(allImages, project.galleryCaptions, project.renderGroups),
@@ -64,7 +65,7 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
     );
   }
 
-  const caption = project.galleryCaptions?.[images[current]] || t("gallery.projectRender");
+  const caption = translateCaption(project.galleryCaptions?.[images[current]] ?? "", language) || t("gallery.projectRender");
 
   const PrevIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
   const NextIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
@@ -83,7 +84,7 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
           </button>
           {groups.map((group) => {
             const key = group.key;
-            const label = group.key ? group.label : t("gallery.general");
+            const label = group.key ? translateCaption(group.label, language) : t("gallery.general");
             return (
               <button
                 key={key}
@@ -100,7 +101,12 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
       )}
 
       <div className="gallery-frame">
-        <ZoomableImage key={images[current]} src={images[current]} alt={`${project.name} - ${caption}`} />
+        <ZoomableImage
+          key={images[current]}
+          src={images[current]}
+          alt={`${project.name} - ${caption}`}
+          onSwipe={images.length > 1 ? (dx) => step((dx < 0) === (dir === "rtl") ? -1 : 1) : undefined}
+        />
 
         <div className="render-caption" aria-live="polite">
           <span className="render-caption__title" dir="auto">{caption}</span>
@@ -143,8 +149,8 @@ export function GalleryScreen({ project }: GalleryScreenProps) {
               key={image}
               className={imageIndex === current ? "gallery-thumb active" : "gallery-thumb"}
               onClick={() => setIndex(imageIndex)}
-              aria-label={project.galleryCaptions?.[image] || t("gallery.image", { n: imageIndex + 1 })}
-              title={project.galleryCaptions?.[image] || undefined}
+              aria-label={translateCaption(project.galleryCaptions?.[image] ?? "", language) || t("gallery.image", { n: imageIndex + 1 })}
+              title={translateCaption(project.galleryCaptions?.[image] ?? "", language) || undefined}
               aria-current={imageIndex === current}
             >
               <img src={image} alt="" loading="lazy" />

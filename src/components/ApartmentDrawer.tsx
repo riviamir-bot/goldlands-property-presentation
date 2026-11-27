@@ -27,7 +27,7 @@ export function ApartmentDrawer({
   onToggleCompare,
   onClose,
 }: ApartmentDrawerProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -44,7 +44,7 @@ export function ApartmentDrawer({
     [t("field.balcony"), formatNumber(apartment.balconyArea, t("unit.sqm"))],
     [t("field.status"), <StatusBadge key="s" status={apartment.status} />],
   ];
-  if (showPrices && apartment.status !== "sold") rows.push([t("field.price"), formatPrice(apartment.price)]);
+  if (showPrices && apartment.status !== "sold") rows.push([t("field.price"), formatPrice(apartment.price, language)]);
 
   return (
     <div className="drawer-backdrop" onClick={onClose} role="presentation">

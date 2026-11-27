@@ -1,7 +1,7 @@
 /* Gold View: the client page. Glass tiles over the project render. Scoped under .gv. */
 .gv {
-  --gv-ink: #0b2146;
-  --gv-night: #0a101e;
+  --gv-ink: #232327;
+  --gv-night: #18181b;
   --gv-glass: rgba(255, 255, 255, 0.14);
   /* A faint light-to-clear sheen so glass still reads as glass where the render is blurred away */
   --gv-sheen: linear-gradient(145deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.07) 55%, rgba(255, 255, 255, 0.04) 100%);
@@ -22,7 +22,7 @@
   --line-strong: rgba(255, 255, 255, 0.32);
   --panel: rgba(255, 255, 255, 0.08);
   --panel-soft: rgba(255, 255, 255, 0.06);
-  --glass: rgba(10, 16, 30, 0.6);
+  --glass: rgba(24, 24, 27, 0.6);
   --soft: rgba(255, 255, 255, 0.08);
 
   position: relative;
@@ -72,15 +72,15 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0, rgba(255, 255, 255, 0.82) 90px, rgba(255, 255, 255, 0.35) 190px, rgba(255, 255, 255, 0) 260px),
-    linear-gradient(to bottom, rgba(10, 16, 30, 0) 30%, rgba(10, 16, 30, 0.62) 46%, rgba(10, 16, 30, 0.9) 62%, rgba(10, 16, 30, 0.95) 100%);
+    linear-gradient(to bottom, rgba(58, 58, 64, 0.96) 0, rgba(40, 40, 45, 0.88) 90px, rgba(24, 24, 27, 0.4) 190px, rgba(24, 24, 27, 0) 260px),
+    linear-gradient(to bottom, rgba(24, 24, 27, 0) 30%, rgba(24, 24, 27, 0.62) 46%, rgba(24, 24, 27, 0.9) 62%, rgba(24, 24, 27, 0.95) 100%);
 }
 
 /* Project picker: light at the top behind the logo, then a deep tint so headings read without effects. */
 .gv-projects .gv-backdrop::after {
   background:
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0, rgba(255, 255, 255, 0.8) 56px, rgba(255, 255, 255, 0) 120px),
-    linear-gradient(to bottom, rgba(10, 16, 30, 0) 40px, rgba(10, 16, 30, 0.7) 150px, rgba(10, 16, 30, 0.8) 100%);
+    linear-gradient(to bottom, rgba(58, 58, 64, 0.96) 0, rgba(40, 40, 45, 0.85) 56px, rgba(24, 24, 27, 0) 120px),
+    linear-gradient(to bottom, rgba(24, 24, 27, 0) 40px, rgba(24, 24, 27, 0.7) 150px, rgba(24, 24, 27, 0.8) 100%);
 }
 
 .gv-backdrop--dim img {
@@ -91,7 +91,7 @@
 .gv-backdrop--dim::after {
   background:
     radial-gradient(120% 70% at 85% 0%, rgba(214, 187, 138, 0.12), rgba(214, 187, 138, 0) 60%),
-    linear-gradient(160deg, rgba(10, 16, 30, 0.7) 0%, rgba(10, 16, 30, 0.82) 45%, rgba(10, 16, 30, 0.92) 100%);
+    linear-gradient(160deg, rgba(24, 24, 27, 0.7) 0%, rgba(24, 24, 27, 0.82) 45%, rgba(24, 24, 27, 0.92) 100%);
 }
 
 /* Home: both logos on top, tiles below */
@@ -156,7 +156,7 @@
 }
 
 .gv-header .gv-project-name {
-  color: #1d2433;
+  color: #ffffff;
   font-weight: 700;
 }
 
@@ -305,7 +305,7 @@ button.gv-tile {
   align-items: center;
   gap: 12px;
   padding: 12px clamp(16px, 4vw, 32px);
-  background: rgba(10, 16, 30, 0.7);
+  background: rgba(24, 24, 27, 0.7);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--gv-glass-line);
@@ -343,7 +343,7 @@ button.gv-tile {
   bottom: 0;
   margin-top: auto;
   padding: 12px clamp(16px, 4vw, 32px) 18px;
-  background: linear-gradient(to top, rgba(10, 16, 30, 0.95), rgba(10, 16, 30, 0));
+  background: linear-gradient(to top, rgba(24, 24, 27, 0.95), rgba(24, 24, 27, 0));
 }
 
 .gv-panel {
@@ -496,7 +496,7 @@ button.gv-tile {
   padding: 0 14px;
   border: 1px solid var(--gv-glass-line);
   border-radius: 12px;
-  background: rgba(10, 16, 30, 0.45);
+  background: rgba(24, 24, 27, 0.45);
   color: var(--gv-text);
   font: inherit;
   text-align: start;
@@ -514,7 +514,7 @@ button.gv-tile {
   padding: 6px 4px;
   border: 1px solid var(--gv-glass-line);
   border-radius: 12px;
-  background: rgba(10, 16, 30, 0.85);
+  background: rgba(24, 24, 27, 0.85);
 }
 
 .gv-picker__group + .gv-picker__group {
@@ -591,7 +591,7 @@ button.gv-tile {
   padding: 10px 12px;
   border: 1px solid var(--gv-glass-line);
   border-radius: 12px;
-  background: rgba(10, 16, 30, 0.45);
+  background: rgba(24, 24, 27, 0.45);
   color: var(--gv-text);
   font: inherit;
 }
@@ -700,7 +700,7 @@ button.gv-tile {
   justify-content: center;
   gap: 8px;
   padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-  background: rgba(10, 16, 30, 0.78);
+  background: rgba(24, 24, 27, 0.78);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--gv-glass-line);
@@ -1041,7 +1041,7 @@ button.gv-tile {
 .gv .share-dialog {
   border: 1px solid var(--gv-glass-line);
   border-radius: 20px;
-  background: linear-gradient(145deg, rgba(40, 50, 72, 0.96), rgba(16, 22, 38, 0.97));
+  background: linear-gradient(145deg, rgba(52, 52, 58, 0.96), rgba(28, 28, 32, 0.97));
   box-shadow: var(--gv-edge), 0 24px 60px rgba(0, 0, 0, 0.45);
   color: var(--gv-text);
 }
@@ -1105,7 +1105,7 @@ button.gv-tile {
 
 .gv .model3d-frame,
 .gv .feature-block__video iframe {
-  background: rgba(10, 16, 30, 0.6);
+  background: rgba(24, 24, 27, 0.6);
 }
 
 @media print {
@@ -1132,7 +1132,7 @@ button.gv-tile {
 .gv .language-switcher,
 .gv-projects__tools .gv-meeting-bar__button {
   border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(10, 16, 30, 0.5);
+  background: rgba(24, 24, 27, 0.5);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
@@ -1154,4 +1154,188 @@ button.gv-tile {
   .gv-projects__tools {
     gap: 6px;
   }
+}
+
+/* Plans: the plan comes first and fills the width, details sit below it. No backing colour behind the plan. */
+.gv .gv-plan-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  direction: inherit;
+}
+
+.gv .gv-plan-layout .plan-viewer {
+  height: clamp(420px, 72vh, 900px);
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+}
+
+.gv .plan-viewer .zoomable__frame img {
+  object-fit: contain;
+}
+
+.gv .gv-plan-layout .details-card {
+  order: 0;
+  grid-column: auto;
+  width: 100%;
+}
+
+.gv .gv-plan-details dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px 18px;
+}
+
+.gv .plan-viewer--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  height: 100dvh;
+  border-radius: 0;
+  background: #101012;
+}
+
+.gv .gv-plan-layout .plan-viewer.plan-viewer--fullscreen {
+  height: 100dvh;
+}
+
+/* Apartment lists (available apartments, price list): cards instead of a wide table */
+.gv-apt-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gv-apt-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gv-apt-head h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.gv-apt-head__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.gv-apt-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gv-apt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: 16px;
+  border: 1px solid var(--gv-glass-line);
+  border-radius: 18px;
+  background: var(--gv-sheen);
+  box-shadow: var(--gv-edge), 0 10px 30px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+}
+
+.gv-apt--selected {
+  border-color: var(--gv-gold);
+}
+
+.gv-apt--sold {
+  opacity: 0.6;
+}
+
+.gv-apt__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gv-apt__head h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.gv-apt__price {
+  margin: 0;
+  color: var(--gv-gold);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.gv-apt-list--priceList .gv-apt__price {
+  font-size: 1.75rem;
+}
+
+.gv-apt__facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.gv-apt__facts div {
+  display: flex;
+  flex-direction: column;
+}
+
+.gv-apt__facts dt {
+  color: var(--gv-muted);
+  font-size: 0.82rem;
+}
+
+.gv-apt__facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.gv-apt__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.gv-apt__plan {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-end: auto;
+  color: var(--gv-muted);
+  font-size: 0.88rem;
+}
+
+.gv-apt__actions .row-icon {
+  margin-inline-start: auto;
+}
+
+.gv-apt__actions .gv-apt__plan + .row-icon,
+.gv-apt__actions .row-icon + .row-icon {
+  margin-inline-start: 0;
+}
+
+.gv .gv-apt-head .gv-meeting-bar__button span {
+  display: inline;
+}
+
+.gv .plan-viewer:not(.plan-viewer--empty) {
+  background: transparent;
 }

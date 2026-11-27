@@ -7,18 +7,24 @@ interface ZoomableImageProps {
   src: string;
   alt: string;
   className?: string;
+  /** Called with the finger's horizontal travel (px) when the image is swiped sideways while not zoomed. */
+  onSwipe?: (deltaX: number) => void;
 }
 
 type Point = { x: number; y: number };
 
 /** An image that zooms with the wheel, double click or pinch, and pans by dragging when zoomed. */
-export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
+export function ZoomableImage({ src, alt, className, onSwipe }: ZoomableImageProps) {
   const { t } = useI18n();
   const frameRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>(IDENTITY);
   const pointers = useRef(new Map<number, Point>());
   const lastPinch = useRef<{ distance: number; center: Point } | null>(null);
   const lastDrag = useRef<Point | null>(null);
+  /** Start of a one-finger gesture that began on an un-zoomed image; null once a second finger joins. */
+  const swipe = useRef<(Point & { time: number }) | null>(null);
+  const scaleRef = useRef(1);
+  scaleRef.current = view.scale;
 
   useEffect(() => setView(IDENTITY), [src]);
 
@@ -50,6 +56,7 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     lastDrag.current = { x: event.clientX, y: event.clientY };
     lastPinch.current = null;
+    swipe.current = pointers.current.size === 1 && scaleRef.current === 1 ? { x: event.clientX, y: event.clientY, time: Date.now() } : null;
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -58,6 +65,7 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
     const active = Array.from(pointers.current.values());
 
     if (active.length >= 2) {
+      swipe.current = null;
       const [a, b] = active;
       const distance = Math.hypot(a.x - b.x, a.y - b.y);
       const center = fromCentre((a.x + b.x) / 2, (a.y + b.y) / 2);
@@ -78,6 +86,13 @@ export function ZoomableImage({ src, alt, className }: ZoomableImageProps) {
   };
 
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = swipe.current;
+    if (start && onSwipe && event.type === "pointerup" && scaleRef.current === 1) {
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - start.time < 800) onSwipe(dx);
+    }
+    swipe.current = null;
     pointers.current.delete(event.pointerId);
     lastPinch.current = null;
     const remaining = Array.from(pointers.current.values())[0];

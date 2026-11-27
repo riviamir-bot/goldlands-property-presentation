@@ -9,6 +9,8 @@ import {
   Shield,
   type LucideIcon,
 } from "lucide-react";
+import { useI18n } from "../i18n/LanguageContext";
+import { translateTitle } from "../i18n/content-terms";
 import type { TechnicalSpecSectionData } from "../types";
 
 export interface TechnicalSpecSection {
@@ -105,6 +107,7 @@ export function TechnicalSpecAccordion({
   variant = "overview",
   sections,
 }: TechnicalSpecAccordionProps) {
+  const { language } = useI18n();
   const visibleSections = sections?.map((section) => ({
     ...section,
     icon: technicalIconMap[section.id] ?? Building2,
@@ -125,7 +128,7 @@ export function TechnicalSpecAccordion({
               <span className="technical-accordion__icon" aria-hidden="true">
                 <Icon size={20} strokeWidth={1.7} />
               </span>
-              <strong dir="auto">{section.title}</strong>
+              <strong dir="auto">{translateTitle(section.title, language)}</strong>
             </summary>
             <ul>
               {section.items.map((item) => (
