@@ -10,13 +10,14 @@
   --gv-glass-line: rgba(255, 255, 255, 0.28);
   --gv-text: #ffffff;
   --gv-muted: rgba(255, 255, 255, 0.78);
-  --gv-gold: #d6bb8a;
+  --gv-gold: #e8dcc2;
   --gv-sans: "Assistant", "Heebo", Arial, sans-serif;
 
   /* The older screens read these app tokens; inside Gold View they follow the glass palette. */
   --text: #ffffff;
   --muted: rgba(255, 255, 255, 0.78);
-  --gold-light: #f1e6cf;
+  --gold: #e8dcc2;
+  --gold-light: #f4ede0;
   --line: rgba(255, 255, 255, 0.18);
   --line-strong: rgba(255, 255, 255, 0.32);
   --panel: rgba(255, 255, 255, 0.08);
