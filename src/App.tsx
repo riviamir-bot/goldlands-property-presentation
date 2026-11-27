@@ -185,7 +185,7 @@ export default function App() {
         {notice}
         {!current ? (
           <main className="gv-home">
-            <header className="gv-top">
+            <header className="gv-top" dir="rtl">
               <ProjectLogo project={selectedProject} />
               <BrandLogo compact surface="gold" onClick={() => setSelectedProjectId("")} />
             </header>

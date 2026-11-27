@@ -151,7 +151,7 @@ export function ClientShareApp({ token }: { token: string }) {
 
       {!current ? (
         <main className="gv-home">
-          <header className="gv-top">
+          <header className="gv-top" dir="rtl">
             <ProjectLogo project={project} />
             <BrandLogo compact surface="gold" />
           </header>
