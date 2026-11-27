@@ -12,6 +12,7 @@ export function localizeProject(project: Project, language: Language): Project {
   const text = (value: string | undefined, fallback: string) => (value?.trim() ? value : fallback);
   return {
     ...project,
+    geoQuery: project.geoQuery ?? { address: project.address || project.city, city: project.city },
     name: text(tr.name, project.name),
     city: text(tr.city, project.city),
     address: text(tr.address, project.address),

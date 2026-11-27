@@ -38,6 +38,7 @@ describe("localizeProject", () => {
     expect(en.technicalSpecSections?.[0].title).toBe("Living room");
     expect(en.address).toBe("13 Bograshov St., Tel Aviv");
     expect(en.location).toBe("13 Bograshov St., Tel Aviv");
+    expect(en.geoQuery).toEqual({ address: "בוגרשוב 13 תל אביב", city: "תל אביב" });
     expect(localizeProject(base, "he").location).toBe("בוגרשוב 13 תל אביב");
     expect(en.locationDescription).toBe("מיקום");
     expect(en.neighborhood).toBe("");

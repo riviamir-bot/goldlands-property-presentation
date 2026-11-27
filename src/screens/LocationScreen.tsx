@@ -51,18 +51,21 @@ export function LocationScreen({ project }: { project: Project }) {
   const [places, setPlaces] = useState<LoadState<NearbyPlace[]>>({ status: "loading" });
   const [enabled, setEnabled] = useState<Set<PlaceCategory>>(() => new Set(PLACE_CATEGORIES));
   const [copied, setCopied] = useState(false);
+  // The map search only knows Hebrew street names, so it always uses the Hebrew address.
+  const geoAddress = project.geoQuery?.address ?? (project.address || project.city);
+  const geoCity = project.geoQuery?.city ?? project.city;
 
   useEffect(() => {
     const controller = new AbortController();
     setPoint({ status: "loading" });
     setPlaces({ status: "loading" });
-    geocodeAddress(project.address || project.city, project.city, controller.signal)
+    geocodeAddress(geoAddress, geoCity, controller.signal)
       .then((value) => setPoint(value ? { status: "ready", value } : { status: "failed" }))
       .catch(() => {
         if (!controller.signal.aborted) setPoint({ status: "failed" });
       });
     return () => controller.abort();
-  }, [project.address, project.city]);
+  }, [geoAddress, geoCity]);
 
   useEffect(() => {
     if (point.status !== "ready") return undefined;
