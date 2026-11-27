@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { LogOut, MapPin } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
 import { GlassBackdrop } from "../components/GoldViewParts";
@@ -12,6 +13,23 @@ interface AllProjectsScreenProps {
   notice?: React.ReactNode;
   onSelect: (projectId: string) => void;
   onSignOut?: () => void;
+}
+
+/** Building cut out of its render (transparent PNG in public/project-cutouts); falls back to the regular render if the file is missing. */
+function ProjectThumb({ projectId, fallback }: { projectId: string; fallback: string }) {
+  const [cutoutFailed, setCutoutFailed] = useState(false);
+  if (!cutoutFailed) {
+    return (
+      <span className="gv-project-card__thumb gv-project-card__thumb--cutout" aria-hidden="true">
+        <img src={`/project-cutouts/${projectId}.png`} alt="" loading="lazy" onError={() => setCutoutFailed(true)} />
+      </span>
+    );
+  }
+  return (
+    <span className="gv-project-card__thumb" aria-hidden="true">
+      {fallback && <img src={fallback} alt="" loading="lazy" />}
+    </span>
+  );
 }
 
 /** The marketer's project picker, in the Gold View look: one card per project over its render. */
@@ -54,9 +72,7 @@ export function AllProjectsScreen({ projects, userName, notice, onSelect, onSign
               <div className="gv-projects__grid">
                 {items.map((project) => (
                   <button key={project.id} type="button" className="gv-project-card" onClick={() => onSelect(project.id)}>
-                    <span className="gv-project-card__thumb" aria-hidden="true">
-                      {project.heroImage && <img src={project.heroImage} alt="" loading="lazy" />}
-                    </span>
+                    <ProjectThumb projectId={project.id} fallback={project.heroImage} />
                     <span className="gv-project-card__label">
                       <strong dir="auto">{project.name}</strong>
                       <span>

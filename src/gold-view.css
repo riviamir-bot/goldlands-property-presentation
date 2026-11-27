@@ -860,6 +860,17 @@ button.gv-tile {
   object-fit: cover;
 }
 
+.gv-project-card__thumb--cutout {
+  overflow: visible;
+  background: none;
+}
+
+.gv-project-card__thumb--cutout img {
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+}
+
 .gv-project-card__label {
   display: flex;
   flex-direction: column;
