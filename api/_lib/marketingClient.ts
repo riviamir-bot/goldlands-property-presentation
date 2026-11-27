@@ -1,7 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { MarketingData, StorageObjectRef } from "./loadPresentation.js";
+import type { ContactData, ContactInboxRow, ContactProjectRow } from "./contact.js";
 import { cleanSecret } from "./safety.js";
 import type {
+  MarketingProjectContentRow,
   MarketingApartmentRow,
   MarketingDocumentRow,
   MarketingProjectRow,
@@ -16,6 +18,10 @@ const APARTMENT_COLUMNS =
   "id, project_id, apartment_number, building, floor, rooms, area, balcony_area, price, status, deleted_at, plan_storage_path, plan_filename, plan_content_type";
 const RENDER_COLUMNS = "id, project_id, filename, storage_bucket, storage_path, sort_order, is_featured, modified_at, group_id";
 const RENDER_GROUP_COLUMNS = "id, project_id, name, is_building, sort_order";
+const CONTENT_COLUMNS =
+  "project_id, status, tagline, description, neighborhood, location_description, developer_name, developer_about, developer_website, architect, facts, spec_sections, feature_blocks, legal_disclaimer";
+/** Postgres "undefined table" and PostgREST "table not in schema cache". */
+const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
 const DOCUMENT_COLUMNS = "id, project_id, document_type, filename, storage_bucket, storage_path, created_at";
 
 export class MarketingConfigurationError extends Error {
@@ -112,6 +118,22 @@ export function createMarketingData(): MarketingData {
       return unwrap(result, []) as MarketingRenderGroupRow[];
     },
 
+    async listProjectContent(projectIds) {
+      const result = await client
+        .from("presentation_project_content")
+        .select(CONTENT_COLUMNS)
+        .eq("status", "published")
+        .in("project_id", projectIds);
+      // Extra content must never take the presentation down: on any error show projects without it.
+      if (result.error) {
+        const code = (result.error as { code?: string }).code ?? "";
+        if (MISSING_TABLE_CODES.has(code)) console.warn("presentation_project_content is missing; migration not applied yet");
+        else console.error("presentation_project_content read failed", code, result.error.message);
+        return [];
+      }
+      return (result.data ?? []) as MarketingProjectContentRow[];
+    },
+
     async listDocuments(projectIds) {
       const result = await client
         .from("project_document_assets")
@@ -192,6 +214,54 @@ export function createMarketingData(): MarketingData {
       );
 
       return signed;
+    },
+  };
+}
+
+const CONTACT_INBOX_SOURCES = ["gold_view", "other"];
+const DELIVERY_TIMEOUT_MS = 8000;
+
+/** Public contact form data: project names and intake inboxes (read), and lead delivery through the marketing intake. */
+export function createContactData(): ContactData {
+  const client = getClient();
+  return {
+    async listContactProjects() {
+      const result = await client
+        .from("projects")
+        .select("id, name, city, sort_order")
+        .is("deleted_at", null)
+        .is("archived_at", null);
+      return unwrap(result, []) as ContactProjectRow[];
+    },
+
+    async listContactInboxes(projectIds) {
+      const result = await client
+        .from("project_lead_inboxes")
+        .select("project_id, source, token")
+        .in("project_id", projectIds)
+        .in("source", CONTACT_INBOX_SOURCES)
+        .eq("active", true);
+      return unwrap(result, []) as ContactInboxRow[];
+    },
+
+    async deliverLead(token, payload) {
+      const base = cleanSecret(process.env.MARKETING_APP_URL);
+      if (!base || !/^[A-Za-z0-9_-]{16,200}$/.test(token)) return false;
+      let url: URL;
+      try {
+        url = new URL(`/api/inbox/${token}`, base);
+        if (url.protocol !== "https:") return false;
+      } catch {
+        return false;
+      }
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
+      });
+      if (!response.ok) console.warn("[contact] intake rejected the lead", response.status);
+      return response.ok;
     },
   };
 }

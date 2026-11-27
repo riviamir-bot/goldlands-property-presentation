@@ -88,3 +88,21 @@ export interface ShareLinkRow {
 }
 
 export type UsageEventType = "project_opened" | "share_link_created" | "share_link_viewed";
+
+/** Published Gold View content (public.presentation_project_content). JSON columns are untrusted shape. */
+export interface MarketingProjectContentRow {
+  project_id: string;
+  status: string;
+  tagline: string | null;
+  description: string | null;
+  neighborhood: string | null;
+  location_description: string | null;
+  developer_name: string | null;
+  developer_about: string | null;
+  developer_website: string | null;
+  architect: string | null;
+  facts: unknown;
+  spec_sections: unknown;
+  feature_blocks: unknown;
+  legal_disclaimer: string | null;
+}

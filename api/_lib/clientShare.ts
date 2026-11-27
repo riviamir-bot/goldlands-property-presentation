@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Apartment, Project } from "../../src/types";
 import { authenticate, SIGNED_URL_TTL_SECONDS, type MarketingData } from "./loadPresentation.js";
 import { mapApartment, mapProject, PLAN_BUCKET } from "./mapping.js";
+import { applyProjectContent } from "./projectContent.js";
 
 export const SHARE_TTL_DAYS = 30;
 const EVENT_THROTTLE_MS = 30 * 60 * 1000;
@@ -91,6 +92,20 @@ export interface SharedPresentationPayload {
   expiresAt: string;
 }
 
+/** Details kept for the meeting with a marketer: financing bank, block and parcel. */
+const MEETING_ONLY_FACT = /גוש|חלקה|בנק|ליווי/;
+
+/** Removes from a project what is discussed in a meeting and not shown on the client's page. */
+export function forClient(project: Project): Project {
+  return {
+    ...project,
+    block: undefined,
+    parcel: undefined,
+    details: project.details ? { ...project.details, financingBank: "" } : project.details,
+    facts: project.facts?.filter((fact) => !MEETING_ONLY_FACT.test(fact.label)),
+  };
+}
+
 /** Public: the client's view of a summary link. No sign-in; everything is limited to what the marketer chose. */
 export async function loadSharedPresentation(
   data: MarketingData,
@@ -105,11 +120,13 @@ export async function loadSharedPresentation(
   const project = (await data.listProjects([link.project_id])).find((row) => row.id === link.project_id && !row.deleted_at);
   if (!project) return fail(410, "הקישור אינו בתוקף.");
 
-  const [apartmentRows, renderRows, renderGroupRows, agent] = await Promise.all([
+  // Internal details (who sent the link, marketer contact) never reach the client; leads come back through the contact form.
+  const agent = null;
+  const [apartmentRows, renderRows, renderGroupRows, contentRows] = await Promise.all([
     data.listApartments([project.id]),
     data.listRenders([project.id]),
     data.listRenderGroups ? data.listRenderGroups([project.id]) : Promise.resolve([]),
-    link.created_by ? data.getAgentContact(link.created_by) : Promise.resolve(null),
+    data.listProjectContent ? data.listProjectContent([project.id]) : Promise.resolve([]),
   ]);
   const activeRows = apartmentRows.filter((row) => !row.deleted_at && row.project_id === project.id);
   const selectedRows = link.apartment_ids
@@ -138,7 +155,12 @@ export async function loadSharedPresentation(
   return {
     status: 200,
     body: {
-      project: mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
+      project: forClient(
+        applyProjectContent(
+          mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
+          contentRows.find((row) => row.project_id === project.id),
+        ),
+      ),
       apartments,
       showPrices: link.show_prices,
       language: LANGUAGES.includes(link.language as ShareLanguage) ? (link.language as ShareLanguage) : "he",
