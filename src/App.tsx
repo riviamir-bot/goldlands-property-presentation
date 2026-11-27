@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Columns3, Eye, EyeOff, FileText, ListOrdered, LogOut, Send } from "lucide-react";
 import { ApartmentDrawer } from "./components/ApartmentDrawer";
-import { BrandLogo } from "./components/BrandLogo";
 import { CompareDialog } from "./components/CompareDialog";
-import { GlassBackdrop, ProjectLogo, SectionBar, TileGrid, projectSummary, type GlassTile } from "./components/GoldViewParts";
+import { GlassBackdrop, GvHeader, SectionBar, TileGrid, projectSummary, type GlassTile } from "./components/GoldViewParts";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { ShareDialog } from "./components/ShareDialog";
 import { usePresentationSession, signInMessages } from "./hooks/usePresentationSession";
@@ -19,9 +18,8 @@ import "./gold-view.css";
 export default function App() {
   const { t, dir, language } = useI18n();
   const { state, isConfigured, signIn, signOut, withToken, recordProjectOpened } = usePresentationSession();
-  /** "" = the project's tiles; otherwise the open section (about, apartments, prices, plans, gallery, spec, feature-…, model3d, location). */
-  const [view, setView] = useState("");
-  const [selectedProjectId, setSelectedProjectId] = useState("");
+  /** Where the marketer is: project ("" = all projects) and section ("" = the project's tiles). Kept in the browser history so the phone's back gesture moves between screens. */
+  const { projectId: selectedProjectId, view, go, replace, back } = useHistoryNav();
   const [planApartmentId, setPlanApartmentId] = useState<string | null>(null);
   const [openApartmentId, setOpenApartmentId] = useState<string | null>(null);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
@@ -50,8 +48,8 @@ export default function App() {
 
   // A project can leave the user's scope, or a section can lose its content, while the app is open.
   useEffect(() => {
-    if (view && !tiles.some((tile) => tile.id === view)) setView("");
-  }, [tiles, view]);
+    if (view && selectedProject && !tiles.some((tile) => tile.id === view)) replace(selectedProjectId, "");
+  }, [replace, selectedProject, selectedProjectId, tiles, view]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -67,8 +65,7 @@ export default function App() {
 
   const handleSignOut = async () => {
     await signOut();
-    setView("");
-    setSelectedProjectId("");
+    replace("", "");
   };
 
   if (state.phase === "loading") {
@@ -103,10 +100,9 @@ export default function App() {
   ) : null;
 
   const selectProject = (projectId: string) => {
-    setSelectedProjectId(projectId);
+    go(projectId, "");
     setPlanApartmentId(null);
     setOpenApartmentId(null);
-    setView("");
     recordProjectOpened(projectId);
   };
 
@@ -144,7 +140,7 @@ export default function App() {
   /** Marketer controls, always at hand during the meeting. Never shown on the client page. */
   const meetingBar = (
     <nav className="gv-meeting-bar" aria-label={t("gv.meeting.tools")}>
-      <button type="button" className="gv-meeting-bar__button" onClick={() => setSelectedProjectId("")}>
+      <button type="button" className="gv-meeting-bar__button" onClick={() => go("", "")}>
         <Building2 size={18} aria-hidden="true" />
         <span>{t("nav.allProjects")}</span>
       </button>
@@ -182,24 +178,21 @@ export default function App() {
     <>
       <div className="gv gv--meeting" dir={dir}>
         <GlassBackdrop image={selectedProject.heroImage} dim={Boolean(current)} />
+        <GvHeader project={selectedProject} onBrandClick={() => go("", "")} />
         {notice}
         {!current ? (
           <main className="gv-home">
-            <header className="gv-top" dir="rtl">
-              <ProjectLogo project={selectedProject} />
-              <BrandLogo compact surface="gold" onClick={() => setSelectedProjectId("")} />
-            </header>
             <div className="gv-home__body">
               <div className="gv-home__title">
                 <h1 dir="auto">{selectedProject.location || selectedProject.name}</h1>
                 {summary && <p dir="auto">{summary}</p>}
               </div>
-              <TileGrid label={selectedProject.name} tiles={tiles} onOpen={setView} />
+              <TileGrid label={selectedProject.name} tiles={tiles} onOpen={(id) => go(selectedProjectId, id)} />
             </div>
           </main>
         ) : (
           <main className="gv-section-view">
-            <SectionBar title={title} onBack={() => setView("")} />
+            <SectionBar title={title} onBack={back} />
             <div className="gv-section-body">
               {current === "apartments" && <ApartmentsScreen variant="available" apartments={openApartments} {...tableProps} />}
               {current === "prices" && <ApartmentsScreen variant="priceList" apartments={listedApartments} {...tableProps} />}
@@ -249,4 +242,50 @@ export default function App() {
       </div>
     </>
   );
+}
+
+type NavEntry = { projectId: string; view: string; depth: number };
+
+function readEntry(state: unknown): NavEntry | null {
+  const entry = (state as { gv?: NavEntry } | null)?.gv;
+  return entry && typeof entry.projectId === "string" && typeof entry.view === "string" ? entry : null;
+}
+
+/** Screen state stored in history entries: each move pushes one, and the browser's back returns to the previous screen. */
+function useHistoryNav() {
+  const [entry, setEntry] = useState<NavEntry>(() => readEntry(window.history.state) ?? { projectId: "", view: "", depth: 0 });
+  const current = useRef(entry);
+  current.current = entry;
+
+  useEffect(() => {
+    if (!readEntry(window.history.state)) window.history.replaceState({ ...(window.history.state ?? {}), gv: current.current }, "");
+    const onPop = (event: PopStateEvent) => setEntry(readEntry(event.state) ?? { projectId: "", view: "", depth: 0 });
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const go = useCallback((projectId: string, view: string) => {
+    const from = current.current;
+    if (from.projectId === projectId && from.view === view) return;
+    const next = { projectId, view, depth: from.depth + 1 };
+    window.history.pushState({ gv: next }, "");
+    current.current = next;
+    setEntry(next);
+  }, []);
+
+  const replace = useCallback((projectId: string, view: string) => {
+    const next = { projectId, view, depth: current.current.depth };
+    window.history.replaceState({ gv: next }, "");
+    current.current = next;
+    setEntry(next);
+  }, []);
+
+  /** In-app back: step back through history when we came from another screen of the app; otherwise go up one level. */
+  const back = useCallback(() => {
+    const from = current.current;
+    if (from.depth > 0) window.history.back();
+    else replace(from.view ? from.projectId : "", "");
+  }, [replace]);
+
+  return { projectId: entry.projectId, view: entry.view, go, replace, back };
 }

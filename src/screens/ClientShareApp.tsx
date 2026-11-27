@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Building2, Car, Images, Info, ListChecks, MapPin } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
 import { ContactForm } from "../components/ContactForm";
@@ -7,7 +7,7 @@ import {
   AboutSection,
   GlassBackdrop,
   Panel,
-  ProjectLogo,
+  GvHeader,
   SectionBar,
   TileGrid,
   projectSummary,
@@ -32,8 +32,11 @@ type State = { kind: "loading" } | { kind: "expired" } | { kind: "error" } | { k
 function useSection() {
   const read = () => decodeURIComponent(window.location.hash.replace(/^#/, ""));
   const [section, setSection] = useState(read);
+  // True once the visitor has moved between screens on this page, so "back" stays inside the presentation.
+  const movedInside = useRef(false);
   useEffect(() => {
     const onChange = () => {
+      movedInside.current = true;
       setSection(read());
       window.scrollTo(0, 0);
     };
@@ -41,8 +44,12 @@ function useSection() {
     return () => window.removeEventListener("hashchange", onChange);
   }, []);
   const close = useCallback(() => {
-    if (window.history.length > 1 && window.location.hash) window.history.back();
-    else window.location.hash = "";
+    if (movedInside.current && window.location.hash) window.history.back();
+    else {
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+      setSection("");
+      window.scrollTo(0, 0);
+    }
   }, []);
   return { section, close };
 }
@@ -155,13 +162,10 @@ export function ClientShareApp({ token }: { token: string }) {
   return (
     <div className="gv" dir={dir}>
       <GlassBackdrop image={project.heroImage} dim={Boolean(current)} />
+      <GvHeader project={project} />
 
       {!current ? (
         <main className="gv-home">
-          <header className="gv-top" dir="rtl">
-            <ProjectLogo project={project} />
-            <BrandLogo compact surface="gold" />
-          </header>
 
           <div className="gv-home__body">
             <div className="gv-home__title">

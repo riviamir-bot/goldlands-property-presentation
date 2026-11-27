@@ -91,23 +91,56 @@
 .gv-home {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100vh - var(--gv-header-h));
+  min-height: calc(100dvh - var(--gv-header-h));
   width: min(1000px, 100%);
   margin-inline: auto;
 }
 
-.gv-top {
+/* Fixed top bar with both logos on every screen. Light frosted glass, so the logos keep their original colours. */
+.gv {
+  --gv-header-h: 72px;
+}
+
+.gv-header {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px clamp(16px, 4vw, 32px) 0;
+  height: var(--gv-header-h);
+  padding: 8px clamp(16px, 4vw, 32px);
+  background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 6px 24px rgba(10, 16, 30, 0.18);
+}
+
+.gv-header .brand-logo__image--compact {
+  height: 30px;
+}
+
+@media (min-width: 720px) {
+  .gv {
+    --gv-header-h: 84px;
+  }
+
+  .gv-header .brand-logo__image--compact {
+    height: 36px;
+  }
+}
+
+.gv-header .gv-project-name {
+  color: #1d2433;
+  font-weight: 700;
 }
 
 .gv-project-logo {
   display: block;
-  height: clamp(72px, 14vw, 108px);
+  height: calc(var(--gv-header-h) - 16px);
   width: auto;
   max-width: 55%;
   object-fit: contain;
@@ -230,15 +263,15 @@ button.gv-tile {
 .gv-section-view {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100vh - var(--gv-header-h));
+  min-height: calc(100dvh - var(--gv-header-h));
   width: min(1000px, 100%);
   margin-inline: auto;
 }
 
 .gv-section-bar {
   position: sticky;
-  top: 0;
+  top: var(--gv-header-h);
   z-index: 5;
   display: flex;
   align-items: center;

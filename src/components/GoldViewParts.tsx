@@ -4,6 +4,7 @@ import { useI18n } from "../i18n/LanguageContext";
 import { translateConstructionStage } from "../i18n/project-values";
 import type { Project } from "../types";
 import { formatMonthYear } from "../utils/format";
+import { BrandLogo } from "./BrandLogo";
 
 /** Shared building blocks of the Gold View look, used by the client page and the marketer presentation. */
 
@@ -25,6 +26,16 @@ export function ProjectLogo({ project }: { project: Project }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <span className="gv-project-name">{project.name}</span>;
   return <img className="gv-project-logo" src={`/project-logos/${project.id}.png`} alt={project.name} onError={() => setFailed(true)} />;
+}
+
+/** Top bar on every Gold View screen: project logo and GOLDLANDS, each on its own side, in their original colours. */
+export function GvHeader({ project, onBrandClick }: { project?: Project; onBrandClick?: () => void }) {
+  return (
+    <header className="gv-header" dir="rtl">
+      {project ? <ProjectLogo project={project} /> : <span />}
+      <BrandLogo compact surface="gold" onClick={onBrandClick} />
+    </header>
+  );
 }
 
 /** The render behind every Gold View screen; dimmed and blurred behind section screens. */
