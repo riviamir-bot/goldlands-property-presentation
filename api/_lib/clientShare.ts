@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Apartment, Project } from "../../src/types";
-import { authenticate, SIGNED_URL_TTL_SECONDS, type MarketingData } from "./loadPresentation.js";
+import { authenticate, renderObject, SIGNED_URL_TTL_SECONDS, type MarketingData } from "./loadPresentation.js";
 import { mapApartment, mapProject, PLAN_BUCKET } from "./mapping.js";
 import { applyProjectContent } from "./projectContent.js";
 
@@ -134,7 +134,7 @@ export async function loadSharedPresentation(
     .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
   const objects = [
-    ...renderRows.filter((row) => row.project_id === project.id).map((row) => ({ bucket: row.storage_bucket, path: row.storage_path })),
+    ...renderRows.filter((row) => row.project_id === project.id).map((row) => renderObject(row.storage_bucket, row.storage_path)),
     ...selectedRows.filter((row) => row.plan_storage_path).map((row) => ({ bucket: PLAN_BUCKET, path: row.plan_storage_path as string })),
   ];
   const signed = objects.length ? await data.signUrls(objects, SIGNED_URL_TTL_SECONDS) : new Map<string, string>();

@@ -25,7 +25,7 @@ export function AllProjectsScreen({ projects, userName, notice, onSelect, onSign
 
   return (
     <div className="gv gv-projects" dir={dir}>
-      <GlassBackdrop image={projects.find((project) => project.heroImage)?.heroImage} dim />
+      <GlassBackdrop image={projects.find((project) => project.heroImage)?.heroImage} />
       <header className="gv-projects__bar">
         <BrandLogo compact surface="gold" />
         <div className="gv-projects__tools">
@@ -54,7 +54,9 @@ export function AllProjectsScreen({ projects, userName, notice, onSelect, onSign
               <div className="gv-projects__grid">
                 {items.map((project) => (
                   <button key={project.id} type="button" className="gv-project-card" onClick={() => onSelect(project.id)}>
-                    {project.heroImage && <img src={project.heroImage} alt="" loading="lazy" />}
+                    <span className="gv-project-card__thumb" aria-hidden="true">
+                      {project.heroImage && <img src={project.heroImage} alt="" loading="lazy" />}
+                    </span>
                     <span className="gv-project-card__label">
                       <strong dir="auto">{project.name}</strong>
                       <span>

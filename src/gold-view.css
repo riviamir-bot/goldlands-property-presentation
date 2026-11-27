@@ -76,6 +76,13 @@
     linear-gradient(to bottom, rgba(10, 16, 30, 0) 30%, rgba(10, 16, 30, 0.62) 46%, rgba(10, 16, 30, 0.9) 62%, rgba(10, 16, 30, 0.95) 100%);
 }
 
+/* Project picker: light at the top behind the logo, then a deep tint so headings read without effects. */
+.gv-projects .gv-backdrop::after {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0, rgba(255, 255, 255, 0.8) 56px, rgba(255, 255, 255, 0) 120px),
+    linear-gradient(to bottom, rgba(10, 16, 30, 0) 40px, rgba(10, 16, 30, 0.7) 150px, rgba(10, 16, 30, 0.8) 100%);
+}
+
 .gv-backdrop--dim img {
   filter: blur(18px) saturate(1.1);
   transform: scale(1.08);
@@ -91,23 +98,71 @@
 .gv-home {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100vh - var(--gv-header-h));
+  min-height: calc(100dvh - var(--gv-header-h));
   width: min(1000px, 100%);
   margin-inline: auto;
 }
 
-.gv-top {
+/* Both logos stay at the top of every screen, with no background of their own.
+   Only the area below them scrolls, so content never slides under the logos. */
+.gv--framed {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gv--framed > .gv-home,
+.gv--framed > .gv-section-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gv {
+  --gv-header-h: 72px;
+}
+
+.gv-header {
+  position: relative;
+  flex: none;
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px clamp(16px, 4vw, 32px) 0;
+  height: var(--gv-header-h);
+  padding: 8px clamp(16px, 4vw, 32px);
+  background: transparent;
+}
+
+.gv-header .brand-logo__image--compact {
+  height: 30px;
+}
+
+@media (min-width: 720px) {
+  .gv {
+    --gv-header-h: 84px;
+  }
+
+  .gv-header .brand-logo__image--compact {
+    height: 36px;
+  }
+}
+
+.gv-header .gv-project-name {
+  color: #1d2433;
+  font-weight: 700;
 }
 
 .gv-project-logo {
   display: block;
-  height: clamp(72px, 14vw, 108px);
+  height: calc(var(--gv-header-h) - 16px);
   width: auto;
   max-width: 55%;
   object-fit: contain;
@@ -129,7 +184,13 @@
 
 .gv-home__title {
   text-align: center;
-  text-shadow: 0 1px 12px rgba(10, 16, 30, 0.7), 0 0 2px rgba(10, 16, 30, 0.5);
+  padding: 12px 16px;
+  border: 1px solid var(--gv-glass-line);
+  border-radius: 18px;
+  background: var(--gv-sheen), var(--gv-glass);
+  box-shadow: var(--gv-edge);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
 .gv-home__title h1 {
@@ -230,8 +291,8 @@ button.gv-tile {
 .gv-section-view {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100vh - var(--gv-header-h));
+  min-height: calc(100dvh - var(--gv-header-h));
   width: min(1000px, 100%);
   margin-inline: auto;
 }
@@ -697,19 +758,15 @@ button.gv-tile {
   background: transparent;
 }
 
+/* Logo floats over the render, like every other Gold View screen; only the tools sit on glass. */
 .gv-projects__bar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px clamp(16px, 4vw, 32px);
-  background: rgba(10, 16, 30, 0.8);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--gv-glass-line);
+  padding: 14px clamp(16px, 4vw, 32px);
 }
 
 .gv-projects__tools {
@@ -719,8 +776,20 @@ button.gv-tile {
 }
 
 .gv-projects__user {
-  color: var(--gv-muted);
-  font-size: 0.9rem;
+  padding: 6px 12px;
+  border: 1px solid var(--gv-glass-line);
+  border-radius: 999px;
+  background: var(--gv-glass);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--gv-text);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 560px) {
+  .gv-projects__user {
+    display: none;
+  }
 }
 
 .gv-projects__main {
@@ -731,78 +800,85 @@ button.gv-tile {
 
 .gv-projects__main > h1 {
   margin: 0 0 8px;
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
 }
 
 .gv-projects__city h2 {
   margin: 22px 0 10px;
-  color: var(--gv-muted);
+  color: var(--gv-text);
   font-size: 1rem;
   font-weight: 600;
 }
 
 .gv-projects__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
 }
 
+/* One glass tile per project: a small render, the name and the address. */
 .gv-project-card {
-  position: relative;
-  overflow: hidden;
-  min-height: 190px;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
   border: 1px solid var(--gv-glass-line);
   border-radius: 18px;
   background: var(--gv-sheen), var(--gv-glass);
+  box-shadow: var(--gv-edge);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   color: var(--gv-text);
   font: inherit;
   text-align: start;
   cursor: pointer;
+  transition: background-color 150ms;
 }
 
-.gv-project-card img {
-  position: absolute;
-  inset: 0;
+.gv-project-card:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.gv-project-card:focus-visible {
+  outline: 2px solid var(--gv-gold);
+  outline-offset: 2px;
+}
+
+.gv-project-card__thumb {
+  flex: none;
+  width: 92px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gv-project-card__thumb img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.gv-project-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(10, 16, 30, 0.9) 0%, rgba(10, 16, 30, 0.35) 45%, rgba(10, 16, 30, 0) 70%);
-}
-
 .gv-project-card__label {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 14px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .gv-project-card__label strong {
-  font-size: 1.15rem;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
-.gv-project-card__label span {
+.gv-project-card__label > span {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--gv-muted);
   font-size: 0.85rem;
 }
-
-.gv-project-card:hover::after {
-  background: linear-gradient(to top, rgba(10, 16, 30, 0.85) 0%, rgba(10, 16, 30, 0.25) 45%, rgba(10, 16, 30, 0) 70%);
-}
-
 
 /* ---------------------------------------------------------------------------
    Every older screen shown inside Gold View (apartments table, price list,
@@ -1038,5 +1114,33 @@ button.gv-tile {
   .gv-meeting-bar,
   .language-switcher {
     display: none !important;
+  }
+}
+
+/* Tools that sit straight on the render need a darker glass to stay readable over bright skies. */
+.gv .language-switcher,
+.gv-projects__tools .gv-meeting-bar__button {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(10, 16, 30, 0.5);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.gv .language-switcher button {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.gv .language-switcher button.active {
+  color: #1d1a14;
+}
+
+@media (max-width: 560px) {
+  .gv-projects__bar .brand-logo__image--compact {
+    height: 24px;
+    max-width: 170px;
+  }
+
+  .gv-projects__tools {
+    gap: 6px;
   }
 }

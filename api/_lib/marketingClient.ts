@@ -197,21 +197,37 @@ export function createMarketingData(): MarketingData {
     async signUrls(items: StorageObjectRef[], ttlSeconds: number) {
       const signed = new Map<string, string>();
       const pathsByBucket = new Map<string, string[]>();
+      const resized = items.filter((item) => item.resizeWidth);
       for (const item of items) {
+        if (item.resizeWidth) continue;
         const paths = pathsByBucket.get(item.bucket);
         if (paths) paths.push(item.path);
         else pathsByBucket.set(item.bucket, [item.path]);
       }
 
-      await Promise.all(
-        Array.from(pathsByBucket.entries()).map(async ([bucket, paths]) => {
+      await Promise.all([
+        ...Array.from(pathsByBucket.entries()).map(async ([bucket, paths]) => {
           const { data, error } = await client.storage.from(bucket).createSignedUrls(paths, ttlSeconds);
           if (error) throw new Error(error.message);
           for (const entry of data ?? []) {
             if (entry.signedUrl && entry.path) signed.set(`${bucket}/${entry.path}`, entry.signedUrl);
           }
         }),
-      );
+        // Resized images need one signature each; if resizing is unavailable, fall back to the original file.
+        ...resized.map(async (item) => {
+          const bucket = client.storage.from(item.bucket);
+          const { data } = await bucket.createSignedUrl(item.path, ttlSeconds, {
+            transform: { width: item.resizeWidth, quality: 75, resize: "contain" },
+          });
+          if (data?.signedUrl) {
+            signed.set(`${item.bucket}/${item.path}`, data.signedUrl);
+            return;
+          }
+          const original = await bucket.createSignedUrl(item.path, ttlSeconds);
+          if (original.error) throw new Error(original.error.message);
+          if (original.data?.signedUrl) signed.set(`${item.bucket}/${item.path}`, original.data.signedUrl);
+        }),
+      ]);
 
       return signed;
     },
