@@ -6,6 +6,7 @@ const base = {
   name: "בוגרשוב 13",
   city: "תל אביב",
   address: "בוגרשוב 13 תל אביב",
+  location: "בוגרשוב 13 תל אביב",
   neighborhood: "",
   tagline: "",
   description: "תיאור",
@@ -17,6 +18,7 @@ const base = {
     en: {
       name: "Bograshov 13",
       city: "Tel Aviv",
+      address: "13 Bograshov St., Tel Aviv",
       description: "Description",
       neighborhood: "",
       technicalSpecSections: [{ id: "content-0", title: "Living room", items: ["Door"], displayOrder: 0 }],
@@ -34,7 +36,9 @@ describe("localizeProject", () => {
     expect(en.name).toBe("Bograshov 13");
     expect(en.description).toBe("Description");
     expect(en.technicalSpecSections?.[0].title).toBe("Living room");
-    expect(en.address).toBe("בוגרשוב 13 תל אביב");
+    expect(en.address).toBe("13 Bograshov St., Tel Aviv");
+    expect(en.location).toBe("13 Bograshov St., Tel Aviv");
+    expect(localizeProject(base, "he").location).toBe("בוגרשוב 13 תל אביב");
     expect(en.locationDescription).toBe("מיקום");
     expect(en.neighborhood).toBe("");
   });

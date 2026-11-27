@@ -15,6 +15,8 @@ export function localizeProject(project: Project, language: Language): Project {
     name: text(tr.name, project.name),
     city: text(tr.city, project.city),
     address: text(tr.address, project.address),
+    // The header and the map screen show `location`, which for these projects is the full address.
+    location: text(tr.address, project.location),
     neighborhood: text(tr.neighborhood, project.neighborhood),
     tagline: text(tr.tagline, project.tagline),
     description: text(tr.description, project.description),
