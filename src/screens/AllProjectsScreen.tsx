@@ -1,5 +1,6 @@
 import { LogOut, MapPin } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
+import { GlassBackdrop } from "../components/GoldViewParts";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { useI18n } from "../i18n/LanguageContext";
 import type { Project } from "../types";
@@ -24,6 +25,7 @@ export function AllProjectsScreen({ projects, userName, notice, onSelect, onSign
 
   return (
     <div className="gv gv-projects" dir={dir}>
+      <GlassBackdrop image={projects.find((project) => project.heroImage)?.heroImage} dim />
       <header className="gv-projects__bar">
         <BrandLogo compact />
         <div className="gv-projects__tools">

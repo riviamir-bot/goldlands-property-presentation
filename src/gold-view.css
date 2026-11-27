@@ -13,6 +13,17 @@
   --gv-gold: #d6bb8a;
   --gv-sans: "Assistant", "Heebo", Arial, sans-serif;
 
+  /* The older screens read these app tokens; inside Gold View they follow the glass palette. */
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.78);
+  --gold-light: #f1e6cf;
+  --line: rgba(255, 255, 255, 0.18);
+  --line-strong: rgba(255, 255, 255, 0.32);
+  --panel: rgba(255, 255, 255, 0.08);
+  --panel-soft: rgba(255, 255, 255, 0.06);
+  --glass: rgba(10, 16, 30, 0.6);
+  --soft: rgba(255, 255, 255, 0.08);
+
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
@@ -679,9 +690,7 @@ button.gv-tile {
 
 /* Marketer project picker */
 .gv-projects {
-  background:
-    radial-gradient(120% 60% at 85% 0%, rgba(214, 187, 138, 0.12), rgba(214, 187, 138, 0) 60%),
-    var(--gv-night);
+  background: transparent;
 }
 
 .gv-projects__bar {
@@ -788,4 +797,174 @@ button.gv-tile {
 
 .gv-project-card:hover::after {
   background: linear-gradient(to top, rgba(10, 16, 30, 0.85) 0%, rgba(10, 16, 30, 0.25) 45%, rgba(10, 16, 30, 0) 70%);
+}
+
+
+/* ---------------------------------------------------------------------------
+   Every older screen shown inside Gold View (apartments table, price list,
+   plans, gallery, 3D, map, apartment card, comparison, client summary) takes
+   the glass look here, so no screen keeps the previous design.
+   --------------------------------------------------------------------------- */
+.gv h1,
+.gv h2,
+.gv h3,
+.gv h4,
+.gv button,
+.gv input,
+.gv select,
+.gv textarea {
+  font-family: var(--gv-sans);
+  letter-spacing: normal;
+}
+
+.gv .panel,
+.gv .details-card,
+.gv .plan-picker,
+.gv .model3d-frame,
+.gv .compare-grid,
+.gv .share-dialog__apartments {
+  border: 1px solid var(--gv-glass-line);
+  border-radius: 18px;
+  background: var(--gv-sheen), var(--gv-glass);
+  box-shadow: var(--gv-edge), 0 10px 30px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  color: var(--gv-text);
+}
+
+/* The section bar already names the screen */
+.gv .panel__header .eyebrow,
+.gv .screen-heading {
+  display: none;
+}
+
+.gv .panel__header h2,
+.gv .panel h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gv-text);
+}
+
+.gv .eyebrow {
+  color: var(--gv-gold);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.gv .lux-table th {
+  color: var(--gv-muted);
+  font-weight: 600;
+  border-color: var(--gv-glass-line);
+}
+
+.gv .lux-table td {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--gv-text);
+}
+
+.gv .lux-table tbody tr,
+.gv .lux-table--interactive tbody tr {
+  background: transparent;
+}
+
+.gv .lux-table--interactive tbody tr:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gv .lux-table tbody tr.lux-table__row--selected {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.gv .count-pill,
+.gv .mini-button,
+.gv .ghost-button,
+.gv .icon-button,
+.gv .gallery-toolbar__button,
+.gv .gallery-arrow,
+.gv .plan-viewer__open,
+.gv .poi-filters button {
+  border: 1px solid var(--gv-glass-line);
+  border-radius: 12px;
+  background: var(--gv-glass);
+  color: var(--gv-text);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.gv .gold-button {
+  border: 0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--gv-ink);
+  box-shadow: none;
+}
+
+.gv .gallery-frame,
+.gv .gallery-screen .gallery-frame {
+  border: 1px solid var(--gv-glass-line);
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.gv .gallery-thumb {
+  border-color: var(--gv-glass-line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.gv .gallery-thumb.active {
+  border-color: #ffffff;
+}
+
+.gv .row-icon.active {
+  color: var(--gv-gold);
+}
+
+.gv .gallery-group {
+  border: 1px solid var(--gv-glass-line);
+  border-radius: 999px;
+  background: var(--gv-glass);
+  color: var(--gv-text);
+}
+
+.gv .gallery-group.active {
+  background: #ffffff;
+  color: var(--gv-ink);
+}
+
+.gv .gallery-hint,
+.gv .render-caption__note {
+  color: var(--gv-muted);
+}
+
+/* Apartment card, comparison and client summary */
+.gv .drawer-backdrop {
+  background: rgba(5, 8, 16, 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.gv .apartment-drawer,
+.gv .compare-dialog,
+.gv .share-dialog {
+  border: 1px solid var(--gv-glass-line);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(40, 50, 72, 0.96), rgba(16, 22, 38, 0.97));
+  box-shadow: var(--gv-edge), 0 24px 60px rgba(0, 0, 0, 0.45);
+  color: var(--gv-text);
+}
+
+.gv .apartment-drawer__facts,
+.gv .compare-grid__cell,
+.gv .compare-grid__head,
+.gv .share-dialog__field input,
+.gv .share-dialog__link {
+  border-color: var(--gv-glass-line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--gv-text);
+}
+
+.gv .poi-list,
+.gv .poi-group {
+  color: var(--gv-text);
 }

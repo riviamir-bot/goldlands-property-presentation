@@ -211,7 +211,6 @@ export default function App() {
           </main>
         )}
         {meetingBar}
-      </div>
 
       {openApartment && (
         <ApartmentDrawer
@@ -247,6 +246,7 @@ export default function App() {
           onClose={() => setIsShareOpen(false)}
         />
       )}
+      </div>
     </>
   );
 }
