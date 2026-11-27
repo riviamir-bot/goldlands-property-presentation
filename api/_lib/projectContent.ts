@@ -94,7 +94,8 @@ export function mapFeatureBlocks(value: unknown): ProjectFeatureBlock[] {
 
 /**
  * Applies published Gold View content on top of a project mapped from the marketing data.
- * Values from the content row win; empty content values keep what the marketing data already gave.
+ * Content fills and overrides texts (tagline, description, spec); empty content values keep the marketing data.
+ * The developer name from the marketing system wins over the deck when both exist.
  */
 export function applyProjectContent(project: Project, content: MarketingProjectContentRow | undefined): Project {
   if (!content || content.status !== "published") return project;

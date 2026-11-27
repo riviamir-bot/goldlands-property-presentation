@@ -123,9 +123,14 @@ export function createMarketingData(): MarketingData {
         .select(CONTENT_COLUMNS)
         .eq("status", "published")
         .in("project_id", projectIds);
-      // Until the migration is applied the table does not exist: show projects without the extra content.
-      if (result.error && MISSING_TABLE_CODES.has((result.error as { code?: string }).code ?? "")) return [];
-      return unwrap(result, []) as MarketingProjectContentRow[];
+      // Extra content must never take the presentation down: on any error show projects without it.
+      if (result.error) {
+        const code = (result.error as { code?: string }).code ?? "";
+        if (MISSING_TABLE_CODES.has(code)) console.warn("presentation_project_content is missing; migration not applied yet");
+        else console.error("presentation_project_content read failed", code, result.error.message);
+        return [];
+      }
+      return (result.data ?? []) as MarketingProjectContentRow[];
     },
 
     async listDocuments(projectIds) {

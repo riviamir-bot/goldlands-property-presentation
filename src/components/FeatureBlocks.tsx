@@ -12,15 +12,15 @@ export function FeatureBlocks({ blocks }: FeatureBlocksProps) {
 
   return (
     <div className="feature-blocks">
-      {blocks.map((block) => (
-        <article className="feature-block" key={block.key}>
+      {blocks.map((block, blockIndex) => (
+        <article className="feature-block" key={`${blockIndex}-${block.key}`}>
           <div className="feature-block__copy">
             <h3 dir="auto">{block.title}</h3>
             {block.intro && <p dir="auto">{block.intro}</p>}
             {block.bullets.length > 0 && (
               <ul>
-                {block.bullets.map((bullet) => (
-                  <li key={bullet} dir="auto">{bullet}</li>
+                {block.bullets.map((bullet, index) => (
+                  <li key={`${index}-${bullet}`} dir="auto">{bullet}</li>
                 ))}
               </ul>
             )}
@@ -33,6 +33,7 @@ export function FeatureBlocks({ blocks }: FeatureBlocksProps) {
                 loading="lazy"
                 allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                 referrerPolicy="strict-origin-when-cross-origin"
+                sandbox="allow-scripts allow-same-origin allow-presentation"
                 allowFullScreen
               />
               {block.videoCaption && <figcaption dir="auto">{block.videoCaption}</figcaption>}
@@ -41,8 +42,8 @@ export function FeatureBlocks({ blocks }: FeatureBlocksProps) {
           {block.faqs.length > 0 && (
             <div className="feature-block__faqs">
               <h4>{t("feature.faq")}</h4>
-              {block.faqs.map((faq) => (
-                <details key={faq.q}>
+              {block.faqs.map((faq, index) => (
+                <details key={`${index}-${faq.q}`}>
                   <summary dir="auto">{faq.q}</summary>
                   <p dir="auto">{faq.a}</p>
                 </details>
