@@ -92,6 +92,20 @@ export interface SharedPresentationPayload {
   expiresAt: string;
 }
 
+/** Details kept for the meeting with a marketer: financing bank, block and parcel. */
+const MEETING_ONLY_FACT = /גוש|חלקה|בנק|ליווי/;
+
+/** Removes from a project what is discussed in a meeting and not shown on the client's page. */
+export function forClient(project: Project): Project {
+  return {
+    ...project,
+    block: undefined,
+    parcel: undefined,
+    details: project.details ? { ...project.details, financingBank: "" } : project.details,
+    facts: project.facts?.filter((fact) => !MEETING_ONLY_FACT.test(fact.label)),
+  };
+}
+
 /** Public: the client's view of a summary link. No sign-in; everything is limited to what the marketer chose. */
 export async function loadSharedPresentation(
   data: MarketingData,
@@ -141,9 +155,11 @@ export async function loadSharedPresentation(
   return {
     status: 200,
     body: {
-      project: applyProjectContent(
-        mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
-        contentRows.find((row) => row.project_id === project.id),
+      project: forClient(
+        applyProjectContent(
+          mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
+          contentRows.find((row) => row.project_id === project.id),
+        ),
       ),
       apartments,
       showPrices: link.show_prices,

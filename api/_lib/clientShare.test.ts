@@ -121,6 +121,9 @@ describe("loadSharedPresentation", () => {
     expect(res.body.apartments.map((a) => a.id)).toEqual([A1, SOLD]);
     expect(res.body.apartments.find((a) => a.id === SOLD)?.price).toBe(0);
     expect(res.body.agent).toBeNull();
+    expect(res.body.project.block).toBeUndefined();
+    expect(res.body.project.parcel).toBeUndefined();
+    expect(res.body.project.details?.financingBank ?? "").toBe("");
     expect(res.body.language).toBe("en");
     expect(JSON.stringify(res.body)).not.toContain("internal.xlsx");
   });

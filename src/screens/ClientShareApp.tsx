@@ -80,8 +80,6 @@ export function ClientShareApp({ token }: { token: string }) {
     [
       [t("overview.developer"), details?.developerCompany ?? ""],
       [t("overview.architect"), project.architect ?? ""],
-      [t("overview.bank"), details?.financingBank ?? ""],
-      [t("overview.blockParcel"), [project.block, project.parcel].filter(present).join(" / ")],
     ] as Array<[string, string]>
   ).filter(([, value]) => present(value));
 
