@@ -1,31 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
-import { Columns3, Eye, EyeOff, Send } from "lucide-react";
+import { Building2, Columns3, Eye, EyeOff, FileText, ListOrdered, LogOut, Send } from "lucide-react";
 import { ApartmentDrawer } from "./components/ApartmentDrawer";
-import { AppShell } from "./components/AppShell";
+import { BrandLogo } from "./components/BrandLogo";
 import { CompareDialog } from "./components/CompareDialog";
-import { ProjectSectionNav } from "./components/ProjectSectionNav";
+import { GlassBackdrop, ProjectLogo, SectionBar, TileGrid, projectSummary, type GlassTile } from "./components/GoldViewParts";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { ShareDialog } from "./components/ShareDialog";
 import { usePresentationSession, signInMessages } from "./hooks/usePresentationSession";
 import { usePresentationState } from "./hooks/usePresentationState";
 import { useI18n } from "./i18n/LanguageContext";
 import { AllProjectsScreen } from "./screens/AllProjectsScreen";
 import { ApartmentsScreen, MAX_COMPARE } from "./screens/ApartmentsScreen";
-import { GalleryScreen } from "./screens/GalleryScreen";
-import { LocationScreen } from "./screens/LocationScreen";
 import { LoginScreen } from "./screens/LoginScreen";
-import { Model3dScreen } from "./screens/Model3dScreen";
+import { SharedSection, projectTiles } from "./screens/ClientShareApp";
 import { PlanScreen } from "./screens/PlanScreen";
-import { ProjectOpeningScreen } from "./screens/ProjectOpeningScreen";
-import { TechnicalSpecScreen } from "./screens/TechnicalSpecScreen";
-import type { Screen } from "./types";
-import { visibleSections } from "./utils/sections";
-
-type ProjectScreen = Exclude<Screen, "login" | "projects">;
+import "./gold-view.css";
 
 export default function App() {
-  const { t } = useI18n();
+  const { t, dir, language } = useI18n();
   const { state, isConfigured, signIn, signOut, withToken, recordProjectOpened } = usePresentationSession();
-  const [screen, setScreen] = useState<Screen>("projects");
+  /** "" = the project's tiles; otherwise the open section (about, apartments, prices, plans, gallery, spec, feature-…, model3d, location). */
+  const [view, setView] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [planApartmentId, setPlanApartmentId] = useState<string | null>(null);
   const [openApartmentId, setOpenApartmentId] = useState<string | null>(null);
@@ -43,17 +38,24 @@ export default function App() {
     [apartments, selectedProjectId],
   );
   const openApartments = useMemo(() => listedApartments.filter((apartment) => apartment.status !== "sold"), [listedApartments]);
-  const sections = useMemo(
-    () => (selectedProject ? visibleSections(selectedProject, listedApartments, { showPrices: meeting.showPrices }) : []),
-    [listedApartments, meeting.showPrices, selectedProject],
-  );
+  const hasPlans = listedApartments.some((apartment) => apartment.planAttached && apartment.planUrl);
+  const tiles: GlassTile[] = useMemo(() => {
+    if (!selectedProject) return [];
+    const extra: GlassTile[] = [
+      ...(listedApartments.length && meeting.showPrices ? [{ id: "prices", icon: ListOrdered, title: t("section.prices"), hint: t("gv.tile.prices") }] : []),
+      ...(hasPlans ? [{ id: "plans", icon: FileText, title: t("section.plans"), hint: t("gv.tile.plans") }] : []),
+    ];
+    return projectTiles(selectedProject, t, { count: openApartments.length, available: openApartments.filter((a) => a.status === "available").length }, extra);
+  }, [hasPlans, listedApartments.length, meeting.showPrices, openApartments, selectedProject, t]);
 
   // A project can leave the user's scope, or a section can lose its content, while the app is open.
   useEffect(() => {
-    if (screen === "projects") return;
-    if (!selectedProject) setScreen("projects");
-    else if (!sections.includes(screen)) setScreen("opening");
-  }, [screen, sections, selectedProject]);
+    if (view && !tiles.some((tile) => tile.id === view)) setView("");
+  }, [tiles, view]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [view, selectedProjectId]);
 
   const handleLogin = async ({ email, password }: { email: string; password: string }) => {
     setIsSigningIn(true);
@@ -65,7 +67,7 @@ export default function App() {
 
   const handleSignOut = async () => {
     await signOut();
-    setScreen("projects");
+    setView("");
     setSelectedProjectId("");
   };
 
@@ -104,11 +106,11 @@ export default function App() {
     setSelectedProjectId(projectId);
     setPlanApartmentId(null);
     setOpenApartmentId(null);
-    setScreen("opening");
+    setView("");
     recordProjectOpened(projectId);
   };
 
-  if (screen === "projects" || !selectedProject) {
+  if (!selectedProject) {
     return (
       <AllProjectsScreen
         projects={projects}
@@ -120,10 +122,6 @@ export default function App() {
     );
   }
 
-  const projectScreen = screen as ProjectScreen;
-  const sectionIndex = sections.indexOf(projectScreen);
-  const nextScreen = sectionIndex >= 0 ? sections[sectionIndex + 1] : undefined;
-  const previousScreen = sectionIndex > 0 ? sections[sectionIndex - 1] : "projects";
   const openApartment = listedApartments.find((apartment) => apartment.id === openApartmentId);
   const comparedApartments = meeting.compare
     .map((id) => listedApartments.find((apartment) => apartment.id === id))
@@ -139,57 +137,81 @@ export default function App() {
     onToggleCompare: meeting.toggleCompare,
   };
 
-  const actions = (
-    <>
+  const summary = projectSummary(selectedProject, t, language);
+  const current = tiles.some((tile) => tile.id === view) ? view : "";
+  const title = tiles.find((tile) => tile.id === current)?.title ?? "";
+
+  /** Marketer controls, always at hand during the meeting. Never shown on the client page. */
+  const meetingBar = (
+    <nav className="gv-meeting-bar" aria-label={t("gv.meeting.tools")}>
+      <button type="button" className="gv-meeting-bar__button" onClick={() => setSelectedProjectId("")}>
+        <Building2 size={18} aria-hidden="true" />
+        <span>{t("nav.allProjects")}</span>
+      </button>
+      <button
+        type="button"
+        className="gv-meeting-bar__button"
+        onClick={meeting.togglePrices}
+        aria-pressed={!meeting.showPrices}
+      >
+        {meeting.showPrices ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}
+        <span>{meeting.showPrices ? t("prices.hide") : t("prices.show")}</span>
+      </button>
       {comparedApartments.length > 1 && (
-        <button className="ghost-button ghost-button--compact" type="button" onClick={() => setIsCompareOpen(true)}>
-          <Columns3 size={16} />
-          {t("compare.button", { count: comparedApartments.length })}
+        <button type="button" className="gv-meeting-bar__button" onClick={() => setIsCompareOpen(true)}>
+          <Columns3 size={18} aria-hidden="true" />
+          <span>{t("compare.button", { count: comparedApartments.length })}</span>
         </button>
       )}
       {selectedIds.length > 0 && (
-        <button className="gold-button gold-button--compact" type="button" onClick={() => setIsShareOpen(true)} title={t("selection.count", { count: selectedIds.length })}>
-          <Send size={16} />
-          {t("selection.summary")} ({selectedIds.length})
+        <button type="button" className="gv-meeting-bar__button gv-meeting-bar__button--primary" onClick={() => setIsShareOpen(true)}>
+          <Send size={18} aria-hidden="true" />
+          <span>
+            {t("selection.summary")} ({selectedIds.length})
+          </span>
         </button>
       )}
-      <button
-        className="icon-button"
-        type="button"
-        onClick={meeting.togglePrices}
-        aria-pressed={!meeting.showPrices}
-        aria-label={meeting.showPrices ? t("prices.hide") : t("prices.show")}
-        title={meeting.showPrices ? t("prices.hide") : t("prices.show")}
-      >
-        {meeting.showPrices ? <Eye size={19} /> : <EyeOff size={19} />}
+      <LanguageSwitcher />
+      <button type="button" className="gv-meeting-bar__button gv-meeting-bar__button--icon" onClick={() => void handleSignOut()} aria-label={t("nav.signOut")} title={t("nav.signOut")}>
+        <LogOut size={18} aria-hidden="true" />
       </button>
-    </>
+    </nav>
   );
 
   return (
     <>
-      <AppShell
-        project={selectedProject}
-        title={t(`section.${projectScreen}`)}
-        eyebrow={selectedProject.name}
-        notice={notice}
-        actions={actions}
-        onProjects={() => setScreen("projects")}
-        onSignOut={() => void handleSignOut()}
-        onBack={() => setScreen(previousScreen)}
-        onNext={nextScreen ? () => setScreen(nextScreen) : undefined}
-        nextLabel={nextScreen ? t(`section.${nextScreen as ProjectScreen}`) : t("nav.finish")}
-      >
-        <ProjectSectionNav active={screen} visible={sections} onNavigate={setScreen} />
-        {screen === "opening" && <ProjectOpeningScreen project={selectedProject} />}
-        {screen === "apartments" && <ApartmentsScreen variant="available" apartments={openApartments} {...tableProps} />}
-        {screen === "prices" && <ApartmentsScreen variant="priceList" apartments={listedApartments} {...tableProps} />}
-        {screen === "gallery" && <GalleryScreen project={selectedProject} />}
-        {screen === "plans" && <PlanScreen apartments={listedApartments} initialApartmentId={planApartmentId} showPrices={meeting.showPrices} />}
-        {screen === "technical" && <TechnicalSpecScreen project={selectedProject} />}
-        {screen === "model3d" && <Model3dScreen project={selectedProject} />}
-        {screen === "location" && <LocationScreen project={selectedProject} />}
-      </AppShell>
+      <div className="gv gv--meeting" dir={dir}>
+        <GlassBackdrop image={selectedProject.heroImage} dim={Boolean(current)} />
+        {notice}
+        {!current ? (
+          <main className="gv-home">
+            <header className="gv-top">
+              <ProjectLogo project={selectedProject} />
+              <BrandLogo compact surface="light" onClick={() => setSelectedProjectId("")} />
+            </header>
+            <div className="gv-home__body">
+              <div className="gv-home__title">
+                <h1 dir="auto">{selectedProject.location || selectedProject.name}</h1>
+                {summary && <p dir="auto">{summary}</p>}
+              </div>
+              <TileGrid label={selectedProject.name} tiles={tiles} onOpen={setView} />
+            </div>
+          </main>
+        ) : (
+          <main className="gv-section-view">
+            <SectionBar title={title} onBack={() => setView("")} />
+            <div className="gv-section-body">
+              {current === "apartments" && <ApartmentsScreen variant="available" apartments={openApartments} {...tableProps} />}
+              {current === "prices" && <ApartmentsScreen variant="priceList" apartments={listedApartments} {...tableProps} />}
+              {current === "plans" && (
+                <PlanScreen apartments={listedApartments} initialApartmentId={planApartmentId} showPrices={meeting.showPrices} />
+              )}
+              {!["apartments", "prices", "plans"].includes(current) && <SharedSection id={current} project={selectedProject} />}
+            </div>
+          </main>
+        )}
+        {meetingBar}
+      </div>
 
       {openApartment && (
         <ApartmentDrawer

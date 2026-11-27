@@ -1,8 +1,9 @@
-import { Building2, MapPin } from "lucide-react";
-import { SideNavigation } from "../components/SideNavigation";
+import { LogOut, MapPin } from "lucide-react";
+import { BrandLogo } from "../components/BrandLogo";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { useI18n } from "../i18n/LanguageContext";
-import { translateProjectType } from "../i18n/project-values";
 import type { Project } from "../types";
+import "../gold-view.css";
 
 interface AllProjectsScreenProps {
   projects: Project[];
@@ -12,71 +13,60 @@ interface AllProjectsScreenProps {
   onSignOut?: () => void;
 }
 
+/** The marketer's project picker, in the Gold View look: one card per project over its render. */
 export function AllProjectsScreen({ projects, userName, notice, onSelect, onSignOut }: AllProjectsScreenProps) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
+  const byCity = new Map<string, Project[]>();
+  for (const project of projects) {
+    const city = project.city.trim();
+    byCity.set(city, [...(byCity.get(city) ?? []), project]);
+  }
+
   return (
-    <div className="management-layout">
-      <SideNavigation userName={userName} onProjects={() => undefined} onSignOut={onSignOut} />
+    <div className="gv gv-projects" dir={dir}>
+      <header className="gv-projects__bar">
+        <BrandLogo compact />
+        <div className="gv-projects__tools">
+          {userName && <span className="gv-projects__user">{userName}</span>}
+          <LanguageSwitcher />
+          {onSignOut && (
+            <button type="button" className="gv-meeting-bar__button gv-meeting-bar__button--icon" onClick={onSignOut} aria-label={t("nav.signOut")} title={t("nav.signOut")}>
+              <LogOut size={18} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </header>
 
-      <main className="management-main">
+      <main className="gv-projects__main">
         {notice}
-        <section className="screen-heading screen-heading--wide management-heading">
-          <span className="eyebrow">GOLDLANDS</span>
-          <h1>{t("projects.title")}</h1>
-        </section>
-
-        {projects.length > 0 ? (
-          <section className="projects-grid" aria-label={t("nav.allProjects")}>
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} onSelect={onSelect} />
-            ))}
-          </section>
-        ) : (
-          <div className="empty-state compact-empty-state">
+        <h1>{t("projects.title")}</h1>
+        {projects.length === 0 ? (
+          <div className="gv-panel">
             <h2>{t("projects.none")}</h2>
             <p>{t("projects.noneHint")}</p>
           </div>
+        ) : (
+          [...byCity.entries()].map(([city, items]) => (
+            <section key={city || "-"} className="gv-projects__city" aria-label={city || t("nav.allProjects")}>
+              {city && <h2>{city}</h2>}
+              <div className="gv-projects__grid">
+                {items.map((project) => (
+                  <button key={project.id} type="button" className="gv-project-card" onClick={() => onSelect(project.id)}>
+                    {project.heroImage && <img src={project.heroImage} alt="" loading="lazy" />}
+                    <span className="gv-project-card__label">
+                      <strong dir="auto">{project.name}</strong>
+                      <span>
+                        <MapPin size={14} aria-hidden="true" />
+                        {project.location}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))
         )}
       </main>
     </div>
-  );
-}
-
-function ProjectCard({ project, onSelect }: { project: Project; onSelect: (projectId: string) => void }) {
-  const { language } = useI18n();
-  const image = project.heroImage;
-
-  return (
-    <button
-      className={image ? "project-card" : "project-card project-card--placeholder"}
-      type="button"
-      onClick={() => onSelect(project.id)}
-    >
-      <div className="project-card__image" style={image ? { backgroundImage: `url("${image}")` } : undefined}>
-        {!image && (
-          <div className="project-card__placeholder" aria-hidden="true">
-            <Building2 size={26} />
-            <strong>{project.logoMark}</strong>
-          </div>
-        )}
-      </div>
-
-      <div className="project-card__body">
-        <div className="project-card__meta-row">
-          <span className="project-card__meta">
-            <MapPin size={16} />
-            {project.location}
-          </span>
-          <span className="project-card__type">{translateProjectType(project.projectType, language)}</span>
-        </div>
-        <h2 dir="auto">{project.name}</h2>
-        {project.tagline && <p>{project.tagline}</p>}
-        <div className="project-card__facts">
-          {project.keyFacts.slice(0, 3).map((fact) => (
-            <span key={fact}>{fact}</span>
-          ))}
-        </div>
-      </div>
-    </button>
   );
 }
