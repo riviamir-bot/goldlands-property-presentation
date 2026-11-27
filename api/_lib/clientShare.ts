@@ -74,7 +74,7 @@ export async function createShareLink(
     project_id: request.projectId,
     created_by: auth.user.id,
     apartment_ids: request.apartmentIds,
-    show_prices: request.apartmentIds.length > 0 && request.showPrices,
+    show_prices: request.showPrices,
     language: request.language,
     expires_at: expiresAt,
   });
@@ -129,9 +129,16 @@ export async function loadSharedPresentation(
     data.listProjectContent ? data.listProjectContent([project.id]) : Promise.resolve([]),
   ]);
   const activeRows = apartmentRows.filter((row) => !row.deleted_at && row.project_id === project.id);
-  const selectedRows = link.apartment_ids
-    .map((id) => activeRows.find((row) => row.id === id))
-    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+  // A link with no chosen apartments is a project link: it shows every apartment still on the market, as of now.
+  const selectedRows =
+    link.apartment_ids.length === 0
+      ? activeRows.filter((row) => {
+          const status = mapApartment(row).status;
+          return status !== "sold" && status !== "notMarketing";
+        })
+      : link.apartment_ids
+          .map((id) => activeRows.find((row) => row.id === id))
+          .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
   const objects = [
     ...renderRows.filter((row) => row.project_id === project.id).map((row) => renderObject(row.storage_bucket, row.storage_path)),

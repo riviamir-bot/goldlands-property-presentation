@@ -35,7 +35,7 @@ export function ShareDialog({ project, apartments, defaultShowPrices, withToken,
   const create = async () => {
     setState({ kind: "creating" });
     const result = await withToken((token) =>
-      createShareLink(token, { projectId: project.id, apartmentIds: apartments.map((a) => a.id), showPrices: projectOnly ? false : showPrices, language: shareLanguage }),
+      createShareLink(token, { projectId: project.id, apartmentIds: apartments.map((a) => a.id), showPrices, language: shareLanguage }),
     );
     if (result?.kind === "ok") setState({ kind: "ready", url: result.url });
     else setState({ kind: "error", message: (result?.kind === "error" && result.message) || t("share.error") });
@@ -79,12 +79,10 @@ export function ShareDialog({ project, apartments, defaultShowPrices, withToken,
 
           {state.kind !== "ready" ? (
             <>
-              {!projectOnly && (
               <label className="share-dialog__check">
                 <input type="checkbox" checked={showPrices} onChange={(event) => setShowPrices(event.currentTarget.checked)} />
                 {t("share.includePrices")}
               </label>
-              )}
 
               <label className="share-dialog__field">
                 <span>{t("share.language")}</span>
