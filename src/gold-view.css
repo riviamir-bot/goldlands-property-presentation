@@ -3,6 +3,9 @@
   --gv-ink: #0b2146;
   --gv-night: #0a101e;
   --gv-glass: rgba(255, 255, 255, 0.14);
+  /* A faint light-to-clear sheen so glass still reads as glass where the render is blurred away */
+  --gv-sheen: linear-gradient(145deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.07) 55%, rgba(255, 255, 255, 0.04) 100%);
+  --gv-edge: inset 0 1px 0 rgba(255, 255, 255, 0.28);
   --gv-glass-strong: rgba(255, 255, 255, 0.2);
   --gv-glass-line: rgba(255, 255, 255, 0.28);
   --gv-text: #ffffff;
@@ -67,7 +70,9 @@
 }
 
 .gv-backdrop--dim::after {
-  background: rgba(10, 16, 30, 0.82);
+  background:
+    radial-gradient(120% 70% at 85% 0%, rgba(214, 187, 138, 0.18), rgba(214, 187, 138, 0) 60%),
+    linear-gradient(160deg, rgba(10, 16, 30, 0.55) 0%, rgba(10, 16, 30, 0.72) 45%, rgba(10, 16, 30, 0.88) 100%);
 }
 
 /* Home: both logos on top, tiles below */
@@ -146,7 +151,8 @@
   padding: 14px;
   border: 1px solid var(--gv-glass-line);
   border-radius: 18px;
-  background: var(--gv-glass);
+  background: var(--gv-sheen), var(--gv-glass);
+  box-shadow: var(--gv-edge);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   text-decoration: none;
@@ -267,7 +273,8 @@
   padding: 18px;
   border: 1px solid var(--gv-glass-line);
   border-radius: 18px;
-  background: var(--gv-glass);
+  background: var(--gv-sheen);
+  box-shadow: var(--gv-edge), 0 10px 30px rgba(0, 0, 0, 0.18);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
@@ -365,7 +372,8 @@
 .gv .location-live__map {
   border-color: var(--gv-glass-line);
   border-radius: 18px;
-  background: var(--gv-glass);
+  background: var(--gv-sheen);
+  box-shadow: var(--gv-edge), 0 10px 30px rgba(0, 0, 0, 0.18);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
