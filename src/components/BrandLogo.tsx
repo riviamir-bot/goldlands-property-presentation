@@ -41,7 +41,7 @@ export function BrandLogo({ compact = false, surface = "dark", onClick }: BrandL
 
   if (onClick) {
     return (
-      <button className="brand-logo brand-logo--button" onClick={onClick}>
+      <button type="button" className="brand-logo brand-logo--button" onClick={onClick}>
         {content}
       </button>
     );

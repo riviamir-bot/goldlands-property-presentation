@@ -27,7 +27,7 @@ export function AllProjectsScreen({ projects, userName, notice, onSelect, onSign
     <div className="gv gv-projects" dir={dir}>
       <GlassBackdrop image={projects.find((project) => project.heroImage)?.heroImage} dim />
       <header className="gv-projects__bar">
-        <BrandLogo compact />
+        <BrandLogo compact surface="gold" />
         <div className="gv-projects__tools">
           {userName && <span className="gv-projects__user">{userName}</span>}
           <LanguageSwitcher />
@@ -59,7 +59,7 @@ export function AllProjectsScreen({ projects, userName, notice, onSelect, onSign
                       <strong dir="auto">{project.name}</strong>
                       <span>
                         <MapPin size={14} aria-hidden="true" />
-                        {project.location}
+                        <span dir="auto">{project.location}</span>
                       </span>
                     </span>
                   </button>

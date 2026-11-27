@@ -111,9 +111,11 @@ export function ClientShareApp({ token }: { token: string }) {
   const { t, dir, language, setLanguage } = useI18n();
   const [state, setState] = useState<State>({ kind: "loading" });
   const { section, close } = useSection();
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setState({ kind: "loading" });
     void fetchSharedPresentation(token).then((result) => {
       if (cancelled) return;
       if (result.kind === "ok") {
@@ -124,13 +126,18 @@ export function ClientShareApp({ token }: { token: string }) {
     return () => {
       cancelled = true;
     };
-  }, [setLanguage, token]);
+  }, [setLanguage, token, attempt]);
 
   if (state.kind !== "ready") {
     return (
       <main className="gv gv-status" dir={dir}>
         <BrandLogo surface="gold" />
-        <p>{state.kind === "loading" ? t("client.loading") : t("client.expired")}</p>
+        <p>{state.kind === "loading" ? t("client.loading") : state.kind === "error" ? t("client.error") : t("client.expired")}</p>
+        {state.kind === "error" && (
+          <button type="button" className="gv-cta gv-cta--compact" onClick={() => setAttempt((n) => n + 1)}>
+            <strong>{t("client.retry")}</strong>
+          </button>
+        )}
       </main>
     );
   }

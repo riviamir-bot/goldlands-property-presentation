@@ -93,7 +93,7 @@ export interface SharedPresentationPayload {
 }
 
 /** Details kept for the meeting with a marketer: financing bank, block and parcel. */
-const MEETING_ONLY_FACT = /גוש|חלקה|בנק|ליווי/;
+const MEETING_ONLY_FACT = /גוש|חלקה|בנק|ליווי|מימון|מלווה/;
 
 /** Removes from a project what is discussed in a meeting and not shown on the client's page. */
 export function forClient(project: Project): Project {
@@ -102,7 +102,7 @@ export function forClient(project: Project): Project {
     block: undefined,
     parcel: undefined,
     details: project.details ? { ...project.details, financingBank: "" } : project.details,
-    facts: project.facts?.filter((fact) => !MEETING_ONLY_FACT.test(fact.label)),
+    facts: project.facts?.filter((fact) => !MEETING_ONLY_FACT.test(fact.label) && !MEETING_ONLY_FACT.test(fact.value)),
   };
 }
 
@@ -140,10 +140,11 @@ export async function loadSharedPresentation(
   const signed = objects.length ? await data.signUrls(objects, SIGNED_URL_TTL_SECONDS) : new Map<string, string>();
   const urlFor = (bucket: string, path: string) => signed.get(`${bucket}/${path}`);
 
-  const apartments = selectedRows.map((row) => {
-    const apartment = mapApartment(row, urlFor);
-    return link.show_prices ? apartment : { ...apartment, price: 0, specialPrice: 0 };
-  });
+  // An apartment taken off the market after the link was sent is no longer shown. The storage file name stays internal.
+  const apartments = selectedRows
+    .map((row) => ({ ...mapApartment(row, urlFor), planFileName: undefined }))
+    .filter((apartment) => apartment.status !== "notMarketing")
+    .map((apartment) => (link.show_prices ? apartment : { ...apartment, price: 0, specialPrice: 0 }));
 
   const viewedAt = now.toISOString();
   const lastViewed = link.last_viewed_at ? Date.parse(link.last_viewed_at) : 0;

@@ -129,6 +129,7 @@
 
 .gv-home__title {
   text-align: center;
+  text-shadow: 0 1px 12px rgba(10, 16, 30, 0.7), 0 0 2px rgba(10, 16, 30, 0.5);
 }
 
 .gv-home__title h1 {
@@ -267,10 +268,6 @@ button.gv-tile {
   color: var(--gv-text);
   font: 600 0.95rem var(--gv-sans);
   cursor: pointer;
-}
-
-.gv[dir="ltr"] .gv-back svg {
-  transform: scaleX(-1);
 }
 
 .gv-section-body {
@@ -538,7 +535,7 @@ button.gv-tile {
   font: inherit;
 }
 
-.gv-field [dir="ltr"] {
+.gv[dir="rtl"] .gv-field [dir="ltr"] {
   text-align: end;
 }
 
@@ -673,8 +670,14 @@ button.gv-tile {
 }
 
 @media (max-width: 560px) {
+  /* Icon-only on phones; the label stays readable to screen readers. */
   .gv-meeting-bar__button span {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   .gv-meeting-bar__button--primary span {
@@ -882,6 +885,7 @@ button.gv-tile {
 .gv .icon-button,
 .gv .gallery-toolbar__button,
 .gv .gallery-arrow,
+.gv .zoomable__controls button,
 .gv .plan-viewer__open,
 .gv .poi-filters button {
   border: 1px solid var(--gv-glass-line);
@@ -968,4 +972,71 @@ button.gv-tile {
 .gv .poi-list,
 .gv .poi-group {
   color: var(--gv-text);
+}
+
+/* Remaining old-palette pieces inside Gold View. */
+.gv .lux-table th,
+.gv .lux-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.gv .lux-table th {
+  color: var(--gv-muted);
+}
+
+.gv .lux-table--interactive tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gv .lux-table__row--selected td {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.gv .technical-accordion__icon {
+  border-color: var(--gv-glass-line);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--gv-text);
+}
+
+.gv .gallery-counter,
+.gv .render-caption {
+  background: var(--gv-glass);
+  color: var(--gv-text);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.gv .status-badge--option {
+  color: #1d1a14;
+  background: var(--gv-gold);
+}
+
+.gv .row-icon.active {
+  border-color: var(--gv-glass-line);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gv .model3d-frame,
+.gv .feature-block__video iframe {
+  background: rgba(10, 16, 30, 0.6);
+}
+
+@media print {
+  .gv,
+  .gv * {
+    color: #111 !important;
+    background: transparent !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .gv-backdrop,
+  .gv-tiles,
+  .gv-cta,
+  .gv-meeting-bar,
+  .language-switcher {
+    display: none !important;
+  }
 }

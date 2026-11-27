@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, LockKeyhole, Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, LockKeyhole, Mail } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { useI18n } from "../i18n/LanguageContext";
@@ -14,7 +14,7 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin, isLoading = false, isConfigured = true, error, isHandoff = false }: LoginScreenProps) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -68,7 +68,7 @@ export function LoginScreen({ onLogin, isLoading = false, isConfigured = true, e
           {error && <p role="alert">{error}</p>}
           <button className="gold-button gold-button--wide" disabled={isLoading || !isConfigured} type="submit">
             {isLoading ? t("login.submitting") : t("login.submit")}
-            <ArrowLeft size={18} />
+            {dir === "rtl" ? <ArrowLeft size={18} aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}
           </button>
         </form>
         )}

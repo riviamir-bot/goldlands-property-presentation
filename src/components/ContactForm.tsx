@@ -25,7 +25,7 @@ export function ContactForm({ initialProjectIds, fallbackProjects, medium = "cli
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initialProjectIds));
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [pickerOpen, setPickerOpen] = useState(false);
-  const startedAt = useRef(Date.now());
+  const startedAt = useRef(performance.now());
 
   useEffect(() => {
     const controller = new AbortController();
@@ -74,16 +74,27 @@ export function ContactForm({ initialProjectIds, fallbackProjects, medium = "cli
           company: form.get("company"),
           consent: form.get("consent") === "on",
           projectIds: [...selected],
-          startedAt: startedAt.current,
+          elapsedMs: Math.round(performance.now() - startedAt.current),
           pageUrl: window.location.href,
           medium,
         }),
       });
       const body = (await response.json().catch(() => ({}))) as { error?: string; field?: string };
       if (response.ok) setStatus({ kind: "sent" });
-      else setStatus({ kind: "error", message: body.error || t("gv.contact.failed"), field: body.field });
+      else setStatus({ kind: "error", message: fieldError(body.field) ?? t("gv.contact.failed"), field: body.field });
     } catch {
       setStatus({ kind: "error", message: t("gv.contact.failed") });
+    }
+  }
+
+  function fieldError(field?: string): string | undefined {
+    switch (field) {
+      case "name": return t("gv.contact.err.name");
+      case "phone": return t("gv.contact.err.phone");
+      case "email": return t("gv.contact.err.email");
+      case "consent": return t("gv.contact.err.consent");
+      case "projectIds": return t("gv.contact.err.projects");
+      default: return undefined;
     }
   }
 

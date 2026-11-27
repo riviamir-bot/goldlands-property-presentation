@@ -81,8 +81,15 @@ export function parseContactRequest(
   const input = value as Record<string, unknown>;
 
   // Bots fill the hidden field or submit instantly. They get a quiet success and nothing is sent.
-  const startedAt = typeof input.startedAt === "number" ? input.startedAt : 0;
-  if (field(input, "company", 200) || !startedAt || now - startedAt < MIN_FILL_MS) {
+  // Time on the form, measured by the browser itself (immune to a wrong device clock).
+  // Older pages send a startedAt timestamp instead.
+  const elapsed =
+    typeof input.elapsedMs === "number" && Number.isFinite(input.elapsedMs)
+      ? input.elapsedMs
+      : typeof input.startedAt === "number" && input.startedAt > 0
+        ? now - input.startedAt
+        : 0;
+  if (field(input, "company", 200) || elapsed < MIN_FILL_MS) {
     return { ok: false, error: "spam", spam: true };
   }
 

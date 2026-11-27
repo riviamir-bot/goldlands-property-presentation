@@ -18,7 +18,6 @@ export interface TechnicalSpecSection {
   items: string[];
 }
 
-export const defaultOverviewSpecIds = ["structure", "apartment", "kitchen"];
 
 export const technicalSpecSections: TechnicalSpecSection[] = [
   {
@@ -102,14 +101,14 @@ const technicalIconMap: Record<string, LucideIcon> = {
 };
 
 export function TechnicalSpecAccordion({
-  defaultOpenIds = defaultOverviewSpecIds,
+  defaultOpenIds = [],
   variant = "overview",
   sections,
 }: TechnicalSpecAccordionProps) {
   const visibleSections = sections?.map((section) => ({
     ...section,
     icon: technicalIconMap[section.id] ?? Building2,
-  })) ?? technicalSpecSections;
+  })) ?? [];
 
   return (
     <div className={`technical-accordion technical-accordion--${variant}`}>
@@ -126,11 +125,11 @@ export function TechnicalSpecAccordion({
               <span className="technical-accordion__icon" aria-hidden="true">
                 <Icon size={20} strokeWidth={1.7} />
               </span>
-              <strong>{section.title}</strong>
+              <strong dir="auto">{section.title}</strong>
             </summary>
             <ul>
               {section.items.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item} dir="auto">{item}</li>
               ))}
             </ul>
           </details>

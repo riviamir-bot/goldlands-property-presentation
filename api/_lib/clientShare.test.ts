@@ -14,6 +14,7 @@ const OTHER = "22222222-2222-4222-8222-222222222222";
 const A1 = "aaaaaaaa-0000-4000-8000-000000000001";
 const A2 = "aaaaaaaa-0000-4000-8000-000000000002";
 const SOLD = "aaaaaaaa-0000-4000-8000-000000000003";
+const OFF = "aaaaaaaa-0000-4000-8000-000000000004";
 const now = new Date("2026-11-22T12:00:00Z");
 
 const project: MarketingProjectRow = {
@@ -50,7 +51,7 @@ function fake(options: { role?: string; scope?: string[]; recentOpen?: boolean; 
     getActiveMarketerId: async () => "m1",
     getMarketerProjectIds: async () => options.scope ?? [PROJECT],
     listProjects: async (scope) => [project].filter((row) => scope === null || scope.includes(row.id)),
-    listApartments: async (ids) => [apt(A1), apt(A2), apt(SOLD, "sold")].filter((row) => ids.includes(row.project_id)),
+    listApartments: async (ids) => [apt(A1), apt(A2), apt(SOLD, "sold"), apt(OFF, "not_for_sale")].filter((row) => ids.includes(row.project_id)),
     listRenders: async () => [],
     listDocuments: async () => [{ id: "d", project_id: PROJECT, document_type: "price_list", filename: "internal.xlsx", storage_bucket: "b", storage_path: "p/d.xlsx", created_at: "2026-01-01" }],
     signUrls: async (items) => new Map(items.map((item) => [`${item.bucket}/${item.path}`, `https://signed/${item.path}`])),
@@ -126,6 +127,13 @@ describe("loadSharedPresentation", () => {
     expect(res.body.project.details?.financingBank ?? "").toBe("");
     expect(res.body.language).toBe("en");
     expect(JSON.stringify(res.body)).not.toContain("internal.xlsx");
+  });
+
+  it("drops apartments taken off the market after the link was sent", async () => {
+    const res = await loadSharedPresentation(fake({ link: { token, apartment_ids: [A1, OFF] } }), token, now);
+    if (res.status !== 200) throw new Error("expected 200");
+    expect(res.body.apartments.map((a) => a.id)).toEqual([A1]);
+    expect(res.body.apartments.every((a) => a.planFileName === undefined)).toBe(true);
   });
 
   it("hides every price when the link was created without prices", async () => {
