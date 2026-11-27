@@ -233,7 +233,7 @@ export default function App() {
         <ShareDialog
           project={selectedProject}
           apartments={[]}
-          defaultShowPrices={false}
+          defaultShowPrices={meeting.showPrices}
           withToken={withToken}
           onClose={() => setIsProjectShareOpen(false)}
         />

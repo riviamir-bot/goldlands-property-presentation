@@ -89,12 +89,12 @@ describe("createShareLink", () => {
     expect(data.events).toEqual([{ projectId: PROJECT, userId: "u1", eventType: "share_link_created", shareLinkId: "link-1" }]);
   });
 
-  it("creates a project-only link with no apartments and no prices", async () => {
+  it("creates a project link with no chosen apartments", async () => {
     const data = fake();
     const result = await createShareLink(data, "Bearer good", body({ apartmentIds: [], showPrices: true }), "https://app.example", now);
     expect(result.status).toBe(201);
     expect(data.links[0].apartment_ids).toEqual([]);
-    expect(data.links[0].show_prices).toBe(false);
+    expect(data.links[0].show_prices).toBe(true);
   });
 
   it("rejects apartments that are sold, deleted or from another project, and malformed input", async () => {
@@ -134,6 +134,13 @@ describe("loadSharedPresentation", () => {
     expect(res.body.project.details?.financingBank ?? "").toBe("");
     expect(res.body.language).toBe("en");
     expect(JSON.stringify(res.body)).not.toContain("internal.xlsx");
+  });
+
+  it("a project link shows every apartment still on the market, with prices", async () => {
+    const res = await loadSharedPresentation(fake({ link: { token, apartment_ids: [] } }), token, now);
+    if (res.status !== 200) throw new Error("expected 200");
+    expect(res.body.apartments.map((a) => a.id)).toEqual([A1, A2]);
+    expect(res.body.showPrices).toBe(true);
   });
 
   it("drops apartments taken off the market after the link was sent", async () => {
