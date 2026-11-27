@@ -18,6 +18,16 @@ export const SIGNED_URL_TTL_SECONDS = 21600;
 export interface StorageObjectRef {
   bucket: string;
   path: string;
+  /** Serve a resized copy (Supabase image transformation) instead of the original file. */
+  resizeWidth?: number;
+}
+
+/** Renders are uploaded at print size (often 3–8 MB). Screens get a resized copy, about a tenth of the weight. */
+export const RENDER_DISPLAY_WIDTH = 1920;
+const RESIZABLE_IMAGE = /\.(jpe?g|png|webp)$/i;
+
+export function renderObject(bucket: string, path: string): StorageObjectRef {
+  return RESIZABLE_IMAGE.test(path) ? { bucket, path, resizeWidth: RENDER_DISPLAY_WIDTH } : { bucket, path };
 }
 
 export interface MarketingData extends MarketingReader {
@@ -140,7 +150,8 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
     .sort(compareApartments);
 
   const storageObjects = [
-    ...[...renderRows, ...documentRows]
+    ...renderRows.filter((row) => inScope.has(row.project_id)).map((row) => renderObject(row.storage_bucket, row.storage_path)),
+    ...documentRows
       .filter((row) => inScope.has(row.project_id))
       .map((row) => ({ bucket: row.storage_bucket, path: row.storage_path })),
     ...apartmentRows
