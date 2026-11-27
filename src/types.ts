@@ -185,6 +185,8 @@ export interface Project {
   facts?: ProjectFact[];
   featureBlocks?: ProjectFeatureBlock[];
   legalDisclaimer?: string;
+  /** The Hebrew address the map geocodes; set when the shown address is translated, because the map search only knows Hebrew street names. */
+  geoQuery?: { address: string; city: string };
   /** Reviewed English/French texts; a missing language or field shows the Hebrew text. */
   translations?: Partial<Record<"en" | "fr", ProjectTranslation>>;
 }
