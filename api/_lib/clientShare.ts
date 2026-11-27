@@ -8,7 +8,8 @@ export const SHARE_TTL_DAYS = 30;
 const EVENT_THROTTLE_MS = 30 * 60 * 1000;
 const MAX_APARTMENTS = 50;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TOKEN = /^[A-Za-z0-9_-]{43}$/;
+/** New links have 12 characters (72 random bits); links sent before have 43, and keep working. */
+const TOKEN = /^(?:[A-Za-z0-9_-]{12}|[A-Za-z0-9_-]{43})$/;
 const LANGUAGES = ["he", "en", "fr"] as const;
 type ShareLanguage = (typeof LANGUAGES)[number];
 
@@ -20,7 +21,7 @@ export function hashToken(token: string) {
 }
 
 function newToken() {
-  return randomBytes(32).toString("base64url");
+  return randomBytes(9).toString("base64url");
 }
 
 interface ShareRequest {

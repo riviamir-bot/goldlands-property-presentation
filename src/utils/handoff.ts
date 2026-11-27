@@ -4,9 +4,9 @@ export function readHandoffToken(hash: string): string | null {
   return match ? match[1] : null;
 }
 
-/** Client summary links have the form /s/<43-character token>. */
+/** Client summary links have the form /s/<token>: 12 characters, or 43 for links sent earlier. */
 export function shareTokenFromPath(pathname: string): string | null {
-  const match = /^\/s\/([A-Za-z0-9_-]{43})\/?$/.exec(pathname);
+  const match = /^\/s\/([A-Za-z0-9_-]{12}|[A-Za-z0-9_-]{43})\/?$/.exec(pathname);
   return match ? match[1] : null;
 }
 
