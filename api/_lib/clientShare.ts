@@ -3,6 +3,7 @@ import type { Apartment, Project } from "../../src/types";
 import { authenticate, renderObject, SIGNED_URL_TTL_SECONDS, type MarketingData } from "./loadPresentation.js";
 import { mapApartment, mapProject, PLAN_BUCKET } from "./mapping.js";
 import { applyProjectContent } from "./projectContent.js";
+import { applyVisibility, hiddenTopics } from "./visibility.js";
 
 export const SHARE_TTL_DAYS = 30;
 const EVENT_THROTTLE_MS = 30 * 60 * 1000;
@@ -130,7 +131,11 @@ export async function loadSharedPresentation(
     data.listProjectContent ? data.listProjectContent([project.id]) : Promise.resolve([]),
     data.listProjectTranslations ? data.listProjectTranslations([project.id]) : Promise.resolve([]),
   ]);
-  const activeRows = apartmentRows.filter((row) => !row.deleted_at && row.project_id === project.id);
+  const hidden = hiddenTopics(project.presentation_hidden_topics);
+  // Apartments hidden from the client view in the marketing system are not shown on links either.
+  const activeRows = hidden.has("apartments")
+    ? []
+    : apartmentRows.filter((row) => !row.deleted_at && row.project_id === project.id);
   // A link with no chosen apartments is a project link: it shows every apartment still on the market, as of now.
   const selectedRows =
     link.apartment_ids.length === 0
@@ -166,10 +171,13 @@ export async function loadSharedPresentation(
     status: 200,
     body: {
       project: forClient(
-        applyProjectContent(
-          mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
-          contentRows.find((row) => row.project_id === project.id),
-          translationRows.filter((row) => row.project_id === project.id),
+        applyVisibility(
+          applyProjectContent(
+            mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
+            contentRows.find((row) => row.project_id === project.id),
+            translationRows.filter((row) => row.project_id === project.id),
+          ),
+          hidden,
         ),
       ),
       apartments,

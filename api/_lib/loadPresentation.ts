@@ -2,6 +2,7 @@ import type { Apartment, Project } from "../../src/types";
 import { resolveUser, type MarketingReader, type PresentationUser, type ProjectScope } from "./access.js";
 import { EXCLUDED_PROJECT_IDS, mapApartment, mapProject, PLAN_BUCKET } from "./mapping.js";
 import { applyProjectContent, mapTranslations } from "./projectContent.js";
+import { applyVisibility, hiddenTopics } from "./visibility.js";
 import type {
   MarketingProjectContentRow,
   MarketingProjectTranslationRow,
@@ -150,8 +151,10 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
   const translationsByProject = byKey(translationRows, (row) => row.project_id);
   const contentByProject = new Map(contentRows.map((row) => [row.project_id, row]));
   const inScope = new Set(projectIds);
+  const hiddenByProject = new Map(projectRows.map((row) => [row.id, hiddenTopics(row.presentation_hidden_topics)]));
   const apartmentRows = apartmentRowsRaw
     .filter((row) => !row.deleted_at && inScope.has(row.project_id))
+    .filter((row) => !hiddenByProject.get(row.project_id)?.has("apartments"))
     .sort(compareApartments);
 
   const storageObjects = [
@@ -178,17 +181,20 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
     body: {
       user,
       projects: projectRows.map((row) =>
-        applyProjectContent(
-          mapProject(
-            row,
-            rendersByProject.get(row.id) ?? [],
-            documentsByProject.get(row.id) ?? [],
-            apartmentsByProject.get(row.id) ?? [],
-            urlFor,
-            renderGroupsByProject.get(row.id) ?? [],
+        applyVisibility(
+          applyProjectContent(
+            mapProject(
+              row,
+              rendersByProject.get(row.id) ?? [],
+              documentsByProject.get(row.id) ?? [],
+              apartmentsByProject.get(row.id) ?? [],
+              urlFor,
+              renderGroupsByProject.get(row.id) ?? [],
+            ),
+            contentByProject.get(row.id),
+            translationsByProject.get(row.id) ?? [],
           ),
-          contentByProject.get(row.id),
-          translationsByProject.get(row.id) ?? [],
+          hiddenByProject.get(row.id) ?? new Set(),
         ),
       ),
       apartments: apartmentRows.map((row) => mapApartment(row, urlFor)),
