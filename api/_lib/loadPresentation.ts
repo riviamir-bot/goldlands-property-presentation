@@ -2,7 +2,7 @@ import type { Apartment, Project } from "../../src/types";
 import { resolveUser, type MarketingReader, type PresentationUser, type ProjectScope } from "./access.js";
 import { EXCLUDED_PROJECT_IDS, mapApartment, mapProject, PLAN_BUCKET } from "./mapping.js";
 import { applyProjectContent, mapTranslations } from "./projectContent.js";
-import { applyVisibility, hiddenTopics } from "./visibility.js";
+import { applyVisibility, buildSharedDetails, documentLinks, hiddenTopics } from "./visibility.js";
 import type {
   MarketingProjectContentRow,
   MarketingProjectTranslationRow,
@@ -108,6 +108,10 @@ function byKey<T>(rows: T[], keyOf: (row: T) => string) {
   return groups;
 }
 
+function withSharedDetails(project: Project, sharedDetails: Project["sharedDetails"]): Project {
+  return sharedDetails ? { ...project, sharedDetails } : project;
+}
+
 function compareProjects(a: MarketingProjectRow, b: MarketingProjectRow) {
   const aOrder = a.sort_order ?? Number.MAX_SAFE_INTEGER;
   const bOrder = b.sort_order ?? Number.MAX_SAFE_INTEGER;
@@ -152,6 +156,7 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
   const contentByProject = new Map(contentRows.map((row) => [row.project_id, row]));
   const inScope = new Set(projectIds);
   const hiddenByProject = new Map(projectRows.map((row) => [row.id, hiddenTopics(row.presentation_hidden_topics)]));
+  const shownByProject = new Map(projectRows.map((row) => [row.id, hiddenTopics(row.presentation_shown_topics)]));
   const apartmentRows = apartmentRowsRaw
     .filter((row) => !row.deleted_at && inScope.has(row.project_id))
     .filter((row) => !hiddenByProject.get(row.project_id)?.has("apartments"))
@@ -181,7 +186,8 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
     body: {
       user,
       projects: projectRows.map((row) =>
-        applyVisibility(
+        withSharedDetails(
+          applyVisibility(
           applyProjectContent(
             mapProject(
               row,
@@ -195,6 +201,12 @@ export async function loadPresentation(data: MarketingData, bearer: string | und
             translationsByProject.get(row.id) ?? [],
           ),
           hiddenByProject.get(row.id) ?? new Set(),
+          ),
+          buildSharedDetails(
+            row,
+            shownByProject.get(row.id) ?? new Set(),
+            documentLinks(documentsByProject.get(row.id) ?? [], urlFor),
+          ),
         ),
       ),
       apartments: apartmentRows.map((row) => mapApartment(row, urlFor)),

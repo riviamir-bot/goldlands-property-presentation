@@ -3,7 +3,7 @@ import type { Apartment, Project } from "../../src/types";
 import { authenticate, renderObject, SIGNED_URL_TTL_SECONDS, type MarketingData } from "./loadPresentation.js";
 import { mapApartment, mapProject, PLAN_BUCKET } from "./mapping.js";
 import { applyProjectContent } from "./projectContent.js";
-import { applyVisibility, hiddenTopics } from "./visibility.js";
+import { applyVisibility, buildSharedDetails, documentLinks, hiddenTopics, needsDocuments } from "./visibility.js";
 
 export const SHARE_TTL_DAYS = 30;
 const EVENT_THROTTLE_MS = 30 * 60 * 1000;
@@ -108,6 +108,10 @@ export function forClient(project: Project): Project {
   };
 }
 
+function withShared(project: Project, sharedDetails: Project["sharedDetails"]): Project {
+  return sharedDetails ? { ...project, sharedDetails } : project;
+}
+
 /** Public: the client's view of a summary link. No sign-in; everything is limited to what the marketer chose. */
 export async function loadSharedPresentation(
   data: MarketingData,
@@ -132,6 +136,8 @@ export async function loadSharedPresentation(
     data.listProjectTranslations ? data.listProjectTranslations([project.id]) : Promise.resolve([]),
   ]);
   const hidden = hiddenTopics(project.presentation_hidden_topics);
+  const shown = hiddenTopics(project.presentation_shown_topics);
+  const documentRows = needsDocuments(shown) ? (await data.listDocuments([project.id])).filter((row) => row.project_id === project.id) : [];
   // Apartments hidden from the client view in the marketing system are not shown on links either.
   const activeRows = hidden.has("apartments")
     ? []
@@ -149,6 +155,7 @@ export async function loadSharedPresentation(
 
   const objects = [
     ...renderRows.filter((row) => row.project_id === project.id).map((row) => renderObject(row.storage_bucket, row.storage_path)),
+    ...documentRows.map((row) => ({ bucket: row.storage_bucket, path: row.storage_path })),
     ...selectedRows.filter((row) => row.plan_storage_path).map((row) => ({ bucket: PLAN_BUCKET, path: row.plan_storage_path as string })),
   ];
   const signed = objects.length ? await data.signUrls(objects, SIGNED_URL_TTL_SECONDS) : new Map<string, string>();
@@ -170,7 +177,8 @@ export async function loadSharedPresentation(
   return {
     status: 200,
     body: {
-      project: forClient(
+      project: withShared(
+        forClient(
         applyVisibility(
           applyProjectContent(
             mapProject(project, renderRows, [], activeRows, urlFor, renderGroupRows),
@@ -179,6 +187,8 @@ export async function loadSharedPresentation(
           ),
           hidden,
         ),
+        ),
+        buildSharedDetails(project, shown, documentLinks(documentRows, urlFor)),
       ),
       apartments,
       showPrices: link.show_prices,

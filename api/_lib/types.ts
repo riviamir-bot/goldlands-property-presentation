@@ -24,6 +24,12 @@ export interface MarketingProjectRow {
   additional_links: unknown;
   /** Topics hidden from the client view; missing before the column exists. */
   presentation_hidden_topics?: unknown;
+  /** Topics shown although hidden by default; missing before the column exists. */
+  presentation_shown_topics?: unknown;
+  company_number?: string | null;
+  price_list_url?: string | null;
+  presentation_url?: string | null;
+  registration_form_url?: string | null;
 }
 
 export interface MarketingApartmentRow {

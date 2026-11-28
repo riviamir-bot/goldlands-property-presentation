@@ -1,4 +1,6 @@
-import type { Project, ProjectTranslation } from "../../src/types";
+import type { Project, ProjectTranslation, SharedProjectDetails } from "../../src/types";
+import { pickCurrentDocuments } from "./mapping.js";
+import type { MarketingDocumentRow, MarketingProjectRow, SignedUrlLookup } from "./types";
 
 /**
  * Topics a manager can hide from the client view, per project, in the marketing system
@@ -14,6 +16,20 @@ export const VISIBILITY_TOPICS = [
   "apartments",
   "renders",
   "model_3d",
+  // Not shown unless a manager ticks them (projects.presentation_shown_topics).
+  "project_type",
+  "company_number",
+  "financing_bank",
+  "block",
+  "parcel",
+  "building_count",
+  "existing_units",
+  "new_units",
+  "construction_start_date",
+  "price_list",
+  "presentation_link",
+  "registration_form",
+  "website",
 ] as const;
 export type VisibilityTopic = (typeof VISIBILITY_TOPICS)[number];
 
@@ -106,4 +122,78 @@ export function applyVisibility(project: Project, hidden: ReadonlySet<Visibility
   next.details = details;
   if (project.translations) next.translations = translations;
   return next;
+}
+
+function text(value: string | null | undefined) {
+  return (value ?? "").trim();
+}
+
+function count(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? String(value) : "";
+}
+
+function httpsLink(value: string | null | undefined) {
+  try {
+    const url = new URL(text(value));
+    return url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+const DOCUMENT_TOPICS = { price_list: "price_list", presentation_link: "presentation", registration_form: "registration_form" } as const;
+
+/** Signed link of the newest stored file of each link topic. */
+export function documentLinks(documents: MarketingDocumentRow[], urlFor: SignedUrlLookup) {
+  const links: Partial<Record<keyof typeof DOCUMENT_TOPICS, string>> = {};
+  const current = pickCurrentDocuments(documents);
+  for (const [topic, documentType] of Object.entries(DOCUMENT_TOPICS) as Array<[keyof typeof DOCUMENT_TOPICS, string]>) {
+    const document = current.find((item) => item.document_type === documentType);
+    const url = document ? urlFor(document.storage_bucket, document.storage_path) : undefined;
+    if (url) links[topic] = url;
+  }
+  return links;
+}
+
+/** True when a link topic is ticked: the file is needed to build its link. */
+export function needsDocuments(shown: ReadonlySet<VisibilityTopic>) {
+  return shown.has("price_list") || shown.has("presentation_link") || shown.has("registration_form");
+}
+
+/**
+ * The details a manager ticked "shown to the client" for. Nothing is read for a topic that is not ticked, and a
+ * ticked topic without a value is left out. A stored file wins over the pasted link of the same topic.
+ */
+export function buildSharedDetails(
+  row: MarketingProjectRow,
+  shown: ReadonlySet<VisibilityTopic>,
+  stored: ReturnType<typeof documentLinks> = {},
+): SharedProjectDetails | undefined {
+  if (shown.size === 0) return undefined;
+  const details: SharedProjectDetails = {};
+  const set = <K extends keyof SharedProjectDetails>(topic: VisibilityTopic, key: K, value: SharedProjectDetails[K]) => {
+    if (shown.has(topic) && value) details[key] = value;
+  };
+  set("project_type", "projectType", text(row.project_type));
+  set("company_number", "companyNumber", text(row.company_number));
+  set("financing_bank", "financingBank", text(row.financing_bank));
+  set("block", "block", text(row.block));
+  set("parcel", "parcel", text(row.parcel));
+  set("building_count", "buildingCount", count(row.building_count));
+  set("existing_units", "existingUnits", count(row.existing_units));
+  set("new_units", "newUnits", count(row.new_units));
+  set("construction_start_date", "constructionStartDate", /^(\d{4}-\d{2}-\d{2})/.exec(row.construction_start_date ?? "")?.[1] ?? "");
+
+  const links: NonNullable<SharedProjectDetails["links"]> = {};
+  const priceList = shown.has("price_list") ? stored.price_list || httpsLink(row.price_list_url) : "";
+  const presentation = shown.has("presentation_link") ? stored.presentation_link || httpsLink(row.presentation_url) : "";
+  const registrationForm = shown.has("registration_form") ? stored.registration_form || httpsLink(row.registration_form_url) : "";
+  const website = shown.has("website") ? httpsLink(row.project_website_url) : "";
+  if (priceList) links.priceList = priceList;
+  if (presentation) links.presentation = presentation;
+  if (registrationForm) links.registrationForm = registrationForm;
+  if (website) links.website = website;
+  if (Object.keys(links).length > 0) details.links = links;
+
+  return Object.keys(details).length > 0 ? details : undefined;
 }

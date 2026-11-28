@@ -120,6 +120,22 @@ export interface ProjectDetails {
   websiteUrl: string;
 }
 
+/** Details a manager ticked "shown to the client" for in the marketing system; none are shown unless ticked. */
+export interface SharedProjectDetails {
+  projectType?: string;
+  companyNumber?: string;
+  financingBank?: string;
+  block?: string;
+  parcel?: string;
+  buildingCount?: string;
+  existingUnits?: string;
+  newUnits?: string;
+  /** ISO date (YYYY-MM-DD). */
+  constructionStartDate?: string;
+  /** https links only. */
+  links?: { priceList?: string; presentation?: string; registrationForm?: string; website?: string };
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -175,6 +191,8 @@ export interface Project {
   technicalSpecNotes?: string[];
   technicalSpecSections?: TechnicalSpecSectionData[];
   details?: ProjectDetails;
+  /** Extra details chosen in the marketing system; set by the server, only for topics a manager ticked. */
+  sharedDetails?: SharedProjectDetails;
   /** Embeddable interactive 3D model, https only; empty when the project has none. */
   model3dUrl?: string;
   /** Gold View content (published rows of presentation_project_content). */
