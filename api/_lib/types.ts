@@ -22,6 +22,8 @@ export interface MarketingProjectRow {
   construction_completion_date: string | null;
   project_website_url: string | null;
   additional_links: unknown;
+  /** Topics hidden from the client view; missing before the column exists. */
+  presentation_hidden_topics?: unknown;
 }
 
 export interface MarketingApartmentRow {

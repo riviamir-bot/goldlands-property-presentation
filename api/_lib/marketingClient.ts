@@ -23,6 +23,7 @@ const CONTENT_COLUMNS =
   "project_id, status, tagline, description, neighborhood, location_description, developer_name, developer_about, developer_website, architect, facts, spec_sections, feature_blocks, legal_disclaimer";
 /** Postgres "undefined table" and PostgREST "table not in schema cache". */
 const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
+const UNDEFINED_COLUMN_CODE = "42703";
 const DOCUMENT_COLUMNS = "id, project_id, document_type, filename, storage_bucket, storage_path, created_at";
 
 export class MarketingConfigurationError extends Error {
@@ -88,9 +89,17 @@ export function createMarketingData(): MarketingData {
     },
 
     async listProjects(scope) {
-      let query = client.from("projects").select(PROJECT_COLUMNS).is("deleted_at", null);
-      if (scope !== null) query = query.in("id", scope);
-      return unwrap(await query, []) as MarketingProjectRow[];
+      const read = async (columns: string) => {
+        let query = client.from("projects").select(columns).is("deleted_at", null);
+        if (scope !== null) query = query.in("id", scope);
+        return query;
+      };
+      const result = await read(`${PROJECT_COLUMNS}, presentation_hidden_topics`);
+      // Before the visibility column exists everything is shown, as it was.
+      if ((result.error as { code?: string } | null)?.code === UNDEFINED_COLUMN_CODE) {
+        return unwrap(await read(PROJECT_COLUMNS), []) as unknown as MarketingProjectRow[];
+      }
+      return unwrap(result, []) as unknown as MarketingProjectRow[];
     },
 
     async listApartments(projectIds) {
