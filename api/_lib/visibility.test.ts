@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Project } from "../../src/types";
-import { applyVisibility, hiddenTopics } from "./visibility";
+import type { MarketingProjectRow } from "./types";
+import { applyVisibility, buildSharedDetails, hiddenTopics } from "./visibility";
 
 const project = {
   id: "p1",
@@ -74,5 +75,48 @@ describe("applyVisibility", () => {
     expect(result.keyFacts).toEqual(["שלד"]);
     expect(result.description).toBe("תיאור");
     expect(project.stats.units).toBe("40");
+  });
+});
+
+describe("buildSharedDetails", () => {
+  const row = {
+    id: "p1",
+    project_type: "פרויקט חדש",
+    company_number: " 515000000 ",
+    financing_bank: "בנק הפועלים",
+    block: "6100",
+    parcel: "12",
+    building_count: 2,
+    existing_units: 0,
+    new_units: 40,
+    construction_start_date: "2027-03-01T00:00:00Z",
+    price_list_url: "https://example.com/prices.pdf",
+    presentation_url: "http://insecure.example.com/deck",
+    registration_form_url: "https://example.com/form",
+    project_website_url: "https://example.com",
+  } as unknown as MarketingProjectRow;
+
+  it("shows nothing unless a topic is ticked", () => {
+    expect(buildSharedDetails(row, new Set())).toBeUndefined();
+  });
+
+  it("shows only the ticked topics that have a value", () => {
+    const result = buildSharedDetails(row, hiddenTopics(["block", "parcel", "existing_units", "new_units", "company_number", "construction_start_date"]));
+    expect(result).toEqual({
+      block: "6100",
+      parcel: "12",
+      newUnits: "40",
+      companyNumber: "515000000",
+      constructionStartDate: "2027-03-01",
+    });
+  });
+
+  it("links only https addresses, preferring a stored file", () => {
+    const shown = hiddenTopics(["price_list", "presentation_link", "registration_form", "website"]);
+    expect(buildSharedDetails(row, shown, { price_list: "https://signed/prices" })?.links).toEqual({
+      priceList: "https://signed/prices",
+      registrationForm: "https://example.com/form",
+      website: "https://example.com/",
+    });
   });
 });

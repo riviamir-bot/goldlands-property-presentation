@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, type LucideIcon } from "lucide-react";
 import { useI18n } from "../i18n/LanguageContext";
-import { translateConstructionStage } from "../i18n/project-values";
+import { translateConstructionStage, translateProjectType } from "../i18n/project-values";
 import type { Project } from "../types";
 import { formatMonthYear } from "../utils/format";
 import { BrandLogo } from "./BrandLogo";
@@ -127,6 +127,29 @@ export function AboutSection({ project }: { project: Project }) {
       [t("overview.architect"), project.architect ?? ""],
     ] as Array<[string, string]>
   ).filter(([, value]) => present(value));
+  const shared = project.sharedDetails;
+  const sharedFacts = (
+    shared
+      ? [
+          [t("overview.type"), shared.projectType ? translateProjectType(shared.projectType, language) : ""],
+          [t("overview.companyNumber"), shared.companyNumber ?? ""],
+          [t("overview.bank"), shared.financingBank ?? ""],
+          [t("overview.block"), shared.block ?? ""],
+          [t("overview.parcel"), shared.parcel ?? ""],
+          [t("overview.buildings"), shared.buildingCount ?? ""],
+          [t("overview.existingUnits"), shared.existingUnits ?? ""],
+          [t("overview.newUnits"), shared.newUnits ?? ""],
+          [t("overview.start"), formatMonthYear(shared.constructionStartDate ?? "", language)],
+        ]
+      : []
+  ).filter((entry): entry is [string, string] => present(entry[1]));
+  const allFacts = [...facts, ...sharedFacts];
+  const links = [
+    [t("overview.priceList"), shared?.links?.priceList],
+    [t("overview.presentation"), shared?.links?.presentation],
+    [t("overview.registrationForm"), shared?.links?.registrationForm],
+    [t("overview.website"), shared?.links?.website],
+  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
   return (
     <>
       <Panel>
@@ -137,16 +160,27 @@ export function AboutSection({ project }: { project: Project }) {
         )}
         <Paragraphs text={project.description} />
       </Panel>
-      {facts.length > 0 && (
+      {allFacts.length > 0 && (
         <Panel>
           <dl className="gv-facts">
-            {facts.map(([label, value]) => (
+            {allFacts.map(([label, value]) => (
               <div key={label}>
                 <dt>{label}</dt>
                 <dd dir="auto">{value}</dd>
               </div>
             ))}
           </dl>
+        </Panel>
+      )}
+      {links.length > 0 && (
+        <Panel>
+          <div className="gv-links">
+            {links.map(([label, url]) => (
+              <a key={label} className="gv-cta gv-cta--compact" href={url} target="_blank" rel="noreferrer">
+                {label}
+              </a>
+            ))}
+          </div>
         </Panel>
       )}
       {project.developerAbout && (

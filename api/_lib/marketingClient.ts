@@ -14,7 +14,7 @@ import type {
 } from "./types";
 
 const PROJECT_COLUMNS =
-  "id, slug, name, address, city, status, units, new_units, existing_units, building_count, description, project_type, construction_stage, block, parcel, sort_order, deleted_at, developer_company, financing_bank, construction_start_date, construction_completion_date, project_website_url, additional_links";
+  "id, slug, name, address, city, status, units, new_units, existing_units, building_count, description, project_type, construction_stage, block, parcel, sort_order, deleted_at, developer_company, financing_bank, construction_start_date, construction_completion_date, project_website_url, additional_links, company_number, price_list_url, presentation_url, registration_form_url";
 const APARTMENT_COLUMNS =
   "id, project_id, apartment_number, building, floor, rooms, area, balcony_area, price, status, deleted_at, plan_storage_path, plan_filename, plan_content_type";
 const RENDER_COLUMNS = "id, project_id, filename, storage_bucket, storage_path, sort_order, is_featured, modified_at, group_id";
@@ -24,6 +24,7 @@ const CONTENT_COLUMNS =
 /** Postgres "undefined table" and PostgREST "table not in schema cache". */
 const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
 const UNDEFINED_COLUMN_CODE = "42703";
+const VISIBILITY_COLUMN_SETS = ["presentation_hidden_topics, presentation_shown_topics", "presentation_hidden_topics", ""];
 const DOCUMENT_COLUMNS = "id, project_id, document_type, filename, storage_bucket, storage_path, created_at";
 
 export class MarketingConfigurationError extends Error {
@@ -94,12 +95,13 @@ export function createMarketingData(): MarketingData {
         if (scope !== null) query = query.in("id", scope);
         return query;
       };
-      const result = await read(`${PROJECT_COLUMNS}, presentation_hidden_topics`);
-      // Before the visibility column exists everything is shown, as it was.
-      if ((result.error as { code?: string } | null)?.code === UNDEFINED_COLUMN_CODE) {
-        return unwrap(await read(PROJECT_COLUMNS), []) as unknown as MarketingProjectRow[];
+      // Before the visibility columns exist everything is shown, as it was.
+      for (const extra of VISIBILITY_COLUMN_SETS) {
+        const result = await read(extra ? `${PROJECT_COLUMNS}, ${extra}` : PROJECT_COLUMNS);
+        if ((result.error as { code?: string } | null)?.code === UNDEFINED_COLUMN_CODE && extra) continue;
+        return unwrap(result, []) as unknown as MarketingProjectRow[];
       }
-      return unwrap(result, []) as unknown as MarketingProjectRow[];
+      return [];
     },
 
     async listApartments(projectIds) {
@@ -166,7 +168,7 @@ export function createMarketingData(): MarketingData {
         .from("project_document_assets")
         .select(DOCUMENT_COLUMNS)
         .in("project_id", projectIds)
-        .in("document_type", ["price_list", "presentation"]);
+        .in("document_type", ["price_list", "presentation", "registration_form"]);
       return unwrap(result, []) as MarketingDocumentRow[];
     },
 
